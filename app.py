@@ -4,51 +4,89 @@ import sqlite3
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
+
 BOT_TOKEN = "8416599811:AAG3WvG-3Pd7hqSUvIMw7r4Gzfg5sz3-MC4"
+RENDER_URL = "https://gbh-wallet.onrender.com"
 
-# Render አድራሻዎን እዚህ ያስገቡ (ለምሳሌ https://gbh-wallet.onrender.com)
-RENDER_URL = "https://YOUR-APP-NAME.onrender.com"  
+# TON CENTER API (ለብሎክቼይን መረጃዎች ማረጋገጫ)
+TONCENTER_API_KEY = "" # አስፈላጊ ከሆነ ከ @toncenter_bot የራሶትን API Key መውሰድ ይችላሉ
+TONCENTER_BASE_URL = "https://toncenter.com/api/v2/jsonRPC"
+
+# የMaster Wallet አድራሻ (የተጠቃሚዎች ገቢ TON የሚሰበሰብበት ማዕከላዊ ዋሌት)
+MASTER_WALLET_ADDRESS = "EQD...YOUR_MASTER_TON_WALLET_ADDRESS_HERE..."
 
 # ----------------------------------------------------
-# 1. TELEGRAM BOT HANDLER (WEBHOOK)
+# DATABASE INITIALIZATION
 # ----------------------------------------------------
-@app.route(f'/{BOT_TOKEN}', methods=['POST'])
-def telegram_webhook():
-    update = request.get_json()
-    if "message" in update:
-        chat_id = update["message"]["chat"]["id"]
-        text = update["message"].get("text", "")
+def init_db():
+    conn = sqlite3.connect('wallet.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            telegram_id INTEGER PRIMARY KEY,
+            username TEXT,
+            ton_balance REAL DEFAULT 0.0,
+            memo_id TEXT UNIQUE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            telegram_id INTEGER,
+            tx_hash TEXT UNIQUE,
+            amount REAL,
+            type TEXT,
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
-        if text == "/start":
-            # ለተጠቃሚው የሚላክ መልዕክት እና Mini App መክፈቻ በተን
-            welcome_message = "እንኳን ወደ GBH Wallet በሰላም መጡ! 👋\n\nከታች ያለውን **Open GBH Wallet** የሚለውን በተን በመጫን ወደ አፕሊኬሽኑ መግባት ይችላሉ።"
+init_db()
+
+# ----------------------------------------------------
+# REAL TON BLOCKCHAIN CHECKER (FETCH DEPOSITS)
+# ----------------------------------------------------
+def check_blockchain_deposits(telegram_id, memo_id):
+    """
+    ከTONCENTER API ላይ የMaster Wallet የትራንዛክሽን ታሪክ በመፈተሽ
+    በተጠቃሚው Memo ID የተላከ ገቢ TON ካለ ባላንስ ያዘምናል
+    """
+    try:
+        url = f"https://toncenter.com/api/v2/getTransactions?address={MASTER_WALLET_ADDRESS}&limit=20"
+        headers = {"X-API-Key": TONCENTER_API_KEY} if TONCENTER_API_KEY else {}
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            txs = response.json().get('result', [])
+            conn = sqlite3.connect('wallet.db')
+            cursor = conn.cursor()
             
-            payload = {
-                "chat_id": chat_id,
-                "text": welcome_message,
-                "parse_mode": "Markdown",
-                "reply_markup": {
-                    "inline_keyboard": [[
-                        {
-                            "text": "📲 Open GBH Wallet",
-                            "web_app": {"url": f"{RENDER_URL}"}
-                        }
-                    ]]
-                }
-            }
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=payload)
-
-    return "OK", 200
-
-# Webhook በራስ-ሰር Render ሲነሳ ማስተካከያ
-@app.route('/set_webhook', methods=['GET', 'POST'])
-def set_webhook():
-    webhook_url = f"{RENDER_URL}/{BOT_TOKEN}"
-    res = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={webhook_url}")
-    return res.json()
+            for tx in txs:
+                in_msg = tx.get('in_msg', {})
+                comment = in_msg.get('message', '')
+                value_nanoton = int(in_msg.get('value', 0))
+                tx_hash = tx.get('transaction_id', {}).get('hash', '')
+                
+                # የተጠቃሚውን Unique Memo ID ካገኘ እና አዲስ ትራንዛክሽን ከሆነ
+                if comment == str(memo_id) and value_nanoton > 0:
+                    amount_ton = value_nanoton / 1e9  # Convert NanoTON to TON
+                    
+                    # አዲስ ትራንዛክሽን መሆኑን ማረጋገጥ
+                    cursor.execute("SELECT id FROM transactions WHERE tx_hash = ?", (tx_hash,))
+                    if not cursor.fetchone():
+                        cursor.execute("INSERT INTO transactions (telegram_id, tx_hash, amount, type, status) VALUES (?, ?, ?, 'deposit', 'completed')", 
+                                       (telegram_id, tx_hash, amount_ton))
+                        cursor.execute("UPDATE users SET ton_balance = ton_balance + ? WHERE telegram_id = ?", 
+                                       (amount_ton, telegram_id))
+                        conn.commit()
+            conn.close()
+    except Exception as e:
+        print(f"Blockchain check error: {e}")
 
 # ----------------------------------------------------
-# 2. WEB APP & API ROUTES
+# API ENDPOINTS
 # ----------------------------------------------------
 @app.route('/')
 def home():
@@ -65,82 +103,31 @@ def get_user_info():
 
     conn = sqlite3.connect('wallet.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT ton_balance, ton_address FROM users WHERE telegram_id = ?', (telegram_id,))
+    cursor.execute('SELECT ton_balance, memo_id FROM users WHERE telegram_id = ?', (telegram_id,))
     user = cursor.fetchone()
 
     if not user:
-        mock_address = f"EQD{telegram_id}MockTonAddressForDemo"
-        cursor.execute('INSERT INTO users (telegram_id, username, ton_balance, ton_address) VALUES (?, ?, ?, ?)',
-                       (telegram_id, username, 10.0, mock_address))
+        # ለተጠቃሚው ለይቶ ማወቂያ Unique Memo ID መስጠት
+        memo_id = f"GBH{telegram_id}"
+        cursor.execute('INSERT INTO users (telegram_id, username, ton_balance, memo_id) VALUES (?, ?, ?, ?)',
+                       (telegram_id, username, 0.0, memo_id))
         conn.commit()
-        balance, address = 10.0, mock_address
+        balance = 0.0
     else:
-        balance, address = user[0], user[1]
+        balance, memo_id = user[0], user[1]
 
     conn.close()
+
+    # የብሎክቼይን ገቢ ክፍያዎችን በራስ-ሰር መፈተሽ
+    check_blockchain_deposits(telegram_id, memo_id)
+
     return jsonify({
         "telegram_id": telegram_id,
         "username": username,
         "balance": balance,
-        "address": address
+        "master_address": MASTER_WALLET_ADDRESS,
+        "memo_id": memo_id
     })
-
-@app.route('/api/transfer', methods=['POST'])
-def transfer():
-    data = request.json or {}
-    sender_id = data.get('sender_id')
-    recipient_username = str(data.get('recipient_username', '')).replace('@', '').strip()
-    
-    try:
-        amount = float(data.get('amount', 0))
-    except (ValueError, TypeError):
-        return jsonify({"success": False, "message": "እባክዎን ትክክለኛ ቁጥር ያስገቡ"}), 400
-
-    if amount <= 0:
-        return jsonify({"success": False, "message": "ትክክለኛ የገንዘብ መጠን ያስገቡ"}), 400
-
-    conn = sqlite3.connect('wallet.db')
-    cursor = conn.cursor()
-
-    cursor.execute('SELECT ton_balance FROM users WHERE telegram_id = ?', (sender_id,))
-    sender = cursor.fetchone()
-
-    if not sender or sender[0] < amount:
-        conn.close()
-        return jsonify({"success": False, "message": "በቂ የገንዘብ መጠን የለዎትም!"}), 400
-
-    cursor.execute('SELECT telegram_id, ton_balance FROM users WHERE username = ?', (recipient_username,))
-    recipient = cursor.fetchone()
-
-    if not recipient:
-        conn.close()
-        return jsonify({"success": False, "message": "ተቀባዩ በሲስተሙ ውስጥ አልተገኘም!"}), 404
-
-    recipient_id = recipient[0]
-
-    cursor.execute('UPDATE users SET ton_balance = ton_balance - ? WHERE telegram_id = ?', (amount, sender_id))
-    cursor.execute('UPDATE users SET ton_balance = ton_balance + ? WHERE telegram_id = ?', (amount, recipient_id))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({"success": True, "message": f"{amount} TON ለ @{recipient_username} በፍጥነት ተልኳል!"})
-
-def init_db():
-    conn = sqlite3.connect('wallet.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            telegram_id INTEGER PRIMARY KEY,
-            username TEXT,
-            ton_balance REAL DEFAULT 10.0,
-            ton_address TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-init_db()
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
