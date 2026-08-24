@@ -7,11 +7,10 @@ app = Flask(__name__)
 
 BOT_TOKEN = "8416599811:AAG3WvG-3Pd7hqSUvIMw7r4Gzfg5sz3-MC4"
 RENDER_URL = "https://gbh-wallet.onrender.com"
-MASTER_WALLET_ADDRESS = "EQD...YOUR_MASTER_TON_WALLET_ADDRESS_HERE..."
 
-# ----------------------------------------------------
-# DATABASE INITIALIZATION
-# ----------------------------------------------------
+# የእርስዎን ዋና የTON ዋሌት አድራሻ እዚህ ያስገቡ (Deposit የሚደረገው ገንዘብ የሚሰበሰብበት)
+MASTER_TON_ADDRESS = "EQD________________________________________"
+
 def init_db():
     conn = sqlite3.connect('wallet.db')
     cursor = conn.cursor()
@@ -19,8 +18,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             telegram_id INTEGER PRIMARY KEY,
             username TEXT,
+            first_name TEXT,
             ton_balance REAL DEFAULT 0.0,
-            memo_id TEXT UNIQUE
+            memo_id TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.commit()
@@ -28,30 +29,40 @@ def init_db():
 
 init_db()
 
-# ----------------------------------------------------
-# AUTOMATIC WEBHOOK SETUP FUNCTION
-# ----------------------------------------------------
 def auto_setup_webhook():
     try:
         webhook_url = f"{RENDER_URL}/webhook"
         set_url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url={webhook_url}"
-        res = requests.get(set_url, timeout=5)
-        print("Webhook Status:", res.json())
+        requests.get(set_url, timeout=5)
     except Exception as e:
-        print("Webhook setup error:", e)
+        print("Webhook error:", e)
 
-# ----------------------------------------------------
-# TELEGRAM BOT WEBHOOK HANDLER
-# ----------------------------------------------------
 @app.route('/webhook', methods=['POST'])
 def telegram_webhook():
     update = request.get_json() or {}
     if "message" in update:
         chat_id = update["message"]["chat"]["id"]
         text = update["message"].get("text", "")
+        username = update["message"]["chat"].get("username", "")
+        first_name = update["message"]["chat"].get("first_name", "User")
 
         if text == "/start":
-            welcome_msg = "እንኳን ወደ **GBH Wallet** በሰላም መጡ! 👋\n\nከታች ያለውን **Open GBH Wallet** የሚለውን በተን በመጫን ወደ አፕሊኬሽኑ መግባት ይችላሉ።"
+            # አዲስ ተጠቃሚ ሲመጣ አውቶማቲክ ዋሌት እና Memo ID መክፈት
+            conn = sqlite3.connect('wallet.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT memo_id FROM users WHERE telegram_id = ?', (chat_id,))
+            user = cursor.fetchone()
+
+            if not user:
+                memo_id = f"GBH{chat_id}"
+                cursor.execute(
+                    'INSERT INTO users (telegram_id, username, first_name, ton_balance, memo_id) VALUES (?, ?, ?, ?, ?)',
+                    (chat_id, username, first_name, 0.0, memo_id)
+                )
+                conn.commit()
+            conn.close()
+
+            welcome_msg = f"ሰላም **{first_name}**👋\n\nእንኳን ወደ **GBH Wallet** በሰላም መጡ! ዋሌትዎ በስኬት ተከፍቷል።\n\nከታች ያለውን **Open Wallet** በተን በመጫን ሂሳብዎን ማየትና ገንዘብ ማስገባት ይችላሉ።"
             
             payload = {
                 "chat_id": chat_id,
@@ -70,18 +81,17 @@ def telegram_webhook():
 
     return "OK", 200
 
-# ----------------------------------------------------
-# WEB APP ROUTES
-# ----------------------------------------------------
 @app.route('/')
 def home():
     return render_template('index.html')
 
+# የተጠቃሚውን የመለያ መረጃ እና የDeposit መመሪያ ማቅረቢያ API
 @app.route('/api/user_info', methods=['POST'])
 def get_user_info():
     data = request.json or {}
     telegram_id = data.get('telegram_id')
-    username = data.get('username', 'User')
+    username = data.get('username', '')
+    first_name = data.get('first_name', 'User')
 
     if not telegram_id:
         return jsonify({"error": "Invalid user ID"}), 400
@@ -93,8 +103,10 @@ def get_user_info():
 
     if not user:
         memo_id = f"GBH{telegram_id}"
-        cursor.execute('INSERT INTO users (telegram_id, username, ton_balance, memo_id) VALUES (?, ?, ?, ?)',
-                       (telegram_id, username, 0.0, memo_id))
+        cursor.execute(
+            'INSERT INTO users (telegram_id, username, first_name, ton_balance, memo_id) VALUES (?, ?, ?, ?, ?)',
+            (telegram_id, username, first_name, 0.0, memo_id)
+        )
         conn.commit()
         balance = 0.0
     else:
@@ -105,53 +117,12 @@ def get_user_info():
     return jsonify({
         "telegram_id": telegram_id,
         "username": username,
+        "first_name": first_name,
         "balance": balance,
-        "master_address": MASTER_WALLET_ADDRESS,
+        "master_address": MASTER_TON_ADDRESS,
         "memo_id": memo_id
     })
 
-@app.route('/api/transfer', methods=['POST'])
-def transfer():
-    data = request.json or {}
-    sender_id = data.get('sender_id')
-    recipient_username = str(data.get('recipient_username', '')).replace('@', '').strip()
-    
-    try:
-        amount = float(data.get('amount', 0))
-    except (ValueError, TypeError):
-        return jsonify({"success": False, "message": "እባክዎን ትክክለኛ ቁጥር ያስገቡ"}), 400
-
-    if amount <= 0:
-        return jsonify({"success": False, "message": "ትክክለኛ የገንዘብ መጠን ያስገቡ"}), 400
-
-    conn = sqlite3.connect('wallet.db')
-    cursor = conn.cursor()
-
-    cursor.execute('SELECT ton_balance FROM users WHERE telegram_id = ?', (sender_id,))
-    sender = cursor.fetchone()
-
-    if not sender or sender[0] < amount:
-        conn.close()
-        return jsonify({"success": False, "message": "በቂ የገንዘብ መጠን የለዎትም!"}), 400
-
-    cursor.execute('SELECT telegram_id, ton_balance FROM users WHERE username = ?', (recipient_username,))
-    recipient = cursor.fetchone()
-
-    if not recipient:
-        conn.close()
-        return jsonify({"success": False, "message": "ተቀባዩ በሲስተሙ ውስጥ አልተገኘም!"}), 404
-
-    recipient_id = recipient[0]
-
-    cursor.execute('UPDATE users SET ton_balance = ton_balance - ? WHERE telegram_id = ?', (amount, sender_id))
-    cursor.execute('UPDATE users SET ton_balance = ton_balance + ? WHERE telegram_id = ?', (amount, recipient_id))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({"success": True, "message": f"{amount} TON ለ @{recipient_username} በፍጥነት ተልኳል!"})
-
-# አፑ ሲነሳ Webhook በራስ-ሰር እንዲያስተካክል
 auto_setup_webhook()
 
 if __name__ == '__main__':
