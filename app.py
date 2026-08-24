@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from flask import Flask, render_template, request, jsonify
 
@@ -19,6 +20,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Render ላይ አፑ ሲነሳ ዳታቤዙ መፈጠሩን ማረጋገጥ
 init_db()
 
 @app.route('/')
@@ -27,9 +29,12 @@ def home():
 
 @app.route('/api/user_info', methods=['POST'])
 def get_user_info():
-    data = request.json
+    data = request.json or {}
     telegram_id = data.get('telegram_id')
     username = data.get('username', 'User')
+
+    if not telegram_id:
+        return jsonify({"error": "Invalid user ID"}), 400
 
     conn = sqlite3.connect('wallet.db')
     cursor = conn.cursor()
@@ -56,10 +61,14 @@ def get_user_info():
 
 @app.route('/api/transfer', methods=['POST'])
 def transfer():
-    data = request.json
+    data = request.json or {}
     sender_id = data.get('sender_id')
-    recipient_username = data.get('recipient_username').replace('@', '').strip()
-    amount = float(data.get('amount', 0))
+    recipient_username = str(data.get('recipient_username', '')).replace('@', '').strip()
+    
+    try:
+        amount = float(data.get('amount', 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "message": "እባክዎን ትክክለኛ ቁጥር ያስገቡ"}), 400
 
     if amount <= 0:
         return jsonify({"success": False, "message": "ትክክለኛ የገንዘብ መጠን ያስገቡ"}), 400
@@ -83,7 +92,7 @@ def transfer():
         conn.close()
         return jsonify({"success": False, "message": "ተቀባዩ በሲስተሙ ውስጥ አልተገኘም!"}), 404
 
-    recipient_id, recipient_balance = recipient[0], recipient[1]
+    recipient_id = recipient[0]
 
     # Execute transfer
     cursor.execute('UPDATE users SET ton_balance = ton_balance - ? WHERE telegram_id = ?', (amount, sender_id))
@@ -95,4 +104,6 @@ def transfer():
     return jsonify({"success": True, "message": f"{amount} TON ለ @{recipient_username} በፍጥነት ተልኳል!"})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Render የሚያስፈልገውን የPORT አካባቢ ይወስዳል (0.0.0.0 መሆኑ ወሳኝ ነው)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
