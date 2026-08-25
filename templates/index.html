@@ -5,131 +5,188 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GBH Wallet</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
-            background-color: #080c14;
+            font-family: Arial, sans-serif;
+            background-color: #0f172a;
             color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            padding: 20px;
-            text-align: center;
+            padding: 15px;
         }
         .card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(56, 189, 248, 0.2);
-            border-radius: 20px;
+            background-color: #1e293b;
+            border-radius: 12px;
             padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
-        .balance {
-            font-size: 32px;
-            font-weight: bold;
-            color: #38bdf8;
-            margin: 10px 0;
-        }
-        .btn {
-            background: #0284c7;
-            color: #fff;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 10px;
-        }
-        .deposit-box {
-            display: none;
-            text-align: left;
-            background: #0f172a;
-            padding: 15px;
-            border-radius: 12px;
-            margin-top: 15px;
-            word-break: break-all;
-        }
-        .label {
-            font-size: 12px;
-            color: #94a3b8;
-            margin-top: 10px;
-        }
-        .value {
-            font-size: 14px;
-            font-weight: bold;
-            color: #f8fafc;
-            background: #1e293b;
-            padding: 8px;
-            border-radius: 6px;
-        }
-        #qrcode {
+        h2, h3 { color: #38bdf8; margin-top: 0; }
+        .balance-box {
             display: flex;
-            justify-content: center;
-            margin: 15px 0;
+            justify-content: space-between;
+            background: #334155;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
         }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background-color: #0f172a;
+            color: white;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #0284c7;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0369a1; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .PENDING { background-color: #eab308; color: black; }
+        .APPROVED { background-color: #22c55e; color: white; }
+        .REJECTED { background-color: #ef4444; color: white; }
     </style>
 </head>
 <body>
 
+    <!-- 1. የባላንስ ማሳያ Card -->
     <div class="card">
-        <h3 id="user-name">ሰላም ...</h3>
-        <div class="label">የእርስዎ ባላንስ</div>
-        <div class="balance"><span id="balance">0.00</span> TON</div>
+        <h2 id="userName">ሰላም, ... 👋</h2>
+        <p>የመታወቂያ ማረጋገጫ (KYC): <span id="kycStatus" class="status-badge PENDING">ያልተረጋገጠ</span></p>
+        
+        <div class="balance-box">
+            <span>💎 TON ባላንስ:</span>
+            <strong id="tonBalance">0.00 TON</strong>
+        </div>
+        <div class="balance-box">
+            <span>💵 ETB ባላንስ:</span>
+            <strong id="etbBalance">0.00 ETB</strong>
+        </div>
     </div>
 
-    <button class="btn" onclick="toggleDeposit()">📥 ገንዘብ ማስገቢያ (Deposit TON)</button>
+    <!-- 2. የ Chapa ክፍያ (Deposit ETB) -->
+    <div class="card">
+        <h3>💳 በ Chapa ሂሳብ መሙያ (Deposit)</h3>
+        <input type="number" id="depositAmount" placeholder="የሚሞሉት ብር መጠን (ETB)">
+        <button onclick="depositChapa()">በ Chapa ክፈል</button>
+    </div>
 
-    <div id="deposit-section" class="deposit-box">
-        <h4 style="text-align:center; color:#38bdf8; margin-top:0;">የገንዘብ ማስገቢያ መመሪያ</h4>
-        
-        <div class="label">1. የዋሌት አድራሻ (Deposit Address):</div>
-        <div class="value" id="master-address">Loading...</div>
+    <!-- 3. የ KYC መመዝገቢያ ፎርም -->
+    <div class="card">
+        <h3>🆔 የ KYC መታወቂያ ማረጋገጫ</h3>
+        <form id="kycForm">
+            <input type="text" id="fullName" placeholder="ሙሉ ስም" required>
+            <select id="docType">
+                <option value="NATIONAL_ID">የብሔራዊ መታወቂያ (National ID)</option>
+                <option value="PASSPORT">ፓስፖርት (Passport)</option>
+            </select>
+            <label>የመታወቂያ/ፓስፖርት ፎቶ ያስገቡ:</label>
+            <input type="file" id="docPhoto" accept="image/*" required>
+            <button type="submit">ለአድሚን ላክ (Submit KYC)</button>
+        </form>
+    </div>
 
-        <div class="label">2. የትራንዛክሽን MEMO ID (የግዴታ ነው):</div>
-        <div class="value" id="memo-id" style="color: #f59e0b;">Loading...</div>
-
-        <div id="qrcode"></div>
-
-        <p style="font-size: 11px; color: #ef4444; text-anchor: center;">
-            ⚠️ **ማስጠንቀቂያ:** TON በሚልኩበት ጊዜ **MEMO ID** በትክክል ካላስገቡ ገንዘቡ ወደ ሂሳብዎ አይገባም!
-        </p>
+    <!-- 4. የ OTP ፓስወርድ ማገገሚያ -->
+    <div class="card">
+        <h3>🔐 ፓስወርድ መቀየሪያ (OTP via Telegram)</h3>
+        <button onclick="requestOTP()">በቴሌግራም OTP ላክ</button>
+        <input type="text" id="otpInput" placeholder="የመጣሎትን 6 አሃዝ OTP ያስገቡ">
+        <input type="password" id="newPassInput" placeholder="አዲስ ፓስወርድ">
+        <button onclick="verifyOTP()">ፓስወርድ ቀይር</button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+        const telegramId = tg.initDataUnsafe?.user?.id || 5351353727; // Demo Fallback ID
 
-        const user = tg.initDataUnsafe?.user || { id: 123456, first_name: "Gashaye", username: "gashaye" };
-
-        document.getElementById('user-name').innerText = `ሰላም ${user.first_name} 👋`;
-
-        fetch('/api/user_info', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegram_id: user.id,
-                username: user.username,
-                first_name: user.first_name
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('balance').innerText = data.balance.toFixed(2);
-            document.getElementById('master-address').innerText = data.master_address;
-            document.getElementById('memo-id').innerText = data.memo_id;
-
-            // Generate QR Code
-            new QRCode(document.getElementById("qrcode"), {
-                text: data.master_address,
-                width: 128,
-                height: 128
+        // የተጠቃሚ መረጃ መጫኛ
+        async function loadUserInfo() {
+            const res = await fetch('/api/user_info', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ telegram_id: telegramId })
             });
+            const data = await res.json();
+            if(data.status === 'success') {
+                document.getElementById('userName').innerText = `ሰላም, ${data.first_name} 👋`;
+                document.getElementById('tonBalance').innerText = `${data.ton_balance} TON`;
+                document.getElementById('etbBalance').innerText = `${data.etb_balance} ETB`;
+                document.getElementById('kycStatus').innerText = data.kyc_status;
+                document.getElementById('kycStatus').className = `status-badge ${data.kyc_status}`;
+            }
+        }
+
+        // Chapa Deposit
+        async function depositChapa() {
+            const amount = document.getElementById('depositAmount').value;
+            if(!amount) return alert('እባክዎን የብር መጠን ያስገቡ');
+            
+            const res = await fetch('/api/deposit_chapa', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ telegram_id: telegramId, amount: amount })
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                tg.openLink(data.checkout_url);
+            } else {
+                alert(data.message);
+            }
+        }
+
+        // KYC Submit
+        document.getElementById('kycForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('telegram_id', telegramId);
+            formData.append('full_name', document.getElementById('fullName').value);
+            formData.append('doc_type', document.getElementById('docType').value);
+            formData.append('document_photo', document.getElementById('docPhoto').files[0]);
+
+            const res = await fetch('/api/submit_kyc', { method: 'POST', body: formData });
+            const data = await res.json();
+            alert(data.message);
+            loadUserInfo();
         });
 
-        function toggleDeposit() {
-            const box = document.getElementById('deposit-section');
-            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        // Request OTP
+        async function requestOTP() {
+            const res = await fetch('/api/request_otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ telegram_id: telegramId })
+            });
+            const data = await res.json();
+            alert(data.message);
         }
+
+        // Verify OTP
+        async function verifyOTP() {
+            const otp = document.getElementById('otpInput').value;
+            const newPassword = document.getElementById('newPassInput').value;
+            const res = await fetch('/api/verify_otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ telegram_id: telegramId, otp: otp, new_password: newPassword })
+            });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        loadUserInfo();
     </script>
 </body>
 </html>
