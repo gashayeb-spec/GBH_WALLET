@@ -170,6 +170,33 @@ def register_member():
 @app.route('/api/admin/members', methods=['GET'])
 def get_members():
     return jsonify({"status": "success", "data": members_db})
+@app.route('/api/telegram_webhook', methods=['POST'])
+def telegram_webhook():
+    data = request.get_json()
+    
+    if data and "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"].get("text", "")
+
+        if text == "/start":
+            welcome_text = "እንኳን ወደ ተራመድ ብድርና ቁጠባ በደህና መጡ!"
+            reply_markup = {
+                "inline_keyboard": [[
+                    {
+                        "text": "📱 ተራመድ Sacco ክፈት",
+                        "web_app": {"url": "https://gbh-wallet.onrender.com"}
+                    }
+                ]]
+            }
+            
+            send_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            requests.post(send_url, json={
+                "chat_id": chat_id,
+                "text": welcome_text,
+                "reply_markup": reply_markup
+            })
+
+    return jsonify({"status": "ok"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
