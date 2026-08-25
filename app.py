@@ -65,14 +65,16 @@ def telegram_webhook():
     if request.method == 'GET':
         return "Telegram Webhook is Active!", 200
 
-    data = request.json or {}
+    data = request.get_json(force=True, silent=True) or {}
     
     # 1. ተራ መልእክት ሲላክ (/start)
-    if "message" in data:
-        chat_id = data["message"]["chat"]["id"]
-        text = data["message"].get("text", "")
+    message_data = data.get("message") or data.get("edited_message")
+    if message_data:
+        chat_id = message_data.get("chat", {}).get("id")
+        text = str(message_data.get("text", "")).strip()
 
-        if text == "/start":
+        # /start የሚል ጽሁፍ በየትኛውም መልኩ ቢመጣ እንዲመልስ
+        if text.startswith("/start"):
             welcome_msg = (
                 "👋 <b>እንኳን ወደ ተራመድ ብድርና ቁጠባ ማህበር በደህና መጡ!</b>\n\n"
                 "አባል ለመሆን ወይም አገልግሎቶችን ለማግኘት ከታች ያለውን Button ይጫኑ።"
