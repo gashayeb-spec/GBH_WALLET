@@ -1,4 +1,3 @@
-# database.py
 import sqlite3
 
 DB_NAME = "wallet.db"
@@ -7,15 +6,19 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # የተጠቃሚዎች መረጃ ሰንጠረዥ (Users Table)
+    # የተጠቃሚዎች ሙሉ መረጃ ሰንጠረዥ
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             telegram_id INTEGER PRIMARY KEY,
-            username TEXT,
             first_name TEXT,
+            father_name TEXT,
+            grand_father_name TEXT,
             phone_number TEXT,
+            country TEXT,
+            email TEXT,
             password TEXT,
             ton_balance REAL DEFAULT 0.0,
+            usdt_balance REAL DEFAULT 0.0,
             etb_balance REAL DEFAULT 0.0,
             memo_id TEXT UNIQUE,
             kyc_status TEXT DEFAULT 'NOT_SUBMITTED', -- NOT_SUBMITTED, PENDING, APPROVED, REJECTED
@@ -26,15 +29,15 @@ def init_db():
         )
     ''')
 
-    # የትራንዛክሽን ታሪክ ሰንጠረዥ (Transactions Table)
+    # የትራንዛክሽን እና የምንዛሬ ታሪክ
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             telegram_id INTEGER,
-            type TEXT, -- DEPOSIT_ETB, DEPOSIT_TON, WITHDRAW
+            type TEXT, -- DEPOSIT_ETB, WITHDRAW_ETB, SWAP_ETB_TO_TON, SWAP_TON_TO_ETB, etc.
             amount REAL,
             currency TEXT,
-            status TEXT, -- PENDING, COMPLETED, FAILED
+            status TEXT,
             reference_id TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -45,4 +48,3 @@ def init_db():
 
 if __name__ == "__main__":
     init_db()
-    print(" Database initialized successfully!")
