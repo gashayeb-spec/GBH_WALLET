@@ -1,175 +1,114 @@
-import os
-import requests
 from flask import Flask, render_template, request, jsonify
-from dotenv import load_dotenv
+from flask_cors import CORS
+import os
 
-load_dotenv()
+app = Flask(__name__, template_folder='.')
+CORS(app)  # CORS ችግር እንዳይፈጠር ይረዳል
 
-app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "teramed_secret")
-
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = os.getenv("ADMIN_ID", "5351353727")
-
-def get_telegram_url():
-    token = os.getenv("BOT_TOKEN")
-    return f"https://api.telegram.org/bot{token}/sendMessage" if token else None
-
+# ጊዜያዊ የዳታ መያዣዎች (Database በቅርቡ ሲቀየር እዚህ ይተካል)
 members_db = []
-savings_db = []
+settings_db = {
+    "latest_draw_number": "ዙር 01",
+    "winner_name": "-",
+    "latest_draw_date": "የለም",
+    "support_phone": "0916039015"
+}
 
-def send_telegram_notification(chat_id, message, reply_markup=None):
-    url = get_telegram_url()
-    if not url:
-        return None
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "HTML"
-    }
-    if reply_markup:
-        payload["reply_markup"] = reply_markup
-        
-    try:
-        response = requests.post(url, json=payload)
-        return response.json()
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
-def answer_callback_query(callback_query_id, text):
-    token = os.getenv("BOT_TOKEN")
-    if not token:
-        return
-    url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
-    try:
-        requests.post(url, json={"callback_query_id": callback_query_id, "text": text})
-    except Exception as e:
-        print(f"Error: {e}")
-
+# 1. ገጾችን ማሳያ Routes
 @app.route('/')
-def index():
+def home():
     return render_template('index.html')
 
 @app.route('/admin')
-def admin():
+def admin_page():
     return render_template('admin.html')
 
-@app.route('/api/telegram_webhook', methods=['GET', 'POST'])
-def telegram_webhook():
-    if request.method == 'GET':
-        return "Webhook is Active!", 200
 
-    data = request.get_json(force=True, silent=True) or {}
-    
-    # 1. ተራ መልእክት ሲላክ (/start)
-    message_data = data.get("message") or data.get("edited_message")
-    if message_data:
-        chat_id = message_data.get("chat", {}).get("id")
-        text = str(message_data.get("text", "")).strip()
-
-        if text.startswith("/start"):
-            welcome_msg = (
-                "👋 <b>እንኳን ወደ ተራመድ ብድርና ቁጠባ ማህበር በደህና መጡ!</b>\n\n"
-                "አባል ለመሆን ወይም አገልግሎቶችን ለማግኘት ከታች ያለውን Button ይጫኑ።"
-            )
-            reply_markup = {
-                "inline_keyboard": [[
-                    {
-                        "text": "📱 ተራመድ Sacco ክፈት",
-                        "web_app": {"url": "https://gbh-wallet.onrender.com"}
-                    }
-                ]]
-            }
-            send_telegram_notification(chat_id, welcome_msg, reply_markup)
-
-    # 2. አድሚን Approve/Cancel/Block ሲጫን
-    elif "callback_query" in data:
-        callback = data["callback_query"]
-        callback_id = callback["id"]
-        action_data = callback.get("data", "")
-        
-        if action_data.startswith("approve_"):
-            member_id = int(action_data.split("_")[1])
-            for member in members_db:
-                if member['id'] == member_id:
-                    member['status'] = "Approved"
-                    answer_callback_query(callback_id, "ምዝገባው ጸድቋል!")
-                    send_telegram_notification(ADMIN_ID, f"✅ የ አባል <b>{member['full_name']}</b> ምዝገባ ጸድቋል።")
-                    
-                    if member.get('telegram_id') and str(member['telegram_id']).isdigit():
-                        user_msg = "🎉 <b>እንኳን ደስ አለዎት!</b>\n\nበተራመድ ብድር እና ቁጠባ ማህበር የምዝገባ ጥያቄዎ ጸድቋል።"
-                        send_telegram_notification(member['telegram_id'], user_msg)
-                    break
-
-        elif action_data.startswith("cancel_"):
-            member_id = int(action_data.split("_")[1])
-            for member in members_db:
-                if member['id'] == member_id:
-                    member['status'] = "Cancelled"
-                    answer_callback_query(callback_id, "ምዝገባው ተሰርዟል!")
-                    send_telegram_notification(ADMIN_ID, f"❌ የ አባል <b>{member['full_name']}</b> ምዝገባ ውድቅ ተደርጓል።")
-                    
-                    if member.get('telegram_id') and str(member['telegram_id']).isdigit():
-                        user_msg = "❌ <b>ይቅርታ!</b>\n\nበተራመድ ብድር እና ቁጠባ ማህበር የምዝገባ ጥያቄዎ ውድቅ ተደርጓል።"
-                        send_telegram_notification(member['telegram_id'], user_msg)
-                    break
-
-        elif action_data.startswith("block_"):
-            user_id = action_data.split("_")[1]
-            answer_callback_query(callback_id, "ተጠቃሚው ታግዷል!")
-            send_telegram_notification(ADMIN_ID, f"🚫 ተጠቃሚ ID: <b>{user_id}</b> Block ተደርጓል።")
-
-    return jsonify({"status": "ok"}), 200
+# 2. የተጠቃሚዎች API Endpoints
+@app.route('/api/member_info/<telegram_id>', methods=['GET'])
+def get_member_info(telegram_id):
+    user_members = [m for m in members_db if str(m.get('telegram_id')) == str(telegram_id)]
+    return jsonify({
+        "settings": settings_db,
+        "members": user_members
+    })
 
 @app.route('/api/register', methods=['POST'])
 def register_member():
-    data = request.json or {}
-    full_name = data.get('full_name')
-    phone = data.get('phone')
-    saving_amount = data.get('saving_amount')
-    telegram_id = data.get('telegram_id', 'Unknown')
+    try:
+        # Form-data ወይም JSON መቀበያ
+        data = request.form if request.form else request.get_json()
+        
+        new_member = {
+            "id": len(members_db) + 1,
+            "ref_no": data.get('ref_no'),
+            "telegram_id": data.get('telegram_id'),
+            "first_name": data.get('first_name'),
+            "father_name": data.get('father_name'),
+            "grand_name": data.get('grand_name'),
+            "phone_number": data.get('phone_number'),
+            "share_count": int(data.get('share_count', 1)),
+            "paid_amount": 0,
+            "weekly_paid_status": 0
+        }
+        
+        members_db.append(new_member)
+        return jsonify({"success": True, "message": "ምዝገባው በስኬት ተጠናቋል!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"ስህተት ተፈጥሯል: {str(e)}"}), 400
 
-    if not full_name or not phone or not saving_amount:
-        return jsonify({"status": "error", "message": "እባክዎ ሁሉንም መስኮች ይሙሉ!"}), 400
+@app.route('/api/upload_weekly_receipt', methods=['POST'])
+def upload_receipt():
+    try:
+        member_id = request.form.get('member_id')
+        receipt_ref = request.form.get('receipt_ref')
+        
+        # ደረሰኝ ምስል ካለ መቀበያ
+        receipt_file = request.files.get('receipt')
+        if receipt_file:
+            # ምስሉን ሴቭ ማድረግ ከፈለግህ እዚህ ማስተካከል ትችላለህ
+            pass
 
-    member = {
-        "id": len(members_db) + 1,
-        "full_name": full_name,
-        "phone": phone,
-        "saving_amount": saving_amount,
-        "telegram_id": telegram_id,
-        "status": "Pending"
-    }
-    members_db.append(member)
+        return jsonify({"success": True, "message": "የቁጠባ ክፍያ መረጃው ገብቷል! አድሚኑ ያረጋግጣል።"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": "ክፍያውን መላክ አልተቻለም!"}), 400
 
-    admin_msg = (
-        f"<b>🔔 አዲስ የቁጠባ ምዝገባ ጥያቄ (Teramed Sacco)</b>\n\n"
-        f"<b>ስም:</b> {full_name}\n"
-        f"<b>ስልክ:</b> {phone}\n"
-        f"<b>ወርሃዊ ቁጠባ:</b> {saving_amount} ብር\n"
-        f"<b>Telegram ID:</b> {telegram_id}"
-    )
 
-    admin_markup = {
-        "inline_keyboard": [
-            [
-                {"text": "✅ Approve", "callback_data": f"approve_{member['id']}"},
-                {"text": "❌ Cancel", "callback_data": f"cancel_{member['id']}"}
-            ],
-            [
-                {"text": "🚫 Block User", "callback_data": f"block_{telegram_id}"}
-            ]
-        ]
-    }
+# 3. የአድሚን API Endpoints
+@app.route('/api/admin/login', methods=['POST'])
+def admin_login():
+    data = request.get_json()
+    password = data.get('password')
+    # ጊዜያዊ የይለፍ ቃል: admin123
+    if password == "admin123":
+        return jsonify({"success": True, "token": "secret-admin-token"}), 200
+    return jsonify({"success": False, "message": "የይለፍ ቃል የተሳሳተ ነው!"}), 401
 
-    send_telegram_notification(ADMIN_ID, admin_msg, admin_markup)
-    return jsonify({"status": "success", "message": "ምዝገባዎ በተሳካ ሁኔታ ተልኳል!"})
+@app.route('/api/admin/data', methods=['GET'])
+def get_admin_data():
+    return jsonify({
+        "settings": settings_db,
+        "members": members_db
+    })
 
-@app.route('/api/admin/members', methods=['GET'])
-def get_members():
-    return jsonify({"status": "success", "data": members_db})
+@app.route('/api/admin/settings', methods=['POST'])
+def update_settings():
+    data = request.get_json()
+    settings_db.update(data)
+    return jsonify({"success": True, "message": "ቅንብሮች ተስተካክለዋል!"})
+
+@app.route('/api/admin/toggle_payment', methods=['POST'])
+def toggle_payment():
+    data = request.get_json()
+    member_id = int(data.get('member_id'))
+    status = int(data.get('status'))
+    
+    for m in members_db:
+        if m['id'] == member_id:
+            m['weekly_paid_status'] = status
+            break
+            
+    return jsonify({"success": True, "message": "የክፍያ ሁኔታ ተቀይሯል!"})
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=5000)
