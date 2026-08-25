@@ -16,7 +16,7 @@ TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage" if BOT
 members_db = []
 savings_db = []
 
-def send_telegram_notification(chat_id, message):
+def send_telegram_notification(chat_id, message, reply_markup=None):
     if not TELEGRAM_API_URL:
         print("Telegram Token አልተዋቀረም።")
         return None
@@ -25,6 +25,9 @@ def send_telegram_notification(chat_id, message):
         "text": message,
         "parse_mode": "HTML"
     }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+        
     try:
         response = requests.post(TELEGRAM_API_URL, json=payload)
         return response.json()
@@ -39,6 +42,33 @@ def index():
 @app.route('/admin')
 def admin():
     return render_template('admin.html')
+
+# --- ቴሌግራም ቦቱ መልእክት ሲቀበል የሚሰራው ክፍል (WebHook) ---
+@app.route('/api/telegram_webhook', methods=['POST'])
+def telegram_webhook():
+    data = request.json or {}
+    
+    if "message" in data:
+        chat_id = data["message"]["chat"]["id"]
+        text = data["message"].get("text", "")
+
+        # ተጠቃሚው /start ሲል የሚላክለት መልእክት እና የMini App ባተን
+        if text == "/start":
+            welcome_msg = (
+                "👋 <b>እንኳን ወደ ተራመድ ብድርና ቁጠባ ማህበር በደህና መጡ!</b>\n\n"
+                "አባል ለመሆን ወይም አገልግሎቶችን ለማግኘት ከታች ያለውን Button ይጫኑ።"
+            )
+            reply_markup = {
+                "inline_keyboard": [[
+                    {
+                        "text": "📱 ተራመድ Sacco ክፈት",
+                        "web_app": {"url": "https://gbh-wallet.onrender.com"}
+                    }
+                ]]
+            }
+            send_telegram_notification(chat_id, welcome_msg, reply_markup)
+
+    return jsonify({"status": "ok"}), 200
 
 @app.route('/api/register', methods=['POST'])
 def register_member():
