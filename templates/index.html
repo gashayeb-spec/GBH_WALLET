@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KOKETI KURT & LOUNGE - Digital Equb</title>
+    <title>ተራመድ የብድርና ቁጠባ - Digital Passbook</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -129,35 +129,35 @@
 
         <!-- Header -->
         <div class="header-card">
-            <i class="fas fa-crown" style="font-size: 2rem; color: var(--gold); margin-bottom: 5px;"></i>
-            <h1>KOKETI KURT & LOUNGE</h1>
-            <p id="t_subtitle">ዲጂታል የዕቁብ መዝገብና ክፍያ ፓናል</p>
+            <i class="fas fa-piggy-bank" style="font-size: 2rem; color: var(--gold); margin-bottom: 5px;"></i>
+            <h1>ተራመድ የብድርና ቁጠባ</h1>
+            <p id="t_subtitle">ዲጂታል የቁጠባና ብድር መዝገብና ክፍያ ፓናል</p>
         </div>
 
         <!-- Navigation Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" id="t_tab_dash" onclick="switchTab('dashboardTab')"><i class="fas fa-book-open"></i> የኔ ደብተርና ክፍያ</button>
-            <button class="tab-btn" id="t_tab_reg" onclick="switchTab('registerTab')"><i class="fas fa-user-plus"></i> አዲስ ምዝገባ</button>
+            <button class="tab-btn active" id="t_tab_dash" onclick="switchTab('dashboardTab')"><i class="fas fa-book"></i> የኔ የቁጠባ ደብተር</button>
+            <button class="tab-btn" id="t_tab_reg" onclick="switchTab('registerTab')"><i class="fas fa-user-plus"></i> አባልነት ምዝገባ</button>
         </div>
 
         <!-- DASHBOARD TAB -->
         <div id="dashboardTab" class="tab-content active">
             <div class="master-panel">
                 <div class="panel-header">
-                    <span class="panel-title" id="t_panel_title"><i class="fas fa-wallet"></i> የዕቁብ ማዕከል</span>
+                    <span class="panel-title" id="t_panel_title"><i class="fas fa-wallet"></i> የቁጠባ ማዕከል</span>
                     <a href="#" id="supportPhoneBtn" class="support-btn" style="display:none;">
                         <i class="fas fa-headset"></i> <span id="t_support_lbl">ድጋፍ</span>
                     </a>
                 </div>
 
-                <!-- Live Draw Info -->
+                <!-- Savings / Loan Status Grid -->
                 <div class="draw-grid">
                     <div class="draw-item">
-                        <span id="t_draw_num">የወጣው ዕጣ</span>
+                        <span id="t_draw_num">የዜና/መረጃ ዙር</span>
                         <b id="latestDrawNum">-</b>
                     </div>
                     <div class="draw-item">
-                        <span id="t_draw_winner">አሸናፊ</span>
+                        <span id="t_draw_winner">የብድር ተጠቃሚ</span>
                         <b id="latestWinner">-</b>
                     </div>
                     <div class="draw-item">
@@ -166,19 +166,19 @@
                     </div>
                 </div>
 
-                <!-- Passbook Account Info -->
+                <!-- Member Passbook Accounts -->
                 <div id="myMembersContainer"></div>
 
-                <!-- Weekly Payment Form -->
+                <!-- Savings Deposit Payment Form -->
                 <div id="weeklyUploadCard" style="display: none; border-top: 1px solid var(--border); padding-top: 12px;">
                     <form id="weeklyReceiptForm">
                         <div class="input-group">
-                            <label id="t_lbl_select_acc">የሚከፍሉበትን አካውንት ይምረጡ</label>
+                            <label id="t_lbl_select_acc">የሚቆጥቡበትን አካውንት ይምረጡ</label>
                             <select id="weeklyMemberSelect" required></select>
                         </div>
 
                         <div class="input-group">
-                            <label id="t_lbl_weekly_bank">የክፍያ መቀበያ ባንክ / አካውንት</label>
+                            <label id="t_lbl_weekly_bank">ገንዘብ ገቢ የሚያደርጉበት ባንክ / አካውንት</label>
                             <select id="weeklyPaymentMethod" onchange="displayWeeklyAccountDetails()">
                                 <option value="Telebirr">ቴሌብር - 0916039015</option>
                                 <option value="CBE_Birr">ሲቢኢ ብር - 0916039015</option>
@@ -206,11 +206,11 @@
 
                         <div class="file-upload" onclick="document.getElementById('weeklyReceiptFile').click()">
                             <i class="fas fa-camera" style="font-size: 1.5rem; color: var(--gold);"></i>
-                            <p id="weeklyFileStatus" style="font-size: 0.8rem; margin-top: 5px;">የክፍያ ደረሰኝ ስክሪንሹት ይምረጡ</p>
+                            <p id="weeklyFileStatus" style="font-size: 0.8rem; margin-top: 5px;">የቁጠባ/ክፍያ ደረሰኝ ስክሪንሹት ይምረጡ</p>
                             <input type="file" id="weeklyReceiptFile" accept="image/*" onchange="handleFileSelect(this, 'weeklyFileStatus')">
                         </div>
 
-                        <button type="submit" class="btn" id="t_btn_send_pay"><i class="fas fa-paper-plane"></i> ክፍያውን አረጋግጥ</button>
+                        <button type="submit" class="btn" id="t_btn_send_pay"><i class="fas fa-paper-plane"></i> የቁጠባ ክፍያውን አረጋግጥ</button>
                     </form>
                 </div>
             </div>
@@ -220,7 +220,7 @@
         <div id="registerTab" class="tab-content">
             <div class="master-panel">
                 <div class="panel-header">
-                    <span class="panel-title" id="t_reg_title"><i class="fas fa-user-plus"></i> አዲስ የዕቁብ ምዝገባ</span>
+                    <span class="panel-title" id="t_reg_title"><i class="fas fa-user-plus"></i> አዲስ የአባልነት ምዝገባ</span>
                 </div>
 
                 <form id="regForm">
@@ -241,11 +241,11 @@
                         <input type="tel" id="phone_number" required placeholder="0911223344">
                     </div>
                     <div class="input-group">
-                        <label id="t_lbl_shares">የዕጣ ብዛት (Share Count)</label>
+                        <label id="t_lbl_shares">የዕጣ/የቁጠባ ዕድል ብዛት</label>
                         <input type="number" id="share_count" value="1" min="1" required>
                     </div>
 
-                    <button type="submit" class="btn" id="t_btn_reg_submit"><i class="fas fa-check-circle"></i> ተመዝገብ</button>
+                    <button type="submit" class="btn" id="t_btn_reg_submit"><i class="fas fa-check-circle"></i> ይመዝገቡ</button>
                 </form>
             </div>
         </div>
@@ -330,21 +330,21 @@
 
                         const isPaid = m.weekly_paid_status === 1;
                         const paidBadge = isPaid 
-                            ? `<span style="color: var(--success); font-weight: bold;">✅ ተከፍሏል</span>` 
-                            : `<span style="color: var(--danger); font-weight: bold;">❌ አልተከፈለም</span>`;
+                            ? `<span style="color: var(--success); font-weight: bold;">✅ ቁጠባ ተከፍሏል</span>` 
+                            : `<span style="color: var(--danger); font-weight: bold;">❌ አልተከፈለሙ</span>`;
 
                         const div = document.createElement('div');
                         div.className = 'equb-notebook';
                         div.innerHTML = `
                             <div class="notebook-header"><i class="fas fa-address-card"></i> ${m.first_name} ${m.father_name}</div>
-                            <div class="book-row"><span class="label">መዝገብ ቁጥር:</span> <b>${m.ref_no}</b></div>
-                            <div class="book-row"><span class="label">የሳምንቱ ሁኔታ:</span> ${paidBadge}</div>
-                            <div class="book-row"><span class="label">የተከፈለ መጠን:</span> <b>${(m.paid_amount || 0).toLocaleString()} ብር</b></div>
+                            <div class="book-row"><span class="label">የአባልነት መለያ (Ref):</span> <b>${m.ref_no}</b></div>
+                            <div class="book-row"><span class="label">የቁጠባ ሁኔታ:</span> ${paidBadge}</div>
+                            <div class="book-row"><span class="label">የተከፈለ ጠቅላላ ቁጠባ:</span> <b>${(m.paid_amount || 0).toLocaleString()} ብር</b></div>
                         `;
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = `<p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); padding: 15px;">ምንም የተመዘገበ የዕቁብ አካውንት አልተገኘም። እባክዎን 'አዲስ ምዝገባ' ገጽ ይሂዱ።</p>`;
+                    container.innerHTML = `<p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); padding: 15px;">ምንም የተመዘገበ የቁጠባ ሂሳብ አልተገኘም። እባክዎን 'አባልነት ምዝገባ' ገጽ ይሂዱ።</p>`;
                     document.getElementById('weeklyUploadCard').style.display = 'none';
                 }
             } catch(e) { console.error(e); }
@@ -366,13 +366,13 @@
                 const data = await res.json();
                 alert(data.message);
                 if(res.ok) loadUserData();
-            } catch(err) { alert("የክፍያ መረጃ ማስገባት አልተቻለም!"); }
+            } catch(err) { alert("የቁጠባ ክፍያ መረጃ ማስገባት አልተቻለም!"); }
         });
 
         document.getElementById('regForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const telegram_id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : '123456789';
-            const ref_no = 'KOKETI-' + Math.floor(1000 + Math.random() * 9000);
+            const ref_no = 'TERAMED-' + Math.floor(1000 + Math.random() * 9000);
 
             const formData = new FormData();
             formData.append('ref_no', ref_no);
