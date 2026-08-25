@@ -57,82 +57,109 @@
         .PENDING { background-color: #eab308; color: black; }
         .APPROVED { background-color: #22c55e; color: white; }
         .REJECTED { background-color: #ef4444; color: white; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- 1. የባላንስ ማሳያ Card -->
-    <div class="card">
-        <h2 id="userName">ሰላም, ... 👋</h2>
-        <p>የመታወቂያ ማረጋገጫ (KYC): <span id="kycStatus" class="status-badge PENDING">ያልተረጋገጠ</span></p>
+    <!-- 1. የተጠቃሚ ባላንስና መረጃ (KYC Approved ሲሆን ብቻ የሚታይ) -->
+    <div id="walletDashboard" class="card hidden">
+        <h2 id="userName">ሰላም 👋</h2>
+        <p>የመታወቂያ ማረጋገጫ (KYC): <span id="kycStatus" class="status-badge APPROVED">የተረጋገጠ</span></p>
         
         <div class="balance-box">
             <span>💎 TON ባላንስ:</span>
             <strong id="tonBalance">0.00 TON</strong>
         </div>
         <div class="balance-box">
+            <span>🪙 USDT ባላንስ:</span>
+            <strong id="usdtBalance">0.00 USDT</strong>
+        </div>
+        <div class="balance-box">
             <span>💵 ETB ባላንስ:</span>
             <strong id="etbBalance">0.00 ETB</strong>
         </div>
-    </div>
 
-    <!-- 2. የ Chapa ክፍያ (Deposit ETB) -->
-    <div class="card">
-        <h3>💳 በ Chapa ሂሳብ መሙያ (Deposit)</h3>
+        <!-- Chapa Deposit -->
+        <h3>💳 በ Chapa ሂሳብ መሙያ (Deposit ETB)</h3>
         <input type="number" id="depositAmount" placeholder="የሚሞሉት ብር መጠን (ETB)">
         <button onclick="depositChapa()">በ Chapa ክፈል</button>
     </div>
 
-    <!-- 3. የ KYC መመዝገቢያ ፎርም -->
-    <div class="card">
-        <h3>🆔 የ KYC መታወቂያ ማረጋገጫ</h3>
-        <form id="kycForm">
-            <input type="text" id="fullName" placeholder="ሙሉ ስም" required>
+    <!-- 2. የ KYC እና የምዝገባ ፎርም (አዲስ ተጠቃሚ ሲሆን የሚታይ) -->
+    <div id="kycSection" class="card">
+        <h3>🆔 የ GBH Wallet ምዝገባ እና KYC ማረጋገጫ</h3>
+        <p style="font-size: 13px; color: #94a3b8;">እባክዎን አገልግሎቱን ለማግኘት የመመዝገቢያ ፎርሙን በሙሉ ይሙሉ፡</p>
+        
+        <form id="kycForm" autocomplete="on">
+            <input type="text" id="firstName" name="given-name" placeholder="ስም (First Name)" autocomplete="given-name" required>
+            <input type="text" id="fatherName" name="additional-name" placeholder="የአባት ስም (Father's Name)" autocomplete="additional-name" required>
+            <input type="text" id="grandFatherName" name="family-name" placeholder="የአያት ስም (Grandfather's Name)" autocomplete="family-name" required>
+            <input type="tel" id="phoneNumber" name="tel" placeholder="ስልክ ቁጥር (Phone Number)" autocomplete="tel" required>
+            <input type="text" id="country" name="country" placeholder="ያሉበት ሀገር (Country)" autocomplete="country-name" required>
+            <input type="email" id="email" name="email" placeholder="ኢሜይል (Email Address)" autocomplete="email" required>
+            
+            <!-- Chrome / Google Auto-fill ፓስወርድ እንዲይዝ የተስተካከለ -->
+            <input type="password" id="password" name="password" placeholder="የይለፍ ቃል (Password)" autocomplete="new-password" required>
+
+            <label style="display:block; margin-top:10px;">የሰነድ አይነት ይምረጡ:</label>
             <select id="docType">
                 <option value="NATIONAL_ID">የብሔራዊ መታወቂያ (National ID)</option>
                 <option value="PASSPORT">ፓስፖርት (Passport)</option>
             </select>
-            <label>የመታወቂያ/ፓስፖርት ፎቶ ያስገቡ:</label>
+
+            <label style="display:block; margin-top:10px;">የመታወቂያ/ፓስፖርት ፎቶ ያስገቡ:</label>
             <input type="file" id="docPhoto" accept="image/*" required>
-            <button type="submit">ለአድሚን ላክ (Submit KYC)</button>
+
+            <button type="submit">መረጃውን መዝግብ እና ለአድሚን ላክ</button>
         </form>
     </div>
 
-    <!-- 4. የ OTP ፓስወርድ ማገገሚያ -->
+    <!-- 3. የ OTP ፓስወርድ ማገገሚያ -->
     <div class="card">
-        <h3>🔐 ፓስወርድ መቀየሪያ (OTP via Telegram)</h3>
+        <h3>🔐 ፓስወርድ ረስተዋል? (OTP via Telegram)</h3>
         <button onclick="requestOTP()">በቴሌግራም OTP ላክ</button>
         <input type="text" id="otpInput" placeholder="የመጣሎትን 6 አሃዝ OTP ያስገቡ">
-        <input type="password" id="newPassInput" placeholder="አዲስ ፓስወርድ">
+        <input type="password" id="newPassInput" placeholder="አዲስ ፓስወርድ" autocomplete="new-password">
         <button onclick="verifyOTP()">ፓስወርድ ቀይር</button>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        const telegramId = tg.initDataUnsafe?.user?.id || 5351353727; // Demo Fallback ID
+        const telegramId = tg.initDataUnsafe?.user?.id || 5351353727;
 
         // የተጠቃሚ መረጃ መጫኛ
         async function loadUserInfo() {
-            const res = await fetch('/api/user_info', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ telegram_id: telegramId })
-            });
-            const data = await res.json();
-            if(data.status === 'success') {
-                document.getElementById('userName').innerText = `ሰላም, ${data.first_name} 👋`;
-                document.getElementById('tonBalance').innerText = `${data.ton_balance} TON`;
-                document.getElementById('etbBalance').innerText = `${data.etb_balance} ETB`;
-                document.getElementById('kycStatus').innerText = data.kyc_status;
-                document.getElementById('kycStatus').className = `status-badge ${data.kyc_status}`;
+            try {
+                const res = await fetch('/api/user_info', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ telegram_id: telegramId })
+                });
+                const data = await res.json();
+                
+                if(data.status === 'success') {
+                    if (data.kyc_status === 'APPROVED') {
+                        document.getElementById('walletDashboard').classList.remove('hidden');
+                        document.getElementById('kycSection').classList.add('hidden');
+                        document.getElementById('userName').innerText = `ሰላም, ${data.first_name} ${data.father_name} 👋`;
+                        document.getElementById('tonBalance').innerText = `${data.ton_balance} TON`;
+                        document.getElementById('usdtBalance').innerText = `${data.usdt_balance} USDT`;
+                        document.getElementById('etbBalance').innerText = `${data.etb_balance} ETB`;
+                    } else if (data.kyc_status === 'PENDING') {
+                        alert('የ KYC መረጃዎ በአድሚን እየተመረመረ ነው። እባክዎን አድሚኑ እስኪያጸድቀው ይበክሉ።');
+                    }
+                }
+            } catch (err) {
+                console.log("User not registered yet.");
             }
         }
 
         // Chapa Deposit
         async function depositChapa() {
             const amount = document.getElementById('depositAmount').value;
-            if(!amount) return alert('እባክዎን የብር መጠን ያስገቡ');
+            if(!amount || amount <= 0) return alert('እባክዎን ትክክለኛ የብር መጠን ያስገቡ');
             
             const res = await fetch('/api/deposit_chapa', {
                 method: 'POST',
@@ -147,12 +174,18 @@
             }
         }
 
-        // KYC Submit
+        // KYC Submit Form
         document.getElementById('kycForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData();
             formData.append('telegram_id', telegramId);
-            formData.append('full_name', document.getElementById('fullName').value);
+            formData.append('first_name', document.getElementById('firstName').value);
+            formData.append('father_name', document.getElementById('fatherName').value);
+            formData.append('grand_father_name', document.getElementById('grandFatherName').value);
+            formData.append('phone_number', document.getElementById('phoneNumber').value);
+            formData.append('country', document.getElementById('country').value);
+            formData.append('email', document.getElementById('email').value);
+            formData.append('password', document.getElementById('password').value);
             formData.append('doc_type', document.getElementById('docType').value);
             formData.append('document_photo', document.getElementById('docPhoto').files[0]);
 
@@ -162,7 +195,7 @@
             loadUserInfo();
         });
 
-        // Request OTP
+        // OTP Request
         async function requestOTP() {
             const res = await fetch('/api/request_otp', {
                 method: 'POST',
@@ -173,7 +206,7 @@
             alert(data.message);
         }
 
-        // Verify OTP
+        // OTP Verification
         async function verifyOTP() {
             const otp = document.getElementById('otpInput').value;
             const newPassword = document.getElementById('newPassInput').value;
