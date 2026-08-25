@@ -125,7 +125,11 @@
 
 <script>
     const tg = window.Telegram.WebApp;
-    if (tg) tg.expand();
+    
+    if (tg) {
+        tg.ready();
+        tg.expand();
+    }
 
     document.getElementById('saccoForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -133,7 +137,9 @@
         const fullName = document.getElementById('fullName').value;
         const phone = document.getElementById('phone').value;
         const savingAmount = document.getElementById('savingAmount').value;
-        const telegramId = tg.initDataUnsafe?.user?.id || 'Unknown';
+        
+        const telegramUser = tg.initDataUnsafe?.user;
+        const telegramId = telegramUser?.id ? telegramUser.id : 'Unknown';
 
         const statusMsg = document.getElementById('statusMsg');
         statusMsg.style.color = '#333';
