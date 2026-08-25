@@ -3,223 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GBH Wallet</title>
+    <title>ተራመድ ብድር እና ቁጠባ | Teramed Sacco</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        :root {
+            --primary-color: #1b5e20;
+            --accent-color: #4caf50;
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background-color: #0f172a;
-            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             margin: 0;
             padding: 15px;
         }
-        .card {
-            background-color: #1e293b;
-            border-radius: 12px;
+
+        .container {
+            max-width: 450px;
+            margin: 0 auto;
+            background: var(--card-bg);
             padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header h2 {
+            color: var(--primary-color);
+            margin: 0 0 5px 0;
+        }
+
+        .header p {
+            font-size: 0.9em;
+            color: #666;
+            margin: 0;
+        }
+
+        .form-group {
             margin-bottom: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
-        h2, h3 { color: #38bdf8; margin-top: 0; }
-        .balance-box {
-            display: flex;
-            justify-content: space-between;
-            background: #334155;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9em;
         }
-        input, select, button {
+
+        input[type="text"], input[type="number"], input[type="tel"] {
             width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border-radius: 8px;
-            border: 1px solid #475569;
-            background-color: #0f172a;
-            color: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
             box-sizing: border-box;
+            font-size: 1em;
         }
+
         button {
-            background-color: #0284c7;
+            width: 100%;
+            background-color: var(--primary-color);
             color: white;
-            font-weight: bold;
             border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: bold;
             cursor: pointer;
+            transition: background 0.3s ease;
         }
-        button:hover { background-color: #0369a1; }
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
+
+        button:hover {
+            background-color: var(--accent-color);
+        }
+
+        .status-msg {
+            margin-top: 15px;
+            text-align: center;
             font-weight: bold;
         }
-        .PENDING { background-color: #eab308; color: black; }
-        .APPROVED { background-color: #22c55e; color: white; }
-        .REJECTED { background-color: #ef4444; color: white; }
-        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- 1. የተጠቃሚ ባላንስና መረጃ (KYC Approved ሲሆን ብቻ የሚታይ) -->
-    <div id="walletDashboard" class="card hidden">
-        <h2 id="userName">ሰላም 👋</h2>
-        <p>የመታወቂያ ማረጋገጫ (KYC): <span id="kycStatus" class="status-badge APPROVED">የተረጋገጠ</span></p>
+<div class="container">
+    <div class="header">
+        <h2>ተራመድ ብድርና ቁጠባ</h2>
+        <p>Teramed Saving & Credit Cooperative</p>
+    </div>
+
+    <form id="saccoForm">
+        <div class="form-group">
+            <label for="fullName">ሙሉ ስም</label>
+            <input type="text" id="fullName" required placeholder="ምሳሌ፦ አበበ በቀለ">
+        </div>
+
+        <div class="form-group">
+            <label for="phone">ስልክ ቁጥር</label>
+            <input type="tel" id="phone" required placeholder="09........">
+        </div>
+
+        <div class="form-group">
+            <label for="savingAmount">ወርሃዊ የቁጠባ መጠን (ብር)</label>
+            <input type="number" id="savingAmount" required placeholder="500">
+        </div>
+
+        <button type="submit">አባልነቴን አስመዝግብ</button>
+    </form>
+
+    <div id="statusMsg" class="status-msg"></div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    if (tg) tg.expand();
+
+    document.getElementById('saccoForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
         
-        <div class="balance-box">
-            <span>💎 TON ባላንስ:</span>
-            <strong id="tonBalance">0.00 TON</strong>
-        </div>
-        <div class="balance-box">
-            <span>🪙 USDT ባላንስ:</span>
-            <strong id="usdtBalance">0.00 USDT</strong>
-        </div>
-        <div class="balance-box">
-            <span>💵 ETB ባላንስ:</span>
-            <strong id="etbBalance">0.00 ETB</strong>
-        </div>
+        const fullName = document.getElementById('fullName').value;
+        const phone = document.getElementById('phone').value;
+        const savingAmount = document.getElementById('savingAmount').value;
+        const telegramId = tg.initDataUnsafe?.user?.id || 'Unknown';
 
-        <!-- Chapa Deposit -->
-        <h3>💳 በ Chapa ሂሳብ መሙያ (Deposit ETB)</h3>
-        <input type="number" id="depositAmount" placeholder="የሚሞሉት ብር መጠን (ETB)">
-        <button onclick="depositChapa()">በ Chapa ክፈል</button>
-    </div>
+        const statusMsg = document.getElementById('statusMsg');
+        statusMsg.style.color = '#333';
+        statusMsg.innerText = 'በመላክ ላይ...';
 
-    <!-- 2. የ KYC እና የምዝገባ ፎርም (አዲስ ተጠቃሚ ሲሆን የሚታይ) -->
-    <div id="kycSection" class="card">
-        <h3>🆔 የ GBH Wallet ምዝገባ እና KYC ማረጋገጫ</h3>
-        <p style="font-size: 13px; color: #94a3b8;">እባክዎን አገልግሎቱን ለማግኘት የመመዝገቢያ ፎርሙን በሙሉ ይሙሉ፡</p>
-        
-        <form id="kycForm" autocomplete="on">
-            <input type="text" id="firstName" name="given-name" placeholder="ስም (First Name)" autocomplete="given-name" required>
-            <input type="text" id="fatherName" name="additional-name" placeholder="የአባት ስም (Father's Name)" autocomplete="additional-name" required>
-            <input type="text" id="grandFatherName" name="family-name" placeholder="የአያት ስም (Grandfather's Name)" autocomplete="family-name" required>
-            <input type="tel" id="phoneNumber" name="tel" placeholder="ስልክ ቁጥር (Phone Number)" autocomplete="tel" required>
-            <input type="text" id="country" name="country" placeholder="ያሉበት ሀገር (Country)" autocomplete="country-name" required>
-            <input type="email" id="email" name="email" placeholder="ኢሜይል (Email Address)" autocomplete="email" required>
-            
-            <!-- Chrome / Google Auto-fill ፓስወርድ እንዲይዝ የተስተካከለ -->
-            <input type="password" id="password" name="password" placeholder="የይለፍ ቃል (Password)" autocomplete="new-password" required>
-
-            <label style="display:block; margin-top:10px;">የሰነድ አይነት ይምረጡ:</label>
-            <select id="docType">
-                <option value="NATIONAL_ID">የብሔራዊ መታወቂያ (National ID)</option>
-                <option value="PASSPORT">ፓስፖርት (Passport)</option>
-            </select>
-
-            <label style="display:block; margin-top:10px;">የመታወቂያ/ፓስፖርት ፎቶ ያስገቡ:</label>
-            <input type="file" id="docPhoto" accept="image/*" required>
-
-            <button type="submit">መረጃውን መዝግብ እና ለአድሚን ላክ</button>
-        </form>
-    </div>
-
-    <!-- 3. የ OTP ፓስወርድ ማገገሚያ -->
-    <div class="card">
-        <h3>🔐 ፓስወርድ ረስተዋል? (OTP via Telegram)</h3>
-        <button onclick="requestOTP()">በቴሌግራም OTP ላክ</button>
-        <input type="text" id="otpInput" placeholder="የመጣሎትን 6 አሃዝ OTP ያስገቡ">
-        <input type="password" id="newPassInput" placeholder="አዲስ ፓስወርድ" autocomplete="new-password">
-        <button onclick="verifyOTP()">ፓስወርድ ቀይር</button>
-    </div>
-
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        const telegramId = tg.initDataUnsafe?.user?.id || 5351353727;
-
-        // የተጠቃሚ መረጃ መጫኛ
-        async function loadUserInfo() {
-            try {
-                const res = await fetch('/api/user_info', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ telegram_id: telegramId })
-                });
-                const data = await res.json();
-                
-                if(data.status === 'success') {
-                    if (data.kyc_status === 'APPROVED') {
-                        document.getElementById('walletDashboard').classList.remove('hidden');
-                        document.getElementById('kycSection').classList.add('hidden');
-                        document.getElementById('userName').innerText = `ሰላም, ${data.first_name} ${data.father_name} 👋`;
-                        document.getElementById('tonBalance').innerText = `${data.ton_balance} TON`;
-                        document.getElementById('usdtBalance').innerText = `${data.usdt_balance} USDT`;
-                        document.getElementById('etbBalance').innerText = `${data.etb_balance} ETB`;
-                    } else if (data.kyc_status === 'PENDING') {
-                        alert('የ KYC መረጃዎ በአድሚን እየተመረመረ ነው። እባክዎን አድሚኑ እስኪያጸድቀው ይበክሉ።');
-                    }
-                }
-            } catch (err) {
-                console.log("User not registered yet.");
-            }
-        }
-
-        // Chapa Deposit
-        async function depositChapa() {
-            const amount = document.getElementById('depositAmount').value;
-            if(!amount || amount <= 0) return alert('እባክዎን ትክክለኛ የብር መጠን ያስገቡ');
-            
-            const res = await fetch('/api/deposit_chapa', {
+        try {
+            const response = await fetch('/api/register', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ telegram_id: telegramId, amount: amount })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    full_name: fullName,
+                    phone: phone,
+                    saving_amount: savingAmount,
+                    telegram_id: telegramId
+                })
             });
-            const data = await res.json();
-            if(data.status === 'success') {
-                tg.openLink(data.checkout_url);
+
+            const result = await response.json();
+            if (response.ok) {
+                statusMsg.style.color = 'green';
+                statusMsg.innerText = result.message;
+                document.getElementById('saccoForm').reset();
             } else {
-                alert(data.message);
+                statusMsg.style.color = 'red';
+                statusMsg.innerText = result.message || 'ስህተት ተፈጥሯል፤ እባክዎ ደግመው ይሞክሩ።';
             }
+        } catch (error) {
+            statusMsg.style.color = 'red';
+            statusMsg.innerText = 'ከሰርቨር ጋር ማገናኘት አልተቻለም።';
         }
+    });
+</script>
 
-        // KYC Submit Form
-        document.getElementById('kycForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData();
-            formData.append('telegram_id', telegramId);
-            formData.append('first_name', document.getElementById('firstName').value);
-            formData.append('father_name', document.getElementById('fatherName').value);
-            formData.append('grand_father_name', document.getElementById('grandFatherName').value);
-            formData.append('phone_number', document.getElementById('phoneNumber').value);
-            formData.append('country', document.getElementById('country').value);
-            formData.append('email', document.getElementById('email').value);
-            formData.append('password', document.getElementById('password').value);
-            formData.append('doc_type', document.getElementById('docType').value);
-            formData.append('document_photo', document.getElementById('docPhoto').files[0]);
-
-            const res = await fetch('/api/submit_kyc', { method: 'POST', body: formData });
-            const data = await res.json();
-            alert(data.message);
-            loadUserInfo();
-        });
-
-        // OTP Request
-        async function requestOTP() {
-            const res = await fetch('/api/request_otp', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ telegram_id: telegramId })
-            });
-            const data = await res.json();
-            alert(data.message);
-        }
-
-        // OTP Verification
-        async function verifyOTP() {
-            const otp = document.getElementById('otpInput').value;
-            const newPassword = document.getElementById('newPassInput').value;
-            const res = await fetch('/api/verify_otp', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ telegram_id: telegramId, otp: otp, new_password: newPassword })
-            });
-            const data = await res.json();
-            alert(data.message);
-        }
-
-        loadUserInfo();
-    </script>
 </body>
 </html>
