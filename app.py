@@ -11,7 +11,7 @@ app.secret_key = os.getenv("SECRET_KEY", "teramed_secret")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = os.getenv("ADMIN_ID", "5351353727")
 
-# Dynamic Telegram API URL Generator (token ሲቀየር እንዳይበላሽ)
+# Dynamic Telegram API URL Generator
 def get_telegram_url():
     token = os.getenv("BOT_TOKEN")
     return f"https://api.telegram.org/bot{token}/sendMessage" if token else None
@@ -46,7 +46,10 @@ def answer_callback_query(callback_query_id, text):
     if not token:
         return
     url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
-    requests.post(url, json={"callback_query_id": callback_query_id, "text": text})
+    try:
+        requests.post(url, json={"callback_query_id": callback_query_id, "text": text})
+    except Exception as e:
+        print(f"Error answering callback query: {e}")
 
 @app.route('/')
 def index():
@@ -57,8 +60,11 @@ def admin():
     return render_template('admin.html')
 
 # --- ቴሌግራም ቦቱ መልእክት እና የአዝራር ጭነቶችን ሲቀበል የሚሰራው ክፍል (WebHook) ---
-@app.route('/api/telegram_webhook', methods=['POST'])
+@app.route('/api/telegram_webhook', methods=['GET', 'POST'])
 def telegram_webhook():
+    if request.method == 'GET':
+        return "Telegram Webhook is Active!", 200
+
     data = request.json or {}
     
     # 1. ተራ መልእክት ሲላክ (/start)
@@ -96,7 +102,7 @@ def telegram_webhook():
                     answer_callback_query(callback_id, "ምዝገባው ጸድቋል!")
                     send_telegram_notification(ADMIN_ID, f"✅ የ አባል <b>{member['full_name']}</b> ምዝገባ ጸድቋል።")
                     
-                    if member.get('telegram_id') and member['telegram_id'] != 'N/A':
+                    if member.get('telegram_id') and member['telegram_id'] not in ['N/A', 'Unknown']:
                         user_msg = "🎉 <b>እንኳን ደስ አለዎት!</b>\n\nበተራመድ ብድር እና ቁጠባ ማህበር የምዝገባ ጥያቄዎ ጸድቋል።"
                         send_telegram_notification(member['telegram_id'], user_msg)
                     break
@@ -110,7 +116,7 @@ def telegram_webhook():
                     answer_callback_query(callback_id, "ምዝገባው ተሰርዟል!")
                     send_telegram_notification(ADMIN_ID, f"❌ የ አባል <b>{member['full_name']}</b> ምዝገባ ውድቅ ተደርጓል።")
                     
-                    if member.get('telegram_id') and member['telegram_id'] != 'N/A':
+                    if member.get('telegram_id') and member['telegram_id'] not in ['N/A', 'Unknown']:
                         user_msg = "❌ <b>ይቅርታ!</b>\n\nበተራመድ ብድር እና ቁጠባ ማህበር የምዝገባ ጥያቄዎ ውድቅ ተደርጓል።"
                         send_telegram_notification(member['telegram_id'], user_msg)
                     break
@@ -181,12 +187,13 @@ def approve_member():
     for member in members_db:
         if member['id'] == member_id:
             member['status'] = "Approved"
-            if member.get('telegram_id') and member['telegram_id'] != 'N/A':
-                user_msg = f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\nበተራመድ ብድር እና ቁጠባ ማህበር የምዝገባ ጥያቄዎ ጸድቋል።"
+            if member.get('telegram_id') and member['telegram_id'] not in ['N/A', 'Unknown']:
+                user_msg = "🎉 <b>እንኳን ደስ አለዎት!</b>\n\nበተራመድ ብድር እና ቁጠባ ማህበር የምዝገባ ጥያቄዎ ጸድቋል።"
                 send_telegram_notification(member['telegram_id'], user_msg)
             return jsonify({"status": "success", "message": "አባሉ በተሳካ ሁኔታ ጸድቋል!"})
             
     return jsonify({"status": "error", "message": "አባሉ አልተገኘም!"}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
