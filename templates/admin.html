@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>አድሚን ዳሽቦርድ | Teramed Sacco</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+        h2 {
+            color: #1b5e20;
+            border-bottom: 2px solid #1b5e20;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #1b5e20;
+            color: white;
+        }
+        .btn-approve {
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-approve:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .badge-pending { color: #d32f2f; font-weight: bold; }
+        .badge-approved { color: #388e3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>ተራመድ ብድርና ቁጠባ - የአድሚን መቆጣጠሪያ</h2>
+    <p>የአባላት ምዝገባ እና የቁጠባ ጥያቄዎች ማስተዳደሪያ</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>ስም</th>
+                <th>ስልክ</th>
+                <th>ቁጠባ (ብር)</th>
+                <th>ሁኔታ</th>
+                <th>ተግባር</th>
+            </tr>
+        </thead>
+        <tbody id="membersTable">
+            <!-- Data dynamically loaded -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function loadMembers() {
+        try {
+            const res = await fetch('/api/admin/members');
+            const result = await res.json();
+            const tbody = document.getElementById('membersTable');
+            tbody.innerHTML = '';
+
+            result.data.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${m.id}</td>
+                    <td>${m.full_name}</td>
+                    <td>${m.phone}</td>
+                    <td>${m.saving_amount}</td>
+                    <td><span class="${m.status === 'Approved' ? 'badge-approved' : 'badge-pending'}">${m.status}</span></td>
+                    <td>
+                        <button class="btn-approve" ${m.status === 'Approved' ? 'disabled' : ''} onclick="approveMember(${m.id})">
+                            ${m.status === 'Approved' ? 'አጽድቀዋል' : 'አጽድቅ'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error("Error fetching members:", err);
+        }
+    }
+
+    async function approveMember(id) {
+        try {
+            const res = await fetch('/api/admin/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: id })
+            });
+            const result = await res.json();
+            alert(result.message);
+            loadMembers();
+        } catch (err) {
+            alert("ስህተት አጋጥሟል!");
+        }
+    }
+
+    window.onload = loadMembers;
+</script>
+
+</body>
+</html>
