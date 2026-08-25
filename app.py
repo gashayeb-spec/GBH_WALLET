@@ -166,7 +166,7 @@ def deposit_chapa():
     
     if res.get('status') == 'success':
         conn = sqlite3.connect('wallet.db')
-        cursor = cursor = conn.cursor()
+        cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO transactions (telegram_id, type, amount, currency, status, reference_id) 
             VALUES (?, 'DEPOSIT_ETB', ?, 'ETB', 'PENDING', ?)
@@ -176,6 +176,29 @@ def deposit_chapa():
         return jsonify({"status": "success", "checkout_url": res['data']['checkout_url']})
     
     return jsonify({"status": "error", "message": "የ Chapa ክፍያ መደወያ አልተሳካም"}), 500
+
+# 7. የ Telegram Webhook ማስተናገጃ (/start ሲባል ምላሽ የሚሰጥ)
+@app.route('/api/telegram_webhook', methods=['POST'])
+def telegram_webhook():
+    data = request.json or {}
+    
+    if 'message' in data:
+        chat_id = data['message']['chat']['id']
+        text = data['message'].get('text', '')
+        
+        if text == '/start':
+            payload = {
+                'chat_id': chat_id,
+                'text': "እንኳን ወደ GBH Wallet በደህና መጡ! 🚀\n\nታች ያለውን ቁልፍ ተጭነው Mini App ይክፈቱ።",
+                'reply_markup': {
+                    'inline_keyboard': [[
+                        {'text': '🌐 Open Wallet', 'web_app': {'url': BASE_URL}}
+                    ]]
+                }
+            }
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=payload)
+            
+    return jsonify({"status": "ok"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
