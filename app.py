@@ -12,7 +12,7 @@ app = Flask(__name__)
 def home():
     return render_template('index.html')
 
-# 2. የተጠቃሚ መረጃ ማቅረቢያ API
+# 2. የተጠቃሚ ሙሉ መረጃ ማቅረቢያ API
 @app.route('/api/user_info', methods=['POST'])
 def get_user_info():
     data = request.json or {}
@@ -23,7 +23,10 @@ def get_user_info():
 
     conn = sqlite3.connect('wallet.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT first_name, ton_balance, etb_balance, memo_id, kyc_status FROM users WHERE telegram_id = ?', (telegram_id,))
+    cursor.execute('''
+        SELECT first_name, father_name, ton_balance, usdt_balance, etb_balance, memo_id, kyc_status 
+        FROM users WHERE telegram_id = ?
+    ''', (telegram_id,))
     user = cursor.fetchone()
     conn.close()
 
@@ -31,58 +34,84 @@ def get_user_info():
         return jsonify({
             "status": "success",
             "first_name": user[0],
-            "ton_balance": user[1],
-            "etb_balance": user[2],
-            "memo_id": user[3],
-            "kyc_status": user[4]
+            "father_name": user[1],
+            "ton_balance": user[2],
+            "usdt_balance": user[3],
+            "etb_balance": user[4],
+            "memo_id": user[5],
+            "kyc_status": user[6]
         })
-    return jsonify({"status": "error", "message": "ተጠቃሚው አልተመዘገበም"}), 444
+    return jsonify({"status": "error", "message": "ተጠቃሚው አልተመዘገበም"}), 404
 
-# 3. የ KYC መረጃ እና የመታወቂያ ፎቶ መቀበያ Endpoint
+# 3. ሙሉ የ KYC እና የምዝገባ መረጃ መቀበያ Endpoint
 @app.route('/api/submit_kyc', methods=['POST'])
 def submit_kyc():
     telegram_id = request.form.get('telegram_id')
-    full_name = request.form.get('full_name')
+    first_name = request.form.get('first_name')
+    father_name = request.form.get('father_name')
+    grand_father_name = request.form.get('grand_father_name')
+    phone_number = request.form.get('phone_number')
+    country = request.form.get('country')
+    email = request.form.get('email')
+    password = request.form.get('password')
     doc_type = request.form.get('doc_type')
     photo_file = request.files.get('document_photo')
 
-    if not photo_file or not telegram_id:
-        return jsonify({"status": "error", "message": "እባክዎን ሁሉንም መረጃዎች ይሙሉ"}), 400
+    if not photo_file or not telegram_id or not password:
+        return jsonify({"status": "error", "message": "እባክዎን ሁሉንም አስፈላጊ መረጃዎች ይሙሉ"}), 400
 
     # ፎቶውን ወደ ቴሌግራም ሰርቨር መላክ
     files = {'photo': (photo_file.filename, photo_file.stream, photo_file.mimetype)}
-    res = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", 
-                        data={'chat_id': telegram_id, 'caption': 'KYC Upload'}, files=files).json()
+    res = requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", 
+        data={'chat_id': telegram_id, 'caption': f'KYC Upload: {first_name} {father_name}'}, 
+        files=files
+    ).json()
 
     if res.get('ok'):
         file_id = res['result']['photo'][-1]['file_id']
-        # መረጃውን ለአድሚን በቴሌግራም መላክ
-        send_kyc_to_admin(telegram_id, full_name, doc_type, file_id)
         
-        # የ KYC ሁኔታን PENDING ማድረግ
+        # መረጃውን በዳታቤዝ ውስጥ ማስቀመጥ/ማደስ
         conn = sqlite3.connect('wallet.db')
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET kyc_status='PENDING', kyc_doc_type=? WHERE telegram_id=?", (doc_type, telegram_id))
+        cursor.execute('''
+            INSERT INTO users (telegram_id, first_name, father_name, grand_father_name, phone_number, country, email, password, kyc_status, kyc_doc_type, kyc_doc_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
+            ON CONFLICT(telegram_id) DO UPDATE SET
+                first_name=excluded.first_name,
+                father_name=excluded.father_name,
+                grand_father_name=excluded.grand_father_name,
+                phone_number=excluded.phone_number,
+                country=excluded.country,
+                email=excluded.email,
+                password=excluded.password,
+                kyc_status='PENDING',
+                kyc_doc_type=excluded.kyc_doc_type,
+                kyc_doc_path=excluded.kyc_doc_path
+        ''', (telegram_id, first_name, father_name, grand_father_name, phone_number, country, email, password, doc_type, file_id))
+        
         conn.commit()
         conn.close()
-        
-        return jsonify({"status": "success", "message": "የ KYC መረጃዎ ለአድሚን ተልኳል"}), 200
+
+        # መረጃውን ለአድሚን በቴሌግራም መላክ
+        full_name = f"{first_name} {father_name} {grand_father_name}"
+        send_kyc_to_admin(telegram_id, full_name, doc_type, file_id)
+
+        return jsonify({"status": "success", "message": "የ KYC መረጃዎ እና ምዝገባዎ በስኬት ለአድሚን ተልኳል"}), 200
 
     return jsonify({"status": "error", "message": "ፎቶውን መላክ አልተቻለም"}), 500
 
-# 4. የ OTP ጥያቄ መላኪያ (Forgot Password / Reset)
+# 4. የ OTP ጥያቄ መላኪያ
 @app.route('/api/request_otp', methods=['POST'])
 def request_otp():
     data = request.json or {}
     telegram_id = data.get('telegram_id')
-    
     if not telegram_id:
         return jsonify({"status": "error", "message": "የቴሌግራም ID ያስፈልጋል"}), 400
-
-    otp = generate_and_send_otp(telegram_id)
+    generate_and_send_otp(telegram_id)
     return jsonify({"status": "success", "message": "OTP በቴሌግራም ተልኮልዎታል"}), 200
 
-# 5. የ OTP ማረጋገጫ እና አዲስ ፓስወርድ መመዝገቢያ
+# 5. የ OTP ማረጋገጫ እና ፓስወርድ መቀየሪያ
 @app.route('/api/verify_otp', methods=['POST'])
 def verify_otp():
     data = request.json or {}
@@ -136,14 +165,14 @@ def deposit_chapa():
     res = requests.post("https://api.chapa.co/v1/transaction/initialize", json=payload, headers=headers).json()
     
     if res.get('status') == 'success':
-        # ትራንዛክሽኑን PENDING ብሎ መመዝገብ
         conn = sqlite3.connect('wallet.db')
-        cursor = conn.cursor()
-        cursor.execute('INSERT INTO transactions (telegram_id, type, amount, currency, status, reference_id) VALUES (?, ?, ?, ?, ?, ?)',
-                       (telegram_id, 'DEPOSIT_ETB', amount, 'ETB', 'PENDING', tx_ref))
+        cursor = cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO transactions (telegram_id, type, amount, currency, status, reference_id) 
+            VALUES (?, 'DEPOSIT_ETB', ?, 'ETB', 'PENDING', ?)
+        ''', (telegram_id, amount, tx_ref))
         conn.commit()
         conn.close()
-        
         return jsonify({"status": "success", "checkout_url": res['data']['checkout_url']})
     
     return jsonify({"status": "error", "message": "የ Chapa ክፍያ መደወያ አልተሳካም"}), 500
