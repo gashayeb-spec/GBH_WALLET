@@ -219,6 +219,19 @@
     </div>
 </div>
 
+<!-- OTP INPUT MODAL -->
+<div id="otpModal" class="modal hidden">
+    <div class="modal-body">
+        <h3 style="color:var(--gold); margin-bottom: 10px;"><i class="fas fa-key"></i> OTP ማረጋገጫ</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">ወደ Telegram የተላከውን 6-Digit OTP ኮድ አስገባ፦</p>
+        <input type="text" id="otpCodeInput" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; font-size: 1.2rem; letter-spacing: 4px;">
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn btn-success" style="flex: 1;" onclick="submitOtp()">አረጋግጥ</button>
+            <button class="btn btn-danger" style="flex: 1;" onclick="closeOtpModal()">ሰርዝ</button>
+        </div>
+    </div>
+</div>
+
 <!-- IMAGE ZOOM MODAL -->
 <div id="zoomModal" class="modal hidden">
     <div class="modal-body">
@@ -242,21 +255,20 @@
     let currentRole = 'guest';
     let pendingAdminId = '';
 
-    // CLIPBOARD AUTO-PASTE/AUTO-FILL FOR OTP
+    // CLIPBOARD AUTO-PASTE FOR OTP
     window.addEventListener('focus', async () => {
         if (!pendingAdminId) return;
         try {
             const text = await navigator.clipboard.readText();
             const cleanOtp = text ? text.trim() : '';
             if (cleanOtp && /^\d{6}$/.test(cleanOtp)) {
-                const otpInput = document.getElementById('swalOtpInput');
+                const otpInput = document.getElementById('otpCodeInput');
                 if (otpInput && !otpInput.value) {
                     otpInput.value = cleanOtp;
-                    console.log("OTP Auto-filled successfully!");
                 }
             }
         } catch (err) {
-            console.log("Clipboard permission not granted or supported.");
+            console.log("Clipboard permission error");
         }
     });
 
@@ -281,29 +293,7 @@
             if(res.ok) {
                 if(data.status === 'otp_required') {
                     pendingAdminId = admin_id;
-                    
-                    // ቴሌግራም ላይ Copy ያደረግከውን ኮድ በራሱ Auto-paste እንዲያደርግ አድርገን የምንቀበልበት
-                    setTimeout(async () => {
-                        let copiedOtp = '';
-                        try {
-                            const clipboardText = await navigator.clipboard.readText();
-                            if (clipboardText && /^\d{6}$/.test(clipboardText.trim())) {
-                                copiedOtp = clipboardText.trim();
-                            }
-                        } catch(e) {}
-
-                        const userOtp = prompt(
-                            data.message + "\n\nወደ Telegram የተላከውን 6-Digit OTP ኮድ ያስገቡ፦",
-                            copiedOtp
-                        );
-
-                        if (userOtp) {
-                            verifyOtp(admin_id, userOtp.trim());
-                        } else {
-                            alert("OTP አላስገቡም! መግባት አይችሉም።");
-                        }
-                    }, 300);
-
+                    openOtpModal();
                 } else if (data.status === 'success') {
                     currentRole = data.role;
                     showDashboard();
@@ -315,6 +305,26 @@
             console.error(e);
             alert("ከአገልጋዩ (Server) ጋር መገናኘት አልተቻለም!");
         }
+    }
+
+    // OTP MODAL HANDLERS
+    function openOtpModal() {
+        document.getElementById('otpCodeInput').value = '';
+        document.getElementById('otpModal').classList.remove('hidden');
+    }
+
+    function closeOtpModal() {
+        document.getElementById('otpModal').classList.add('hidden');
+        pendingAdminId = '';
+    }
+
+    function submitOtp() {
+        const otp = document.getElementById('otpCodeInput').value.trim();
+        if (!otp) {
+            alert("እባክዎን OTP ኮዱን ያስገቡ!");
+            return;
+        }
+        verifyOtp(pendingAdminId, otp);
     }
 
     // 2. VERIFY OTP FUNCTION
@@ -330,6 +340,7 @@
             if(res.ok && data.status === 'success') {
                 currentRole = data.role;
                 pendingAdminId = '';
+                closeOtpModal();
                 showDashboard();
             } else {
                 alert(data.message || "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!");
@@ -383,7 +394,7 @@
         const role = document.getElementById('newAdminRole').value;
 
         if(!admin_id) {
-            alert("እባክዎን የአድሚኑን Telegram ID ያስገቡ!");
+            alert("እባክዎን የአድሚኑ Telegram ID ያስገቡ!");
             return;
         }
 
