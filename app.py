@@ -22,11 +22,12 @@ settings_db = {
     "support_phone": "0916039015"
 }
 
+# --- TELEGRAM BOT INITIALIZATION ---
+bot = None
 if BOT_TOKEN:
     try:
         bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
-        bot.remove_webhook()
-
+        
         @bot.message_handler(commands=['start'])
         def send_welcome(message):
             markup = telebot.types.InlineKeyboardMarkup()
@@ -34,7 +35,6 @@ if BOT_TOKEN:
                 text="🚀 ተራመድ ሳኮ አፕ ክፈት", 
                 web_app=telebot.types.WebAppInfo(url=WEB_APP_URL)
             )
-            # ለአድሚኑ ብቻ የሚታይ የአድሚን ፓናል መክፈቻ ቁልፍ
             if str(message.chat.id) == str(ADMIN_ID):
                 admin_btn = telebot.types.InlineKeyboardButton(
                     text="⚙️ አድሚን ፓናል ክፈት", 
@@ -51,11 +51,24 @@ if BOT_TOKEN:
 
         def start_bot():
             print(">>> TELEGRAM BOT IS RUNNING... <<<")
-            bot.infinity_polling(timeout=10, long_polling_timeout=5)
+            try:
+                bot.remove_webhook()
+            except Exception as e:
+                print("Webhook Removal Warning:", e)
+            # skip_pending=True አሮጌ Requestዎች ግጭት እንዳይፈጥሩ ይረዳል
+            bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
 
-        Thread(target=start_bot, daemon=True).start()
+        # Render/Gunicorn ሁለተኛ Process በሚከፍትበት ጊዜ ቦቱ እንዳይደጋገም ይከላከላል
+        if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("SERVER_SOFTWARE", "").startswith("gunicorn"):
+            Thread(target=start_bot, daemon=True).start()
+        elif not os.environ.get("SERVER_SOFTWARE"):
+            # ለ Local Development Running (python app.py)
+            Thread(target=start_bot, daemon=True).start()
+
     except Exception as e:
-        print("Bot Error:", e)
+        print("Bot Initialization Error:", e)
+
+# --- ROUTES ---
 
 @app.route('/', methods=['GET', 'HEAD'])
 def home():
@@ -102,8 +115,7 @@ def register_member():
         }
         members_db.append(new_member)
 
-        # ለአድሚኑ በቴሌግራም መልእክትና ፋይሎችን መላክ
-        if BOT_TOKEN and ADMIN_ID:
+        if bot and ADMIN_ID:
             try:
                 msg = (
                     f"📝 **አዲስ የአባልነት ምዝገባ ደርሷል!**\n\n"
@@ -142,7 +154,7 @@ def upload_weekly_receipt():
                 member['weekly_paid_status'] = 1
                 member['paid_amount'] += 1000
 
-                if BOT_TOKEN and ADMIN_ID:
+                if bot and ADMIN_ID:
                     try:
                         msg = f"📩 **አዲስ የቁጠባ ክፍያ ደረሰኝ!**\n\n👤 **አባል:** {member['first_name']} {member['father_name']}\n🆔 **Ref:** `{member['ref_no']}`\n🔢 **Transaction Ref:** `{receipt_ref}`"
                         if file:
@@ -191,7 +203,7 @@ def broadcast_message():
             return jsonify({"success": False, "message": "መልእክቱ ባዶ ነው!"}), 400
 
         sent_count = 0
-        if BOT_TOKEN and members_db:
+        if bot and members_db:
             for member in members_db:
                 tg_id = member.get('telegram_id')
                 if tg_id:
@@ -241,6 +253,5 @@ def edit_member():
         return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
 if __name__ == '__main__':
-    # Render በራሱ የሚሰጠውን PORT ወይም 10000 ይጠቀማል
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
