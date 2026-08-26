@@ -2,6 +2,8 @@ import os
 import re
 import math
 import random
+import sqlite3
+import requests
 import telebot
 from threading import Thread
 from flask import Flask, render_template, request, jsonify
@@ -16,15 +18,17 @@ CORS(app)
 
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-ADMIN_IDS = [os.environ.get("ADMIN_ID", "5351353727")]
+SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727"))
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
 
 admin_config = {
-    "password": "admin123",
-    "otp": None
+    "password": "admin123"
 }
 
-# --- IN-MEMORY DATABASE ---
+# Temporary OTP Store (In-Memory)
+otp_store = {}
+
+# --- IN-MEMORY DATABASE & DATA STORES ---
 members_db = [
     {
         "id": 1, 
@@ -42,7 +46,21 @@ members_db = [
         "loan_date": "2026-08-27"
     }
 ]
+
+# Roles DB (Registered Admins)
+admins_db = [
+    {
+        "admin_id": SUPER_ADMIN_ID,
+        "password": "admin123",
+        "role": "super"
+    }
+]
+
+expenses_db = []
+receipts_db = []
+loans_db = []
 guarantors_db = []
+
 settings_db = {
     "latest_draw_number": "ዙር 01",
     "winner_name": "-",
@@ -69,7 +87,7 @@ if BOT_TOKEN:
             )
             bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
-        # --- TELEGRAM INLINE BUTTON CALLBACK HANDLER (Approve / Cancel / Block) ---
+        # --- TELEGRAM INLINE BUTTON CALLBACK HANDLER ---
         @bot.callback_query_handler(func=lambda call: call.data.startswith(('approve_', 'cancel_', 'block_')))
         def handle_admin_action(call):
             try:
@@ -89,14 +107,12 @@ if BOT_TOKEN:
                         'block': '🚫 **ታግዷል (Blocked)**'
                     }
 
-                    # በአድሚኑ የቴሌግራም መልእክት ስር ውሳኔውን ማሻሻል
                     bot.edit_message_text(
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
                         text=call.message.text + f"\n\n📌 **የአድሚን ውሳኔ፦** {status_text[action]}"
                     )
 
-                    # ለተመዝጋቢው ተጠቃሚ በቴሌግራም መልእክት መላክ
                     if member.get('telegram_id'):
                         try:
                             user_msgs = {
@@ -126,6 +142,14 @@ if BOT_TOKEN:
     except Exception as e:
         print("Bot Initialization Error:", e)
 
+# Helper function to send Telegram Messages
+def send_telegram_msg(chat_id, message):
+    if bot:
+        try:
+            bot.send_message(chat_id, message)
+        except Exception as e:
+            print(f"Error sending message to {chat_id}:", e)
+
 # --- WEB ROUTES ---
 
 @app.route('/', methods=['GET', 'HEAD'])
@@ -146,47 +170,104 @@ def get_member_info(telegram_id):
         "settings": settings_db
     })
 
-# --- ADMIN AUTH & OTP API ---
+# --- ADMIN AUTH, ROLES & OTP API ---
 
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
     data = request.get_json(silent=True) or {}
-    if data.get('password') == admin_config["password"]:
-        return jsonify({"success": True, "token": "secret-admin-token"}), 200
-    return jsonify({"success": False, "message": "የይለፍ ቃል የተሳሳተ ነው!"}), 401
+    admin_id = str(data.get('admin_id', '')).strip()
+    password = str(data.get('pass', '')).strip()
 
-@app.route('/api/admin/send_otp', methods=['POST'])
-def send_otp():
-    otp = str(random.randint(100000, 999999))
-    admin_config["otp"] = otp
-    if bot and ADMIN_IDS and ADMIN_IDS[0]:
-        try:
-            bot.send_message(ADMIN_IDS[0], f"🔑 **የይለፍ ቃል ማደሻ ማረጋገጫ ኮድ (OTP)፦** `{otp}`")
-            return jsonify({"success": True, "message": "የማረጋገጫ ኮድ (OTP) በቴሌግራም ተልኳል!"})
-        except Exception as e:
-            return jsonify({"success": False, "message": f"ኮዱን በቴሌግራም መላክ አልተቻለም፦ {str(e)}"})
-    return jsonify({"success": False, "message": "የቴሌግራም አድሚን ID አልተገናኘም!"})
+    # 1. SUPER ADMIN LOGIN CHECK
+    if admin_id == SUPER_ADMIN_ID:
+        if password == admin_config["password"]:
+            otp = str(random.randint(100000, 999999))
+            otp_store[admin_id] = otp
+            
+            msg = f"🔐 **ተራመድ ሳኮ - Super Admin Login OTP**\n\nየመግቢያ ማረጋገጫ ኮድዎ፦ `{otp}`\n\nእባክዎን ይህንን ኮድ ለማንም አያጋሩ!"
+            send_telegram_msg(SUPER_ADMIN_ID, msg)
+            
+            return jsonify({"status": "otp_required", "message": "OTP ማረጋገጫ ኮድ ወደ ቴሌግራምህ ተልኳል!"}), 200
+        else:
+            return jsonify({"message": "የተሳሳተ የይለፍ ቃል!"}), 401
 
-@app.route('/api/admin/reset_password', methods=['POST'])
-def reset_password():
+    # 2. OTHER ROLE-BASED ADMINS CHECK
+    target_admin = next((a for a in admins_db if str(a['admin_id']) == admin_id and a['password'] == password), None)
+    
+    if target_admin:
+        return jsonify({"status": "success", "role": target_admin['role']}), 200
+    else:
+        return jsonify({"message": "የተሳሳተ የይለፍ ቃል ወይም Admin ID!"}), 401
+
+
+@app.route('/api/admin/verify_otp', methods=['POST'])
+def verify_otp():
     data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
     user_otp = str(data.get('otp', '')).strip()
-    new_password = str(data.get('new_password', '')).strip()
 
-    if not admin_config["otp"]:
-        return jsonify({"success": False, "message": "እባክዎ አስቀድመው የ OTP ኮድ ይላኩ!"}), 400
+    if admin_id in otp_store and otp_store[admin_id] == user_otp:
+        del otp_store[admin_id]
+        return jsonify({"status": "success", "role": "super"}), 200
+    else:
+        return jsonify({"message": "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!"}), 400
 
-    if user_otp != admin_config["otp"]:
-        return jsonify({"success": False, "message": "የተሳሳተ OTP ኮድ ነው! እባክዎ እንደገና ይሞክሩ።"}), 400
 
-    if not new_password:
-        return jsonify({"success": False, "message": "እባክዎ አዲስ የይለፍ ቃል ያስገቡ!"}), 400
+@app.route('/api/admin/assign_role', methods=['POST'])
+def assign_role():
+    data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
+    role = str(data.get('role', '')).strip()
 
-    admin_config["password"] = new_password
-    admin_config["otp"] = None  # OTPው ጥቅም ላይ ስለዋለ ያጠፋዋል
-    return jsonify({"success": True, "message": "የይለፍ ቃል በስኬት ተቀይሯል! አሁን በአዲሱ የይለፍ ቃል መግባት ይችላሉ።"})
+    if not admin_id or not role:
+        return jsonify({"message": "እባክዎን Admin ID እና Role ያስገቡ!"}), 400
 
-# --- MEMBER MANAGEMENT (Panel & Telegram Action) ---
+    existing_admin = next((a for a in admins_db if str(a['admin_id']) == admin_id), None)
+    if existing_admin:
+        existing_admin['role'] = role
+    else:
+        admins_db.append({
+            "admin_id": admin_id,
+            "password": "123456",  # Default Password for newly created admin
+            "role": role
+        })
+
+    msg = f"🎖 **አዲስ የአድሚን ስልጣን ተሰጥቶዎታል!**\n\nየስራ ድርሻዎ፦ **{role.upper()}**\nመግቢያ Password፦ `123456`\nእባክዎን ገብተው ፓስወርድዎን ይቀይሩ።"
+    send_telegram_msg(admin_id, msg)
+
+    return jsonify({"message": f"አድሚን {admin_id} በ {role} ስልጣን በስኬት ተሾሟል!"}), 200
+
+
+@app.route('/api/admin/request_reset', methods=['POST'])
+def request_reset():
+    data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
+
+    otp = str(random.randint(100000, 999999))
+    otp_store[f"reset_{admin_id}"] = otp
+
+    msg = f"⚠️ **የይለፍ ቃል ቅያሬ ጥያቄ!**\n\nAdmin ID: `{admin_id}` የይለፍ ቃል ለመቀየር እየሞከረ ነው።\n\nለመፍቀድ ይህንን OTP ይስጡት፦ `{otp}`"
+    send_telegram_msg(SUPER_ADMIN_ID, msg)
+
+    return jsonify({"message": "የይለፍ ቃል መቀየሪያ OTP ለ Super Admin ተልኳል። ከእሱ ተቀብለው ያስገቡ!"}), 200
+
+
+# --- FINANCE & EXPENSES API ---
+
+@app.route('/api/admin/add_expense', methods=['POST'])
+def add_expense():
+    data = request.get_json(silent=True) or {}
+    desc = data.get('description', '')
+    amount = float(data.get('amount', 0))
+
+    if not desc or amount <= 0:
+        return jsonify({"message": "እባክዎን ትክክለኛ መረጃ ያስገቡ!"}), 400
+
+    expenses_db.append({"description": desc, "amount": amount})
+    return jsonify({"message": "ወጪው በስኬት ተመዝግቧል!"}), 200
+
+
+# --- MEMBER MANAGEMENT ---
 
 @app.route('/api/admin/member_action', methods=['POST'])
 def member_action():
@@ -221,12 +302,12 @@ def member_action():
 
     return jsonify({"success": False, "message": "አባሉ አልተገኘም!"})
 
+
 # --- PUBLIC USER REGISTER API ---
 
 @app.route('/api/register', methods=['POST'])
 def register_member():
     try:
-        # FormData ወይም JSON ዳታዎችን በአንድ ላይ ይቀበላል
         if request.is_json:
             data = request.get_json() or {}
         else:
@@ -251,7 +332,6 @@ def register_member():
         }
         members_db.append(member)
         
-        # ቦቱ ለአድሚን ከእነ Inline Action Buttons እና ከ Admin Panel WebApp Button ጋር እንዲልክ ማድረግ
         if bot:
             markup = telebot.types.InlineKeyboardMarkup()
             
@@ -259,14 +339,12 @@ def register_member():
             btn_cancel = telebot.types.InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_{new_id}")
             btn_block = telebot.types.InlineKeyboardButton("🚫 Block", callback_data=f"block_{new_id}")
             
-            # ቀጥታ ወደ አድሚን ፓናል የሚወስድ WEB APP BUTTON
             admin_panel_url = f"{WEB_APP_URL}/admin"
             btn_panel = telebot.types.InlineKeyboardButton(
                 "📊 አድሚን ፓናል ክፈት", 
                 web_app=telebot.types.WebAppInfo(url=admin_panel_url)
             )
 
-            # ቁልፎቹን በሁለት ረድፍ ማደራጀት
             markup.add(btn_approve, btn_cancel, btn_block)
             markup.add(btn_panel)
 
@@ -281,18 +359,17 @@ def register_member():
                 f"💬 **TG ID፦** `{member['telegram_id']}`"
             )
 
-            for admin_id in ADMIN_IDS:
-                if admin_id:
-                    try:
-                        bot.send_message(admin_id, admin_msg, reply_markup=markup)
-                    except Exception as e:
-                        print(f"Admin Notification Error for {admin_id}:", e)
+            try:
+                bot.send_message(SUPER_ADMIN_ID, admin_msg, reply_markup=markup)
+            except Exception as e:
+                print(f"Admin Notification Error for {SUPER_ADMIN_ID}:", e)
 
         return jsonify({"success": True, "message": "ምዝገባዎ ተጠናቋል። ከአድሚን ማረጋገጫ ይጠብቁ!", "ref_no": ref_no}), 200
 
     except Exception as e:
         print("Registration Error:", e)
         return jsonify({"success": False, "message": f"ምዝገባውን ማካሄድ አልተቻለም፦ {str(e)}"}), 500
+
 
 # --- ADMIN API DATA GETTER ---
 
@@ -301,7 +378,10 @@ def get_admin_data():
     return jsonify({
         "settings": settings_db,
         "members": members_db,
-        "guarantors": guarantors_db
+        "guarantors": guarantors_db,
+        "expenses": expenses_db,
+        "receipts": receipts_db,
+        "loans": loans_db
     })
 
 if __name__ == '__main__':
