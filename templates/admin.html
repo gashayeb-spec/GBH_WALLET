@@ -33,7 +33,7 @@
         .auth-card { max-width: 400px; margin: 50px auto; background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
         input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; }
         
-        .btn { padding: 8px 14px; background: var(--gold); color: #0f172a; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+        .btn { padding: 8px 14px; background: var(--gold); color: #0f172a; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-success { background: var(--success); color: #fff; }
         .btn-primary { background: var(--primary); color: #fff; }
@@ -56,7 +56,6 @@
         th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
         th { background: #0f172a; color: var(--gold); }
 
-        /* Receipt Thumbnail and Zoom Modal */
         .receipt-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid var(--gold); }
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .modal-body { background: var(--card); padding: 20px; border-radius: 12px; max-width: 500px; width: 90%; text-align: center; border: 1px solid var(--border); position: relative; }
@@ -131,7 +130,7 @@
                         </tr>
                     </thead>
                     <tbody id="regTableBody">
-                        <!-- Loaded dynamically -->
+                        <!-- Dynamic content -->
                     </tbody>
                 </table>
             </div>
@@ -155,7 +154,7 @@
                         </tr>
                     </thead>
                     <tbody id="loanTableBody">
-                        <!-- Loaded dynamically -->
+                        <!-- Dynamic content -->
                     </tbody>
                 </table>
             </div>
@@ -177,7 +176,7 @@
                         </tr>
                     </thead>
                     <tbody id="receiptTableBody">
-                        <!-- Loaded dynamically -->
+                        <!-- Dynamic content -->
                     </tbody>
                 </table>
             </div>
@@ -232,10 +231,10 @@
 <script>
     let currentRole = 'guest';
 
-    // LOGIN FUNCTION
+    // 1. ADMIN LOGIN WITH OTP INTEGRATION
     async function adminLogin() {
-        const admin_id = document.getElementById('adminUser').value;
-        const pass = document.getElementById('adminPass').value;
+        const admin_id = document.getElementById('adminUser').value.trim();
+        const pass = document.getElementById('adminPass').value.trim();
 
         if(!admin_id || !pass) {
             alert("እባክዎን Telegram ID እና Password ያስገቡ!");
@@ -246,25 +245,61 @@
             const res = await fetch('/api/admin/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({admin_id, pass})
+                body: JSON.stringify({admin_id: admin_id, pass: pass})
             });
             const data = await res.json();
             
             if(res.ok) {
-                currentRole = data.role;
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('adminDashboard').classList.remove('hidden');
-                setupPermissions();
-                loadDashboardData();
+                if(data.status === 'otp_required') {
+                    const userOtp = prompt(data.message + "\n\nወደ Telegram የተላከውን 6-Digit OTP ኮድ ያስገቡ፦");
+                    if (userOtp) {
+                        verifyOtp(admin_id, userOtp);
+                    } else {
+                        alert("OTP አላስገቡም! መግባት አይችሉም።");
+                    }
+                } else if (data.status === 'success') {
+                    currentRole = data.role;
+                    showDashboard();
+                }
             } else {
                 alert(data.message || "የተሳሳተ መረጃ!");
             }
         } catch(e) {
-            alert("የአድሚን መግቢያ ስህተት! እባክዎ አገልጋዩን (Server) ያረጋግጡ።");
+            console.error(e);
+            alert("ከአገልጋዩ (Server) ጋር መገናኘት አልተቻለም!");
         }
     }
 
-    // ROLE-BASED VISIBILITY CONTROL
+    // 2. VERIFY OTP FUNCTION
+    async function verifyOtp(admin_id, otp) {
+        try {
+            const res = await fetch('/api/admin/verify_otp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({admin_id: admin_id, otp: otp})
+            });
+            const data = await res.json();
+
+            if(res.ok && data.status === 'success') {
+                currentRole = data.role;
+                showDashboard();
+            } else {
+                alert(data.message || "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!");
+            }
+        } catch(e) {
+            console.error(e);
+            alert("OTP ማረጋገጥ አልተቻለም!");
+        }
+    }
+
+    // 3. SHOW DASHBOARD
+    function showDashboard() {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('adminDashboard').classList.remove('hidden');
+        setupPermissions();
+    }
+
+    // 4. ROLE-BASED VISIBILITY CONTROL
     function setupPermissions() {
         document.getElementById('roleDisplay').innerText = `Role: ${currentRole.toUpperCase()}`;
         document.querySelectorAll('.role-sec').forEach(el => el.classList.add('hidden'));
@@ -296,7 +331,7 @@
 
     // ASSIGN ADMIN ROLE
     async function assignRole() {
-        const admin_id = document.getElementById('newAdminId').value;
+        const admin_id = document.getElementById('newAdminId').value.trim();
         const role = document.getElementById('newAdminRole').value;
 
         if(!admin_id) {
@@ -319,8 +354,8 @@
 
     // ADD EXPENSE RECORD
     async function addExpense() {
-        const desc = document.getElementById('expDesc').value;
-        const amt = document.getElementById('expAmt').value;
+        const desc = document.getElementById('expDesc').value.trim();
+        const amt = document.getElementById('expAmt').value.trim();
 
         if(!desc || !amt) {
             alert("እባክዎን ወጪውን እና የብር መጠኑን ሙሉ በሙሉ ያስገቡ!");
@@ -340,11 +375,6 @@
         } catch(e) {
             alert("ወጪውን መመዝገብ አልተቻለም።");
         }
-    }
-
-    // LOAD INITIAL DATA (Placeholders for integration with Backend)
-    function loadDashboardData() {
-        // Here you can fetch registrations, receipts, loans and stats from Flask Backend
     }
 </script>
 </body>
