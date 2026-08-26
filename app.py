@@ -6,13 +6,13 @@ from flask_cors import CORS
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# 1. Flask App Setup (HTML ፋይሎችን ከ templates/ ፎልደር በራስ-ሰር ይወስዳል)
 app = Flask(__name__)
 CORS(app)
 
 # Environment Variables
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
+ADMIN_ID = os.environ.get("ADMIN_ID", "5351353727")
 
 members_db = []
 settings_db = {
@@ -31,7 +31,7 @@ def home():
 def admin_page():
     return render_template('admin.html')
 
-# APIs
+# API Endpoints
 @app.route('/api/member_info/<telegram_id>', methods=['GET'])
 def get_member_info(telegram_id):
     user_members = [m for m in members_db if str(m.get('telegram_id')) == str(telegram_id)]
@@ -58,10 +58,6 @@ def register_member():
     except Exception as e:
         return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
-@app.route('/api/upload_weekly_receipt', methods=['POST'])
-def upload_receipt():
-    return jsonify({"success": True, "message": "የቁጠባ ክፍያ መረጃው ገብቷል!"}), 200
-
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
     data = request.get_json()
@@ -73,21 +69,7 @@ def admin_login():
 def get_admin_data():
     return jsonify({"settings": settings_db, "members": members_db})
 
-@app.route('/api/admin/settings', methods=['POST'])
-def update_settings():
-    settings_db.update(request.get_json())
-    return jsonify({"success": True, "message": "ቅንብሮች ተስተካክለዋል!"})
-
-@app.route('/api/admin/toggle_payment', methods=['POST'])
-def toggle_payment():
-    data = request.get_json()
-    for m in members_db:
-        if m['id'] == int(data.get('member_id')):
-            m['weekly_paid_status'] = int(data.get('status'))
-            break
-    return jsonify({"success": True, "message": "ሁኔታው ተቀይሯል!"})
-
-# ----------------- Telegram Bot -----------------
+# ----------------- Telegram Bot Handlers -----------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
@@ -104,7 +86,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-def start_bot_loop():
+def run_bot():
     if BOT_TOKEN:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -112,8 +94,9 @@ def start_bot_loop():
         bot_app.add_handler(CommandHandler("start", start))
         bot_app.run_polling(drop_pending_updates=True)
 
+# Render Background Worker setup
 if BOT_TOKEN:
-    Thread(target=start_bot_loop, daemon=True).start()
+    Thread(target=run_bot, daemon=True).start()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
