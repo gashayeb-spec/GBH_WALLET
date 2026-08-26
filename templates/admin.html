@@ -244,12 +244,20 @@
 </div>
 
 <script>
-    // TELEGRAM MINI APP KEEP-ALIVE CONFIG
+    let telegramUserId = '';
+
+    // TELEGRAM MINI APP KEEP-ALIVE CONFIG & AUTO DETECT USER ID
     if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
         tg.enableClosingConfirmation(); // ከቴሌግራም ሲወጡ አፑ በራሱ እንዳይዘጋ ይከላከላል
+
+        // ቴሌግራም አፑን የከፈተውን ሰው ID በራሱ መለየት
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            telegramUserId = String(tg.initDataUnsafe.user.id);
+            document.getElementById('adminUser').value = telegramUserId;
+        }
     }
 
     let currentRole = 'guest';
@@ -272,7 +280,7 @@
         }
     });
 
-    // 1. ADMIN LOGIN WITH OTP INTEGRATION
+    // 1. ADMIN LOGIN WITH DIRECT SUPER-ADMIN BYPASS INTEGRATION
     async function adminLogin() {
         const admin_id = document.getElementById('adminUser').value.trim();
         const pass = document.getElementById('adminPass').value.trim();
@@ -286,7 +294,11 @@
             const res = await fetch('/api/admin/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({admin_id: admin_id, pass: pass})
+                body: JSON.stringify({
+                    admin_id: admin_id, 
+                    pass: pass,
+                    tg_user_id: telegramUserId // ቴሌግራም አፑን የከፈተውን ሰው ID አብሮ ይልካል
+                })
             });
             const data = await res.json();
             
