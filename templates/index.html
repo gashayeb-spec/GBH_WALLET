@@ -8,41 +8,20 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --gold: #f59e0b;
-            --gold-light: #fbbf24;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: rgba(255, 255, 255, 0.1);
-            --success: #10b981;
-            --danger: #ef4444;
+            --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
+            --gold-light: #fbbf24; --text: #f8fafc; --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1); --success: #10b981; --danger: #ef4444;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        html, body {
-            height: 100%;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        body { 
-            background: var(--bg); 
-            color: var(--text); 
-            padding: 12px; 
-            padding-bottom: 60px;
-        }
-        
+        html, body { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        body { background: var(--bg); color: var(--text); padding: 12px; padding-bottom: 60px; }
         .container { max-width: 500px; margin: 0 auto; min-height: 100%; }
-
         .top-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
         .lang-btn {
             background: rgba(245, 158, 11, 0.15); border: 1px solid var(--gold);
             color: var(--gold); padding: 5px 12px; border-radius: 20px; font-weight: bold;
             font-size: 0.8rem; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px;
         }
-        .lang-btn:hover { background: var(--gold); color: #0f172a; }
-
         .header-card {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             border: 1px solid var(--gold); border-radius: 16px; padding: 16px; text-align: center;
@@ -50,17 +29,14 @@
         }
         .header-card h1 { color: var(--gold); font-size: 1.3rem; font-weight: bold; }
         .header-card p { color: var(--text-muted); font-size: 0.8rem; }
-
         .tabs { display: flex; gap: 8px; margin-bottom: 15px; }
         .tab-btn {
             flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border);
             color: var(--text-muted); border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s;
         }
         .tab-btn.active { background: var(--gold); color: #0f172a; border-color: var(--gold); }
-
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-
         .master-panel {
             background: var(--card); border: 1px solid var(--border); border-radius: 16px;
             padding: 16px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -70,59 +46,44 @@
             border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;
         }
         .panel-title { color: var(--gold); font-weight: bold; font-size: 1rem; }
-        
         .support-btn {
             display: inline-flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.15);
             color: var(--gold); border: 1px solid var(--gold); padding: 6px 12px; border-radius: 20px;
             text-decoration: none; font-size: 0.8rem; font-weight: bold; transition: 0.2s;
         }
-        .support-btn:hover { background: var(--gold); color: #0f172a; }
-
         .draw-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
             background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: 10px; margin-bottom: 12px; text-align: center;
         }
         .draw-item span { display: block; font-size: 0.75rem; color: var(--text-muted); }
         .draw-item b { font-size: 0.85rem; color: var(--gold); }
-
         .equb-notebook {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px dashed var(--gold);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 12px;
+            background: rgba(15, 23, 42, 0.7); border: 1px dashed var(--gold);
+            border-radius: 12px; padding: 12px; margin-bottom: 12px;
         }
         .notebook-header {
             font-size: 0.85rem; color: var(--gold); font-weight: bold;
             border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 5px; margin-bottom: 8px;
-            display: flex; align-items: center; gap: 6px;
         }
         .book-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem; }
         .book-row .label { color: var(--text-muted); }
-
         .input-group { margin-bottom: 12px; }
         .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; }
         .input-group input, .input-group select {
             width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border);
             border-radius: 8px; color: var(--text); outline: none; font-size: 0.9rem;
         }
-        .input-group input:focus { border-color: var(--gold); }
-
         .account-display-box {
             background: rgba(245, 158, 11, 0.1); border: 1px dashed var(--gold);
-            border-radius: 8px; padding: 10px 12px; margin-top: 8px; margin-bottom: 8px; cursor: pointer; transition: 0.2s;
+            border-radius: 8px; padding: 10px 12px; margin-top: 8px; margin-bottom: 8px; cursor: pointer;
         }
-        .account-display-box:hover { background: rgba(245, 158, 11, 0.2); }
         .acc-details { display: flex; justify-content: space-between; align-items: center; }
         .acc-number { font-size: 0.95rem; font-weight: bold; color: var(--gold); }
         .copy-tag { font-size: 0.75rem; background: var(--gold); color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-
         .btn {
             width: 100%; padding: 12px; background: var(--gold); color: #0f172a; border: none;
             border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: 0.3s;
         }
-        .btn:hover { background: var(--gold-light); }
-
         .file-upload {
             border: 1px dashed var(--gold); border-radius: 8px; padding: 10px; text-align: center; cursor: pointer;
             background: rgba(245, 158, 11, 0.05); margin-bottom: 10px;
@@ -131,29 +92,24 @@
     </style>
 </head>
 <body>
-
     <div class="container">
-        <!-- Language Switcher -->
         <div class="top-bar">
             <button class="lang-btn" onclick="toggleLanguage()">
                 <i class="fas fa-globe"></i> <span id="langLabel">English</span>
             </button>
         </div>
 
-        <!-- Header -->
         <div class="header-card">
             <i class="fas fa-piggy-bank" style="font-size: 2rem; color: var(--gold); margin-bottom: 5px;"></i>
             <h1>ተራመድ ሳኮ</h1>
             <p id="t_subtitle">ዲጂታል የቁጠባና ብድር መዝገብና ክፍያ ፓናል</p>
         </div>
 
-        <!-- Navigation Tabs -->
         <div class="tabs">
             <button class="tab-btn active" id="t_tab_dash" onclick="switchTab('dashboardTab')"><i class="fas fa-book"></i> የኔ ደብተር</button>
             <button class="tab-btn" id="t_tab_reg" onclick="switchTab('registerTab')"><i class="fas fa-user-plus"></i> አባልነት ምዝገባ</button>
         </div>
 
-        <!-- DASHBOARD TAB -->
         <div id="dashboardTab" class="tab-content active">
             <div class="master-panel">
                 <div class="panel-header">
@@ -163,35 +119,22 @@
                     </a>
                 </div>
 
-                <!-- Savings / Loan Status Grid -->
                 <div class="draw-grid">
-                    <div class="draw-item">
-                        <span id="t_draw_num">የዜና/መረጃ ዙር</span>
-                        <b id="latestDrawNum">-</b>
-                    </div>
-                    <div class="draw-item">
-                        <span id="t_draw_winner">የብድር ተጠቃሚ</span>
-                        <b id="latestWinner">-</b>
-                    </div>
-                    <div class="draw-item">
-                        <span id="t_draw_date">ቀን</span>
-                        <b id="latestDrawDate">-</b>
-                    </div>
+                    <div class="draw-item"><span>የዜና/መረጃ ዙር</span><b id="latestDrawNum">-</b></div>
+                    <div class="draw-item"><span>የብድር ተጠቃሚ</span><b id="latestWinner">-</b></div>
+                    <div class="draw-item"><span>ቀን</span><b id="latestDrawDate">-</b></div>
                 </div>
 
-                <!-- Member Passbook Accounts -->
                 <div id="myMembersContainer"></div>
 
-                <!-- Savings Deposit Payment Form -->
                 <div id="weeklyUploadCard" style="display: none; border-top: 1px solid var(--border); padding-top: 12px;">
                     <form id="weeklyReceiptForm">
                         <div class="input-group">
-                            <label id="t_lbl_select_acc">የሚቆጥቡበትን አካውንት ይምረጡ</label>
+                            <label>የሚቆጥቡበትን አካውንት ይምረጡ</label>
                             <select id="weeklyMemberSelect" required></select>
                         </div>
-
                         <div class="input-group">
-                            <label id="t_lbl_weekly_bank">ገንዘብ ገቢ የሚያደርጉበት ባንክ / አካውንት</label>
+                            <label>ገንዘብ ገቢ የሚያደርጉበት ባንክ / አካውንት</label>
                             <select id="weeklyPaymentMethod" onchange="displayWeeklyAccountDetails()">
                                 <option value="Telebirr">ቴሌብር - 0916039015</option>
                                 <option value="CBE_Birr">ሲቢኢ ብር - 0916039015</option>
@@ -200,65 +143,43 @@
                                 <option value="Dashen">ዳሸን ባንክ - 5121355332011</option>
                                 <option value="Nib">ንብ ባንክ - 7000106022734</option>
                             </select>
-
                             <div id="weeklyAccountDisplayBox" class="account-display-box" onclick="copyWeeklyAccount()">
                                 <div class="acc-details">
                                     <div>
-                                        <span id="weeklyAccBankName" style="font-size: 0.8rem; display: block; color: var(--text-muted);">የባንክ ቁጥር (ለመቅዳት ይጫኑ)፦</span>
+                                        <span style="font-size: 0.8rem; display: block; color: var(--text-muted);">የባንክ ቁጥር (ለመቅዳት ይጫኑ)፦</span>
                                         <span id="weeklyAccNumberText" class="acc-number">0916039015</span>
                                     </div>
-                                    <span class="copy-tag" id="t_copy_tag">ቅዳ</span>
+                                    <span class="copy-tag">ቅዳ</span>
                                 </div>
                             </div>
                         </div>
-
                         <div class="input-group">
-                            <label id="t_lbl_weekly_ref">የትራንዛክሽን ቁጥር (Ref No / Transaction ID)</label>
+                            <label>የትራንዛክሽን ቁጥር (Ref No / Transaction ID)</label>
                             <input type="text" id="weeklyReceiptRef" placeholder="ምሳሌ፦ TX12345678">
                         </div>
-
                         <div class="file-upload" onclick="document.getElementById('weeklyReceiptFile').click()">
                             <i class="fas fa-camera" style="font-size: 1.5rem; color: var(--gold);"></i>
                             <p id="weeklyFileStatus" style="font-size: 0.8rem; margin-top: 5px;">የቁጠባ/ክፍያ ደረሰኝ ስክሪንሹት ይምረጡ</p>
                             <input type="file" id="weeklyReceiptFile" accept="image/*" onchange="handleFileSelect(this, 'weeklyFileStatus')">
                         </div>
-
-                        <button type="submit" class="btn" id="t_btn_send_pay"><i class="fas fa-paper-plane"></i> የቁጠባ ክፍያውን አረጋግጥ</button>
+                        <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> የቁጠባ ክፍያውን አረጋግጥ</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- REGISTRATION TAB -->
         <div id="registerTab" class="tab-content">
             <div class="master-panel">
                 <div class="panel-header">
-                    <span class="panel-title" id="t_reg_title"><i class="fas fa-user-plus"></i> አዲስ የአባልነት ምዝገባ</span>
+                    <span class="panel-title"><i class="fas fa-user-plus"></i> አዲስ የአባልነት ምዝገባ</span>
                 </div>
-
                 <form id="regForm">
-                    <div class="input-group">
-                        <label id="t_lbl_fname">ስም</label>
-                        <input type="text" id="first_name" required>
-                    </div>
-                    <div class="input-group">
-                        <label id="t_lbl_mname">የአባት ስም</label>
-                        <input type="text" id="father_name" required>
-                    </div>
-                    <div class="input-group">
-                        <label id="t_lbl_gname">የአያት ስም</label>
-                        <input type="text" id="grand_name" required>
-                    </div>
-                    <div class="input-group">
-                        <label id="t_lbl_phone">ስልክ ቁጥር</label>
-                        <input type="tel" id="phone_number" required placeholder="0911223344">
-                    </div>
-                    <div class="input-group">
-                        <label id="t_lbl_shares">የዕጣ/የቁጠባ ዕድል ብዛት</label>
-                        <input type="number" id="share_count" value="1" min="1" required>
-                    </div>
-
-                    <button type="submit" class="btn" id="t_btn_reg_submit"><i class="fas fa-check-circle"></i> ይመዝገቡ</button>
+                    <div class="input-group"><label>ስም</label><input type="text" id="first_name" required></div>
+                    <div class="input-group"><label>የአባት ስም</label><input type="text" id="father_name" required></div>
+                    <div class="input-group"><label>የአያት ስም</label><input type="text" id="grand_name" required></div>
+                    <div class="input-group"><label>ስልክ ቁጥር</label><input type="tel" id="phone_number" required placeholder="0911223344"></div>
+                    <div class="input-group"><label>የዕጣ/የቁጠባ ዕድል ብዛት</label><input type="number" id="share_count" value="1" min="1" required></div>
+                    <button type="submit" class="btn"><i class="fas fa-check-circle"></i> ይመዝገቡ</button>
                 </form>
             </div>
         </div>
@@ -267,16 +188,8 @@
     <script>
         const tg = window.Telegram ? window.Telegram.WebApp : null;
         if(tg) tg.expand();
-
         let currentLang = 'am';
-        const bankAccounts = {
-            'Telebirr': '0916039015',
-            'CBE_Birr': '0916039015',
-            'CBE': '1000070780201',
-            'BOA': '54071628',
-            'Dashen': '5121355332011',
-            'Nib': '7000106022734'
-        };
+        const bankAccounts = { 'Telebirr': '0916039015', 'CBE_Birr': '0916039015', 'CBE': '1000070780201', 'BOA': '54071628', 'Dashen': '5121355332011', 'Nib': '7000106022734' };
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -293,20 +206,17 @@
 
         function displayWeeklyAccountDetails() {
             const method = document.getElementById('weeklyPaymentMethod').value;
-            const accNum = bankAccounts[method] || '0916039015';
-            document.getElementById('weeklyAccNumberText').innerText = accNum;
+            document.getElementById('weeklyAccNumberText').innerText = bankAccounts[method] || '0916039015';
         }
 
         function copyWeeklyAccount() {
             const accNum = document.getElementById('weeklyAccNumberText').innerText;
             navigator.clipboard.writeText(accNum);
-            alert(currentLang === 'am' ? "የባንክ ቁጥሩ ተቀድቷል፦ " + accNum : "Account number copied: " + accNum);
+            alert("የባንክ ቁጥሩ ተቀድቷል፦ " + accNum);
         }
 
         function handleFileSelect(input, labelId) {
-            if(input.files && input.files[0]) {
-                document.getElementById(labelId).innerText = "ፋይል ተመርጧል፦ " + input.files[0].name;
-            }
+            if(input.files && input.files[0]) document.getElementById(labelId).innerText = "ፋይል ተመርጧል፦ " + input.files[0].name;
         }
 
         async function loadUserData() {
@@ -314,27 +224,22 @@
             try {
                 const res = await fetch(`/api/member_info/${telegram_id}`);
                 const data = await res.json();
-
                 if (data.settings) {
                     document.getElementById('latestDrawNum').innerText = data.settings.latest_draw_number || '-';
                     document.getElementById('latestWinner').innerText = data.settings.winner_name || '-';
                     document.getElementById('latestDrawDate').innerText = data.settings.latest_draw_date || '-';
-                    
                     if(data.settings.support_phone) {
                         const btn = document.getElementById('supportPhoneBtn');
                         btn.href = `tel:${data.settings.support_phone}`;
                         btn.style.display = 'inline-flex';
                     }
                 }
-
                 const container = document.getElementById('myMembersContainer');
                 const select = document.getElementById('weeklyMemberSelect');
-                container.innerHTML = '';
-                select.innerHTML = '';
+                container.innerHTML = ''; select.innerHTML = '';
 
                 if (data.members && data.members.length > 0) {
                     document.getElementById('weeklyUploadCard').style.display = 'block';
-
                     data.members.forEach(m => {
                         const opt = document.createElement('option');
                         opt.value = m.id;
@@ -342,10 +247,7 @@
                         select.appendChild(opt);
 
                         const isPaid = m.weekly_paid_status === 1;
-                        const paidBadge = isPaid 
-                            ? `<span style="color: var(--success); font-weight: bold;">✅ ቁጠባ ተከፍሏል</span>` 
-                            : `<span style="color: var(--danger); font-weight: bold;">❌ አልተከፈለሙ</span>`;
-
+                        const paidBadge = isPaid ? `<span style="color: var(--success); font-weight: bold;">✅ ቁጠባ ተከፍሏል</span>` : `<span style="color: var(--danger); font-weight: bold;">❌ አልተከፈለሙ</span>`;
                         const div = document.createElement('div');
                         div.className = 'equb-notebook';
                         div.innerHTML = `
@@ -368,11 +270,8 @@
             const formData = new FormData();
             formData.append('member_id', document.getElementById('weeklyMemberSelect').value);
             formData.append('receipt_ref', document.getElementById('weeklyReceiptRef').value);
-            
             const fileInput = document.getElementById('weeklyReceiptFile');
-            if(fileInput.files[0]) {
-                formData.append('receipt', fileInput.files[0]);
-            }
+            if(fileInput.files[0]) formData.append('receipt', fileInput.files[0]);
 
             try {
                 const res = await fetch('/api/upload_weekly_receipt', { method: 'POST', body: formData });
@@ -400,10 +299,7 @@
                 const res = await fetch('/api/register', { method: 'POST', body: formData });
                 const data = await res.json();
                 alert(data.message);
-                if(res.ok) {
-                    switchTab('dashboardTab');
-                    loadUserData();
-                }
+                if(res.ok) { switchTab('dashboardTab'); loadUserData(); }
             } catch(err) { alert("ምዝገባውን ማከናወን አልተቻለም!"); }
         });
 
