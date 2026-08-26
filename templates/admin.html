@@ -14,7 +14,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         html, body { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         body { background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 60px; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 950px; margin: 0 auto; }
         .admin-card {
             background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
@@ -37,16 +37,25 @@
             border-radius: 8px; color: var(--text); outline: none; font-size: 0.9rem;
         }
         .btn {
-            width: 100%; padding: 12px; background: var(--gold); color: #0f172a; border: none;
-            border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: 0.3s;
+            width: 100%; padding: 10px 14px; background: var(--gold); color: #0f172a; border: none;
+            border-radius: 8px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.3s;
         }
         .btn-danger { background: var(--danger); color: #fff; }
+        .btn-sm { padding: 5px 10px; font-size: 0.75rem; border-radius: 6px; }
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; min-width: 600px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; min-width: 750px; }
         th, td { border: 1px solid var(--border); padding: 10px; text-align: left; }
         th { background: rgba(245, 158, 11, 0.1); color: var(--gold); }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+            display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px;
+        }
+        .modal-content {
+            background: var(--card); border: 1px solid var(--gold); border-radius: 12px;
+            padding: 20px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -70,7 +79,7 @@
                 <h2><i class="fas fa-piggy-bank"></i> ተራመድ ሳኮ - አድሚን ፓናል</h2>
                 <p style="font-size: 0.8rem; color: var(--text-muted);">የአባላት ቁጠባ፣ የብድር ሁኔታ እና የሲስተም ቅንብሮች መቆጣጠሪያ</p>
             </div>
-            <button class="btn btn-danger" style="width: auto; padding: 8px 16px;" onclick="adminLogout()"><i class="fas fa-sign-out-alt"></i> ውጣ</button>
+            <button class="btn btn-danger" style="width: auto;" onclick="adminLogout()"><i class="fas fa-sign-out-alt"></i> ውጣ</button>
         </div>
 
         <div class="grid-2">
@@ -103,7 +112,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Ref No</th><th>ሙሉ ስም</th><th>ስልክ</th><th>የቁጠባ መጠን</th><th>የሳምንቱ ቁጠባ</th><th>ጠቅላላ ቁጠባ</th><th>ተግባር</th>
+                            <th>Ref No</th><th>ሙሉ ስም</th><th>ስልክ</th><th>መኖሪያ/አካባቢ</th><th>TIN</th><th>የሳምንቱ ቁጠባ</th><th>ጠቅላላ ቁጠባ</th><th>ተግባር</th>
                         </tr>
                     </thead>
                     <tbody id="adminMembersTable"></tbody>
@@ -112,8 +121,30 @@
         </div>
     </div>
 
+    <!-- የአባል መረጃ ማረሚያ Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--gold); margin-bottom: 15px;"><i class="fas fa-edit"></i> የአባል መረጃ ማረሚያ</h3>
+            <form id="editMemberForm">
+                <input type="hidden" id="edit_id">
+                <div class="input-group"><label>ስም</label><input type="text" id="edit_first_name" required></div>
+                <div class="input-group"><label>የአባት ስም</label><input type="text" id="edit_father_name" required></div>
+                <div class="input-group"><label>የአያት ስም</label><input type="text" id="edit_grand_name" required></div>
+                <div class="input-group"><label>ስልክ ቁጥር</label><input type="text" id="edit_phone_number" required></div>
+                <div class="input-group"><label>መኖሪያ አካባቢ</label><input type="text" id="edit_address" required></div>
+                <div class="input-group"><label>TIN ቁጥር</label><input type="text" id="edit_tin_number"></div>
+                <div class="input-group"><label>ጠቅላላ የተቀመጠ ቁጠባ (ብር)</label><input type="number" id="edit_paid_amount" required></div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn"><i class="fas fa-check"></i> አዘምን</button>
+                    <button type="button" class="btn btn-danger" onclick="closeEditModal()">ሰርዝ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let adminAuthToken = sessionStorage.getItem('adminToken') || '';
+        let globalMembers = [];
         if(adminAuthToken) showDashboard();
 
         document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
@@ -160,18 +191,21 @@
                 const tbody = document.getElementById('adminMembersTable');
                 tbody.innerHTML = '';
                 if(data.members) {
+                    globalMembers = data.members;
                     data.members.forEach(m => {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
                             <td><b>${m.ref_no}</b></td>
                             <td>${m.first_name} ${m.father_name} ${m.grand_name}</td>
                             <td>${m.phone_number}</td>
-                            <td>${m.share_count} ዕጣ</td>
+                            <td>${m.address || '-'}</td>
+                            <td>${m.tin_number || '-'}</td>
                             <td>${m.weekly_paid_status === 1 ? '✅ ተከፍሏል' : '❌ አልተከፈለሙ'}</td>
                             <td>${(m.paid_amount || 0).toLocaleString()} ብር</td>
                             <td>
-                                <button onclick="togglePayment('${m.id}', ${m.weekly_paid_status})" style="padding: 4px 8px; font-size: 0.75rem; cursor: pointer;">
-                                    ${m.weekly_paid_status === 1 ? 'ወደ አልተከፈለም ቀይር' : 'እንደ ተከፈለ መዝግብ'}
+                                <button class="btn btn-sm" onclick="openEditModal('${m.id}')"><i class="fas fa-edit"></i> አርም</button>
+                                <button class="btn btn-sm" onclick="togglePayment('${m.id}', ${m.weekly_paid_status})" style="margin-top: 4px; background: #334155; color: #fff;">
+                                    ${m.weekly_paid_status === 1 ? 'ወደ አልተከፈለም' : 'እንደ ተከፈለ'}
                                 </button>
                             </td>
                         `;
@@ -180,6 +214,50 @@
                 }
             } catch(e) { console.error(e); }
         }
+
+        function openEditModal(id) {
+            const member = globalMembers.find(m => str(m.id) === str(id));
+            if(member) {
+                document.getElementById('edit_id').value = member.id;
+                document.getElementById('edit_first_name').value = member.first_name;
+                document.getElementById('edit_father_name').value = member.father_name;
+                document.getElementById('edit_grand_name').value = member.grand_name;
+                document.getElementById('edit_phone_number').value = member.phone_number;
+                document.getElementById('edit_address').value = member.address || '';
+                document.getElementById('edit_tin_number').value = member.tin_number || '';
+                document.getElementById('edit_paid_amount').value = member.paid_amount || 0;
+                document.getElementById('editModal').style.display = 'flex';
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        document.getElementById('editMemberForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                id: document.getElementById('edit_id').value,
+                first_name: document.getElementById('edit_first_name').value,
+                father_name: document.getElementById('edit_father_name').value,
+                grand_name: document.getElementById('edit_grand_name').value,
+                phone_number: document.getElementById('edit_phone_number').value,
+                address: document.getElementById('edit_address').value,
+                tin_number: document.getElementById('edit_tin_number').value,
+                paid_amount: document.getElementById('edit_paid_amount').value
+            };
+
+            const res = await fetch('/api/admin/edit_member', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            alert(data.message);
+            if(res.ok) { closeEditModal(); loadAdminData(); }
+        });
+
+        function str(val) { return String(val); }
 
         document.getElementById('settingsForm').addEventListener('submit', async (e) => {
             e.preventDefault();
