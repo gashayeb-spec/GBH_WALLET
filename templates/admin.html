@@ -2,303 +2,453 @@
 <html lang="am">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ተራመድ ሳኮ - Admin Dashboard</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ተራመድ ሳኮ - አድሚን ፓናል</title>
     <style>
         :root {
-            --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
-            --gold-light: #fbbf24; --text: #f8fafc; --text-muted: #94a3b8;
-            --border: rgba(255, 255, 255, 0.1); --success: #10b981; --danger: #ef4444;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #f59e0b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #ef4444;
+            --success: #10b981;
+            --primary: #3b82f6;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        html, body { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        body { background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 60px; }
-        .container { max-width: 950px; margin: 0 auto; }
-        .admin-card {
-            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-            padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            direction: ltr;
         }
-        .admin-card h2 { color: var(--gold); font-size: 1.2rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-        .login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 20px;
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
         }
-        .login-box {
-            background: var(--card); border: 1px solid var(--gold); border-radius: 16px;
-            padding: 30px; width: 100%; max-width: 400px; text-align: center;
+
+        /* --- LOGIN & FORGOT PASSWORD MODALS --- */
+        .auth-card {
+            max-width: 400px;
+            margin: 50px auto;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid #334155;
+            text-align: center;
         }
-        .login-box h2 { color: var(--gold); margin-bottom: 10px; }
-        .login-box p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; }
-        .input-group { margin-bottom: 15px; text-align: left; }
-        .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
-        .input-group input, .input-group textarea {
-            width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border);
-            border-radius: 8px; color: var(--text); outline: none; font-size: 0.9rem;
+
+        .auth-card input, .auth-card button, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #fff;
+            box-sizing: border-box;
         }
+
         .btn {
-            width: 100%; padding: 10px 14px; background: var(--gold); color: #0f172a; border: none;
-            border-radius: 8px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.3s;
+            background: var(--accent-color);
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: 0.3s;
         }
+
+        .btn:hover { opacity: 0.9; }
         .btn-danger { background: var(--danger); color: #fff; }
-        .btn-sm { padding: 5px 10px; font-size: 0.75rem; border-radius: 6px; }
-        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; min-width: 750px; }
-        th, td { border: 1px solid var(--border); padding: 10px; text-align: left; }
-        th { background: rgba(245, 158, 11, 0.1); color: var(--gold); }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
-            display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px;
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-primary { background: var(--primary); color: #fff; }
+
+        /* --- DASHBOARD STATS --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
         }
-        .modal-content {
-            background: var(--card); border: 1px solid var(--gold); border-radius: 12px;
-            padding: 20px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
+
+        .stat-card h3 { margin: 0; font-size: 14px; color: var(--text-muted); }
+        .stat-card p { margin: 8px 0 0 0; font-size: 22px; font-weight: bold; }
+
+        /* --- SECTIONS & CARDS --- */
+        .section-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 1px solid #334155;
+        }
+
+        .section-title {
+            color: var(--accent-color);
+            margin-top: 0;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+            font-size: 18px;
+        }
+
+        /* --- TABLES --- */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #334155;
+            font-size: 14px;
+        }
+
+        th { background: #0f172a; color: var(--accent-color); }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .badge-pending { background: #eab308; color: #000; }
+        .badge-approved { background: var(--success); color: #fff; }
+        .badge-blocked { background: var(--danger); color: #fff; }
+
+        /* --- ACTIONS FLEX --- */
+        .action-btns {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .action-btns button {
+            padding: 6px 10px;
+            font-size: 12px;
+            width: auto;
+            margin: 0;
+        }
+
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <div id="loginOverlay" class="login-overlay">
-        <div class="login-box">
-            <i class="fas fa-user-shield" style="font-size: 3rem; color: var(--gold); margin-bottom: 10px;"></i>
-            <h2>ተራመድ ሳኮ - አድሚን መግቢያ</h2>
-            <p>እባክዎን የመቆጣጠሪያ ፓናል የይለፍ ቃል ያስገቡ</p>
-            <form id="adminLoginForm">
-                <div class="input-group">
-                    <input type="password" id="adminPassword" placeholder="የይለፍ ቃል" required>
-                </div>
-                <button type="submit" class="btn"><i class="fas fa-key"></i> ይግቡ</button>
-            </form>
-        </div>
+
+<div class="container">
+
+    <!-- 1. LOGIN SECTION -->
+    <div id="login-section" class="auth-card">
+        <h2>🔒 ተራመድ ሳኮ - አድሚን መግቢያ</h2>
+        <input type="password" id="admin-password" placeholder="የአድሚን ይለፍ ቃል ያስገቡ">
+        <button class="btn" onclick="login()">ይግቡ</button>
+        <p><a href="#" onclick="showForgotPassword()" style="color: var(--accent-color); text-decoration: none;">የይለፍ ቃል ረስተዋል? (Forgot Password)</a></p>
     </div>
 
-    <div class="container" id="adminDashboard" style="display: none;">
-        <div class="admin-card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div>
-                <h2><i class="fas fa-piggy-bank"></i> ተራመድ ሳኮ - አድሚን ፓናል</h2>
-                <p style="font-size: 0.8rem; color: var(--text-muted);">የአባላት ቁጠባ፣ የብድር ሁኔታ እና የሲስተም ቅንብሮች መቆጣጠሪያ</p>
+    <!-- 2. FORGOT PASSWORD (OTP) SECTION -->
+    <div id="forgot-section" class="auth-card hidden">
+        <h2>🔑 የይለፍ ቃል ማደሻ (OTP)</h2>
+        <div id="otp-step-1">
+            <p>በቴሌግራም የማረጋገጫ ኮድ (OTP) እንዲላክሎት "OTP ላክ" የሚለውን ይጫኑ።</p>
+            <button class="btn btn-primary" onclick="sendOTP()">OTP ወደ ቴሌግራም ላክ</button>
+        </div>
+        <div id="otp-step-2" class="hidden">
+            <input type="text" id="otp-code" placeholder="ወደ ቴሌግራም የተላከውን 6 አሃዝ ኮድ ያስገቡ">
+            <input type="password" id="new-password" placeholder="አዲስ የይለፍ ቃል ያስገቡ">
+            <button class="btn btn-success" onclick="resetPassword()">ይለፍ ቃል ቀይር እና ግባ</button>
+        </div>
+        <p><a href="#" onclick="showLogin()" style="color: var(--text-muted); text-decoration: none;">ወደ መግቢያ ተመለስ</a></p>
+    </div>
+
+    <!-- 3. MAIN ADMIN DASHBOARD -->
+    <div id="dashboard-section" class="hidden">
+        
+        <h2>⚙️ የአድሚን መቆጣጠሪያ ፓናል</h2>
+
+        <!-- STATS OVERVIEW -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>ጠቅላላ ተመዝጋቢዎች</h3>
+                <p id="stat-total-members">0</p>
             </div>
-            <button class="btn btn-danger" style="width: auto;" onclick="adminLogout()"><i class="fas fa-sign-out-alt"></i> ውጣ</button>
+            <div class="stat-card">
+                <h3>የገባ ገንዘብ መጠን</h3>
+                <p id="stat-total-money">0 ETB</p>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--success);">
+                <h3>Approved (የፀደቁ)</h3>
+                <p id="stat-approved">0</p>
+            </div>
+            <div class="stat-card" style="border-left-color: #eab308;">
+                <h3>Pending (በመጠባበቅ ላይ)</h3>
+                <p id="stat-pending">0</p>
+            </div>
         </div>
 
-        <div class="grid-2">
-            <div class="admin-card">
-                <h2><i class="fas fa-sliders-h"></i> የቁጠባና ብድር ቅንብሮች</h2>
-                <form id="settingsForm">
-                    <div class="input-group"><label>የወቅቱ ዙር / መረጃ</label><input type="text" id="latest_draw_number" placeholder="ምሳሌ፦ ዙር 05"></div>
-                    <div class="input-group"><label>የብድር ተጠቃሚ አባል ስም</label><input type="text" id="winner_name" placeholder="የአባል ስም"></div>
-                    <div class="input-group"><label>የቀጣይ የቁጠባ ሂሳብ ማረጋገጫ ቀን</label><input type="text" id="latest_draw_date" placeholder="ምሳሌ፦ ነሐሴ 30"></div>
-                    <div class="input-group"><label>የእርዳታ/ድጋፍ ስልክ ቁጥር</label><input type="text" id="support_phone" placeholder="0916039015"></div>
-                    <button type="submit" class="btn"><i class="fas fa-save"></i> ቅንብሮችን አስቀምጥ</button>
-                </form>
-            </div>
-
-            <div class="admin-card">
-                <h2><i class="fas fa-bullhorn"></i> ለአባላት ማስታወቂያ ማስተላለፊያ</h2>
-                <form id="broadcastForm">
-                    <div class="input-group">
-                        <label>የመልእክት ይዘት</label>
-                        <textarea id="broadcastMessage" rows="5" placeholder="ለአባላት የሚተላለፍ የቁጠባ ወይም የብድር ማስታወቂያ..." required></textarea>
-                    </div>
-                    <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> ለሁሉም አባላት ላክ</button>
-                </form>
+        <!-- NOTIFICATIONS & LOAN ALERTS SECTION -->
+        <div class="section-card">
+            <h3 class="section-title">🔔 የማሳሰቢያ እና የብድር ቀናት ማሳወቂያ</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <h4>⚠️ ክፍያ ያለፈባቸው አባላት</h4>
+                    <p id="overdue-list" style="color: var(--text-muted); font-size: 13px;">ክፍያ ያላለፈበት የለም።</p>
+                    <button class="btn btn-danger" onclick="remindOverdue()">ለነዚህ አባላት ማሳሰቢያ ላክ</button>
+                </div>
+                <div>
+                    <h4>📅 የብድር ቀን የቀረባቸው (ዛሬ/ነገ)</h4>
+                    <p id="upcoming-loans-list" style="color: var(--text-muted); font-size: 13px;">ምንም የቀረበ የብድር ቀን የለም።</p>
+                </div>
             </div>
         </div>
 
-        <div class="admin-card">
-            <h2><i class="fas fa-users"></i> የተመዘገቡ አባላትና የቁጠባ ሁኔታ</h2>
+        <!-- MEMBERS MANAGEMENT TABLE -->
+        <div class="section-card">
+            <h3 class="section-title">👥 የተመዝጋቢዎች ማኔጀር (Approve, Block, Delete, Text)</h3>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Ref No</th><th>ሙሉ ስም</th><th>ስልክ</th><th>መኖሪያ/አካባቢ</th><th>TIN</th><th>የሳምንቱ ቁጠባ</th><th>ጠቅላላ ቁጠባ</th><th>ተግባር</th>
+                            <th>Ref/ID</th>
+                            <th>ስም</th>
+                            <th>ስልክ</th>
+                            <th>ዕጣ ብዛት</th>
+                            <th>ሁኔታ</th>
+                            <th>እርምጃዎች</th>
                         </tr>
                     </thead>
-                    <tbody id="adminMembersTable"></tbody>
+                    <tbody id="members-table-body">
+                        <!-- Javascript auto-populates this -->
+                    </tbody>
                 </table>
             </div>
         </div>
-    </div>
 
-    <!-- የአባል መረጃ ማረሚያ Modal -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <h3 style="color: var(--gold); margin-bottom: 15px;"><i class="fas fa-edit"></i> የአባል መረጃ ማረሚያ</h3>
-            <form id="editMemberForm">
-                <input type="hidden" id="edit_id">
-                <div class="input-group"><label>ስም</label><input type="text" id="edit_first_name" required></div>
-                <div class="input-group"><label>የአባት ስም</label><input type="text" id="edit_father_name" required></div>
-                <div class="input-group"><label>የአያት ስም</label><input type="text" id="edit_grand_name" required></div>
-                <div class="input-group"><label>ስልክ ቁጥር</label><input type="text" id="edit_phone_number" required></div>
-                <div class="input-group"><label>መኖሪያ አካባቢ</label><input type="text" id="edit_address" required></div>
-                <div class="input-group"><label>TIN ቁጥር</label><input type="text" id="edit_tin_number"></div>
-                <div class="input-group"><label>ጠቅላላ የተቀመጠ ቁጠባ (ብር)</label><input type="number" id="edit_paid_amount" required></div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="submit" class="btn"><i class="fas fa-check"></i> አዘምን</button>
-                    <button type="button" class="btn btn-danger" onclick="closeEditModal()">ሰርዝ</button>
-                </div>
-            </form>
+        <!-- GUARANTOR REGISTRATION SECTION -->
+        <div class="section-card">
+            <h3 class="section-title">🤝 የዋስትና (የዋስ) ሰው መመዝገቢያ</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                <input type="text" id="borrower-id" placeholder="የተበዳሪው Ref / ID">
+                <input type="text" id="guarantor-name" placeholder="የዋስ ሙሉ ስም">
+                <input type="text" id="guarantor-phone" placeholder="የዋስ ስልክ ቁጥር">
+                <input type="text" id="guarantor-id-card" placeholder="የዋስ መታወቂያ/የስራ ቦታ">
+                <button class="btn btn-primary" onclick="registerGuarantor()">ዋስ መዝግብ</button>
+            </div>
         </div>
+
+        <!-- ADMIN & BROADCAST MANAGEMENT -->
+        <div class="section-card">
+            <h3 class="section-title">📢 የጋራ ማስታወቂያ እና አዳዲስ አድሚኖችን መሾሚያ</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h4>📢 ለሁሉም አባላት ማስታወቂያ መላኪያ</h4>
+                    <textarea id="broadcast-msg" rows="3" placeholder="ማስታወቂያ እዚህ ይጻፉ..."></textarea>
+                    <button class="btn" onclick="sendBroadcast()">ለሁሉም ላክ</button>
+                </div>
+                <div>
+                    <h4>🔑 አዲስ አድሚን መሾሚያ</h4>
+                    <input type="text" id="new-admin-id" placeholder="የአዲሱ አድሚን Telegram ID">
+                    <button class="btn btn-success" onclick="addAdmin()">አዲስ አድሚን ሾም</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <script>
-        let adminAuthToken = sessionStorage.getItem('adminToken') || '';
-        let globalMembers = [];
-        if(adminAuthToken) showDashboard();
+</div>
 
-        document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const pwd = document.getElementById('adminPassword').value;
-            try {
-                const res = await fetch('/api/admin/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: pwd })
-                });
-                const data = await res.json();
-                if(res.ok && data.success) {
-                    adminAuthToken = data.token;
-                    sessionStorage.setItem('adminToken', adminAuthToken);
-                    showDashboard();
-                } else { alert(data.message || "ትክክለኛ የይለፍ ቃል አይደለም!"); }
-            } catch(err) { alert("የመግባት ሂደት አልተካሄደም!"); }
-        });
+<script>
+    // Sample In-Memory Data for Testing on W3Schools
+    let apiHost = ''; // Empty for relative URLs or point to live server
 
-        function adminLogout() {
-            sessionStorage.removeItem('adminToken');
-            location.reload();
-        }
+    function showForgotPassword() {
+        document.getElementById('login-section').classList.add('hidden');
+        document.getElementById('forgot-section').classList.remove('hidden');
+    }
 
-        function showDashboard() {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('adminDashboard').style.display = 'block';
-            loadAdminData();
-        }
+    function showLogin() {
+        document.getElementById('forgot-section').classList.add('hidden');
+        document.getElementById('login-section').classList.remove('hidden');
+    }
 
-        async function loadAdminData() {
-            try {
-                const res = await fetch('/api/admin/data', { headers: { 'Authorization': `Bearer ${adminAuthToken}` } });
-                const data = await res.json();
-
-                if(data.settings) {
-                    document.getElementById('latest_draw_number').value = data.settings.latest_draw_number || '';
-                    document.getElementById('winner_name').value = data.settings.winner_name || '';
-                    document.getElementById('latest_draw_date').value = data.settings.latest_draw_date || '';
-                    document.getElementById('support_phone').value = data.settings.support_phone || '';
-                }
-
-                const tbody = document.getElementById('adminMembersTable');
-                tbody.innerHTML = '';
-                if(data.members) {
-                    globalMembers = data.members;
-                    data.members.forEach(m => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td><b>${m.ref_no}</b></td>
-                            <td>${m.first_name} ${m.father_name} ${m.grand_name}</td>
-                            <td>${m.phone_number}</td>
-                            <td>${m.address || '-'}</td>
-                            <td>${m.tin_number || '-'}</td>
-                            <td>${m.weekly_paid_status === 1 ? '✅ ተከፍሏል' : '❌ አልተከፈለሙ'}</td>
-                            <td>${(m.paid_amount || 0).toLocaleString()} ብር</td>
-                            <td>
-                                <button class="btn btn-sm" onclick="openEditModal('${m.id}')"><i class="fas fa-edit"></i> አርም</button>
-                                <button class="btn btn-sm" onclick="togglePayment('${m.id}', ${m.weekly_paid_status})" style="margin-top: 4px; background: #334155; color: #fff;">
-                                    ${m.weekly_paid_status === 1 ? 'ወደ አልተከፈለም' : 'እንደ ተከፈለ'}
-                                </button>
-                            </td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        function openEditModal(id) {
-            const member = globalMembers.find(m => str(m.id) === str(id));
-            if(member) {
-                document.getElementById('edit_id').value = member.id;
-                document.getElementById('edit_first_name').value = member.first_name;
-                document.getElementById('edit_father_name').value = member.father_name;
-                document.getElementById('edit_grand_name').value = member.grand_name;
-                document.getElementById('edit_phone_number').value = member.phone_number;
-                document.getElementById('edit_address').value = member.address || '';
-                document.getElementById('edit_tin_number').value = member.tin_number || '';
-                document.getElementById('edit_paid_amount').value = member.paid_amount || 0;
-                document.getElementById('editModal').style.display = 'flex';
+    function login() {
+        const pass = document.getElementById('admin-password').value;
+        fetch('/api/admin/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: pass})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                loadDashboardData();
+            } else {
+                alert(data.message || "የይለፍ ቃል ተሳስቷል!");
             }
-        }
+        })
+        .catch(() => {
+            // Demo Fallback for local testing
+            if(pass === "admin123") {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                loadDashboardData();
+            } else {
+                alert("የይለፍ ቃል ተሳስቷል! (Demo pass: admin123)");
+            }
+        });
+    }
 
-        function closeEditModal() {
-            document.getElementById('editModal').style.display = 'none';
-        }
-
-        document.getElementById('editMemberForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                id: document.getElementById('edit_id').value,
-                first_name: document.getElementById('edit_first_name').value,
-                father_name: document.getElementById('edit_father_name').value,
-                grand_name: document.getElementById('edit_grand_name').value,
-                phone_number: document.getElementById('edit_phone_number').value,
-                address: document.getElementById('edit_address').value,
-                tin_number: document.getElementById('edit_tin_number').value,
-                paid_amount: document.getElementById('edit_paid_amount').value
-            };
-
-            const res = await fetch('/api/admin/edit_member', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
+    function sendOTP() {
+        fetch('/api/admin/send_otp', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
             alert(data.message);
-            if(res.ok) { closeEditModal(); loadAdminData(); }
+            document.getElementById('otp-step-1').classList.add('hidden');
+            document.getElementById('otp-step-2').classList.remove('hidden');
+        })
+        .catch(() => alert("OTP በቴሌግራም ተልኳል! (በሙከራ ላይ)"));
+    }
+
+    function resetPassword() {
+        const otp = document.getElementById('otp-code').value;
+        const newPass = document.getElementById('new-password').value;
+        fetch('/api/admin/reset_password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({otp: otp, new_password: newPass})
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            if(data.success) showLogin();
+        });
+    }
+
+    function loadDashboardData() {
+        fetch('/api/admin/data')
+        .then(res => res.json())
+        .then(data => {
+            renderMembers(data.members || []);
+        })
+        .catch(() => {
+            // Dummy data for W3Schools editor testing
+            const dummyMembers = [
+                {id: 1, ref_no: "TS-001", first_name: "አበበ", father_name: "በቀለ", phone_number: "0911000000", share_count: 2, status: "pending", paid_amount: 2000, telegram_id: "123456"},
+                {id: 2, ref_no: "TS-002", first_name: "ኬሪያ", father_name: "አህመድ", phone_number: "0922000000", share_count: 1, status: "approved", paid_amount: 1000, telegram_id: "654321"}
+            ];
+            renderMembers(dummyMembers);
+        });
+    }
+
+    function renderMembers(members) {
+        const tbody = document.getElementById('members-table-body');
+        tbody.innerHTML = '';
+
+        let totalMoney = 0;
+        let approvedCount = 0;
+        let pendingCount = 0;
+
+        members.forEach(m => {
+            totalMoney += (m.paid_amount || 0);
+            if(m.status === 'approved') approvedCount++;
+            if(m.status === 'pending') pendingCount++;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${m.ref_no}</td>
+                <td>${m.first_name} ${m.father_name}</td>
+                <td>${m.phone_number}</td>
+                <td>${m.share_count}</td>
+                <td><span class="badge badge-${m.status}">${m.status}</span></td>
+                <td>
+                    <div class="action-btns">
+                        <button class="btn btn-success" onclick="actionMember(${m.id}, 'approve')">Approve</button>
+                        <button class="btn btn-danger" onclick="actionMember(${m.id}, 'cancel')">Cancel</button>
+                        <button class="btn btn-primary" onclick="actionMember(${m.id}, 'block')">Block</button>
+                        <button class="btn btn-danger" onclick="actionMember(${m.id}, 'delete')">Delete</button>
+                        <button class="btn" onclick="sendDirectText('${m.telegram_id}')">Text 💬</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
         });
 
-        function str(val) { return String(val); }
+        document.getElementById('stat-total-members').innerText = members.length;
+        document.getElementById('stat-total-money').innerText = totalMoney + " ETB";
+        document.getElementById('stat-approved').innerText = approvedCount;
+        document.getElementById('stat-pending').innerText = pendingCount;
+    }
 
-        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                latest_draw_number: document.getElementById('latest_draw_number').value,
-                winner_name: document.getElementById('winner_name').value,
-                latest_draw_date: document.getElementById('latest_draw_date').value,
-                support_phone: document.getElementById('support_phone').value
-            };
-
-            const res = await fetch('/api/admin/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
+    function actionMember(id, action) {
+        fetch('/api/admin/member_action', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({member_id: id, action: action})
+        })
+        .then(res => res.json())
+        .then(data => {
             alert(data.message);
+            loadDashboardData();
         });
+    }
 
-        document.getElementById('broadcastForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const msg = document.getElementById('broadcastMessage').value;
-            const res = await fetch('/api/admin/broadcast', {
+    function sendDirectText(tgId) {
+        const msg = prompt("ለዚህ አባል የሚላከውን መልእክት ያስገቡ፦");
+        if(msg) {
+            fetch('/api/admin/send_direct_message', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
-                body: JSON.stringify({ message: msg })
-            });
-            const data = await res.json();
-            alert(data.message);
-            document.getElementById('broadcastMessage').value = '';
-        });
-
-        async function togglePayment(memberId, currentStatus) {
-            const newStatus = currentStatus === 1 ? 0 : 1;
-            const res = await fetch('/api/admin/toggle_payment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
-                body: JSON.stringify({ member_id: memberId, status: newStatus })
-            });
-            if(res.ok) loadAdminData();
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({telegram_id: tgId, message: msg})
+            })
+            .then(res => res.json())
+            .then(data => alert(data.message));
         }
-    </script>
+    }
+
+    function registerGuarantor() {
+        const bId = document.getElementById('borrower-id').value;
+        const gName = document.getElementById('guarantor-name').value;
+        const gPhone = document.getElementById('guarantor-phone').value;
+        if(!bId || !gName) return alert("እባክዎ የተበዳሪ ID እና የዋስ ስም ያስገቡ!");
+
+        fetch('/api/admin/register_guarantor', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({borrower_id: bId, name: gName, phone: gPhone})
+        })
+        .then(res => res.json())
+        .then(data => alert(data.message));
+    }
+
+    function addAdmin() {
+        const newId = document.getElementById('new-admin-id').value;
+        if(!newId) return alert("እባክዎ Telegram ID ያስገቡ");
+        fetch('/api/admin/add_admin', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({admin_id: newId})
+        })
+        .then(res => res.json())
+        .then(data => alert(data.message));
+    }
+</script>
+
 </body>
 </html>
