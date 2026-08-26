@@ -3,13 +3,18 @@ import telebot
 from threading import Thread
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
 
-# 1. Flask App Setup
+# 1. Environment variables ከ .env ወይም ከ Render ይጭናል
+load_dotenv()
+
+# Flask App Setup
 app = Flask(__name__)
 CORS(app)
 
 # Environment Variables
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+ADMIN_ID = os.environ.get("ADMIN_ID", "5351353727")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
 
 members_db = []
@@ -83,6 +88,34 @@ def register_member():
         }
         members_db.append(new_member)
         return jsonify({"success": True, "message": "ምዝገባው በስኬት ተጠናቋል!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
+
+# የቁጠባ ክፍያ ደረሰኝ መቀበያ ኤንድፖይንት
+@app.route('/api/upload_weekly_receipt', methods=['POST'])
+def upload_weekly_receipt():
+    try:
+        member_id = request.form.get('member_id')
+        receipt_ref = request.form.get('receipt_ref')
+        file = request.files.get('receipt')
+
+        for member in members_db:
+            if str(member['id']) == str(member_id):
+                member['weekly_paid_status'] = 1
+                member['paid_amount'] += 1000
+
+                if BOT_TOKEN and ADMIN_ID:
+                    try:
+                        msg = f"📩 **አዲስ የቁጠባ ክፍያ ደረሰኝ!**\n\n👤 **አባል:** {member['first_name']} {member['father_name']}\n🆔 **Ref:** `{member['ref_no']}`\n🔢 **Transaction Ref:** `{receipt_ref}`"
+                        if file:
+                            bot.send_photo(ADMIN_ID, photo=file, caption=msg)
+                        else:
+                            bot.send_message(ADMIN_ID, msg)
+                    except Exception as err:
+                        print("Telegram Notify Error:", err)
+                break
+
+        return jsonify({"success": True, "message": "የቁጠባ ክፍያ መረጃዎ በስኬት ተልኳል!"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
