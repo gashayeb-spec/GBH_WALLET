@@ -230,6 +230,25 @@
 
 <script>
     let currentRole = 'guest';
+    let pendingAdminId = '';
+
+    // CLIPBOARD AUTO-PASTE/AUTO-FILL FOR OTP
+    window.addEventListener('focus', async () => {
+        if (!pendingAdminId) return;
+        try {
+            const text = await navigator.clipboard.readText();
+            const cleanOtp = text ? text.trim() : '';
+            if (cleanOtp && /^\d{6}$/.test(cleanOtp)) {
+                const otpInput = document.getElementById('swalOtpInput');
+                if (otpInput && !otpInput.value) {
+                    otpInput.value = cleanOtp;
+                    console.log("OTP Auto-filled successfully!");
+                }
+            }
+        } catch (err) {
+            console.log("Clipboard permission not granted or supported.");
+        }
+    });
 
     // 1. ADMIN LOGIN WITH OTP INTEGRATION
     async function adminLogin() {
@@ -251,12 +270,30 @@
             
             if(res.ok) {
                 if(data.status === 'otp_required') {
-                    const userOtp = prompt(data.message + "\n\nወደ Telegram የተላከውን 6-Digit OTP ኮድ ያስገቡ፦");
-                    if (userOtp) {
-                        verifyOtp(admin_id, userOtp);
-                    } else {
-                        alert("OTP አላስገቡም! መግባት አይችሉም።");
-                    }
+                    pendingAdminId = admin_id;
+                    
+                    // ቴሌግራም ላይ Copy ያደረግከውን ኮድ በራሱ Auto-paste እንዲያደርግ አድርገን የምንቀበልበት
+                    setTimeout(async () => {
+                        let copiedOtp = '';
+                        try {
+                            const clipboardText = await navigator.clipboard.readText();
+                            if (clipboardText && /^\d{6}$/.test(clipboardText.trim())) {
+                                copiedOtp = clipboardText.trim();
+                            }
+                        } catch(e) {}
+
+                        const userOtp = prompt(
+                            data.message + "\n\nወደ Telegram የተላከውን 6-Digit OTP ኮድ ያስገቡ፦",
+                            copiedOtp
+                        );
+
+                        if (userOtp) {
+                            verifyOtp(admin_id, userOtp.trim());
+                        } else {
+                            alert("OTP አላስገቡም! መግባት አይችሉም።");
+                        }
+                    }, 300);
+
                 } else if (data.status === 'success') {
                     currentRole = data.role;
                     showDashboard();
@@ -282,6 +319,7 @@
 
             if(res.ok && data.status === 'success') {
                 currentRole = data.role;
+                pendingAdminId = '';
                 showDashboard();
             } else {
                 alert(data.message || "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!");
