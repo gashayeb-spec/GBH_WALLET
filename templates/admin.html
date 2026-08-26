@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ተራመድ ሳኮ - አድሚን ፓናል</title>
+    <title>GBH Wallet - Admin Dashboard</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -14,6 +14,7 @@
             --danger: #ef4444;
             --success: #10b981;
             --primary: #3b82f6;
+            --border: #334155;
         }
 
         body {
@@ -22,32 +23,50 @@
             color: var(--text-color);
             margin: 0;
             padding: 15px;
-            direction: ltr;
         }
 
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        /* --- HEADER & LANGUAGE TOGGLE --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
         }
 
-        /* --- LOGIN & FORGOT PASSWORD MODALS --- */
+        .header h2 { margin: 0; color: var(--accent-color); font-size: 20px; }
+        .lang-btn {
+            background: #0f172a;
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* --- AUTH CARDS --- */
         .auth-card {
             max-width: 400px;
-            margin: 50px auto;
+            margin: 40px auto;
             background: var(--card-bg);
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            border: 1px solid #334155;
+            border: 1px solid var(--border);
             text-align: center;
         }
 
-        .auth-card input, .auth-card button, select, textarea {
+        input, select, textarea {
             width: 100%;
-            padding: 12px;
+            padding: 11px;
             margin: 8px 0;
             border-radius: 6px;
-            border: 1px solid #475569;
+            border: 1px solid var(--border);
             background: #0f172a;
             color: #fff;
             box-sizing: border-box;
@@ -59,7 +78,9 @@
             font-weight: bold;
             cursor: pointer;
             border: none;
-            transition: 0.3s;
+            padding: 10px 15px;
+            border-radius: 6px;
+            transition: 0.2s;
         }
 
         .btn:hover { opacity: 0.9; }
@@ -67,7 +88,7 @@
         .btn-success { background: var(--success); color: #fff; }
         .btn-primary { background: var(--primary); color: #fff; }
 
-        /* --- DASHBOARD STATS --- */
+        /* --- TOP SUMMARY CARDS (STATS) --- */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -77,193 +98,182 @@
 
         .stat-card {
             background: var(--card-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid var(--accent-color);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            padding: 18px;
+            border-radius: 10px;
+            border-left: 5px solid var(--accent-color);
+            border-top: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
         }
 
-        .stat-card h3 { margin: 0; font-size: 14px; color: var(--text-muted); }
+        .stat-card h3 { margin: 0; font-size: 13px; color: var(--text-muted); }
         .stat-card p { margin: 8px 0 0 0; font-size: 22px; font-weight: bold; }
 
-        /* --- SECTIONS & CARDS --- */
-        .section-card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-            border: 1px solid #334155;
-        }
-
-        .section-title {
-            color: var(--accent-color);
-            margin-top: 0;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 10px;
-            font-size: 18px;
-        }
-
-        /* --- TABLES --- */
-        .table-responsive {
+        /* --- FOLDER / TAB NAVIGATION --- */
+        .tab-menu {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 20px;
             overflow-x: auto;
+            padding-bottom: 5px;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            text-align: left;
+        .tab-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 10px 18px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            white-space: nowrap;
         }
 
-        th, td {
-            padding: 12px;
-            border-bottom: 1px solid #334155;
-            font-size: 14px;
+        .tab-btn.active {
+            background: var(--card-bg);
+            color: var(--accent-color);
+            border-bottom: 3px solid var(--accent-color);
         }
 
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* --- TABLES & BADGES --- */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; font-size: 14px; }
         th { background: #0f172a; color: var(--accent-color); }
-
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
         .badge-pending { background: #eab308; color: #000; }
         .badge-approved { background: var(--success); color: #fff; }
         .badge-blocked { background: var(--danger); color: #fff; }
 
-        /* --- ACTIONS FLEX --- */
-        .action-btns {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-
-        .action-btns button {
-            padding: 6px 10px;
-            font-size: 12px;
-            width: auto;
-            margin: 0;
-        }
-
-        .hidden { display: none; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="container">
 
-    <!-- 1. LOGIN SECTION -->
-    <div id="login-section" class="auth-card">
-        <h2>🔒 ተራመድ ሳኮ - አድሚን መግቢያ</h2>
-        <input type="password" id="admin-password" placeholder="የአድሚን ይለፍ ቃል ያስገቡ">
-        <button class="btn" onclick="login()">ይግቡ</button>
-        <p><a href="#" onclick="showForgotPassword()" style="color: var(--accent-color); text-decoration: none;">የይለፍ ቃል ረስተዋል? (Forgot Password)</a></p>
+    <!-- HEADER WITH LANGUAGE TOGGLE -->
+    <div class="header">
+        <h2>✨ ተራመድ ሳኮ - አድሚን ፓናል</h2>
+        <button class="lang-btn" onclick="toggleLanguage()" id="lang-btn">English</button>
     </div>
 
-    <!-- 2. FORGOT PASSWORD (OTP) SECTION -->
+    <!-- LOGIN SECTION -->
+    <div id="login-section" class="auth-card">
+        <h2 id="txt-login-title">🔒 የአድሚን መግቢያ</h2>
+        <input type="password" id="admin-password" placeholder="የአድሚን ይለፍ ቃል">
+        <button class="btn" style="width:100%" onclick="login()" id="txt-login-btn">ይግቡ</button>
+        <p><a href="#" onclick="showForgotPassword()" style="color: var(--accent-color); text-decoration: none;" id="txt-forgot">የይለፍ ቃል ረስተዋል? (Forgot Password)</a></p>
+    </div>
+
+    <!-- FORGOT PASSWORD SECTION -->
     <div id="forgot-section" class="auth-card hidden">
-        <h2>🔑 የይለፍ ቃል ማደሻ (OTP)</h2>
+        <h2 id="txt-forgot-title">🔑 የይለፍ ቃል ማደሻ (OTP)</h2>
         <div id="otp-step-1">
-            <p>በቴሌግራም የማረጋገጫ ኮድ (OTP) እንዲላክሎት "OTP ላክ" የሚለውን ይጫኑ።</p>
-            <button class="btn btn-primary" onclick="sendOTP()">OTP ወደ ቴሌግራም ላክ</button>
+            <p id="txt-otp-desc">በቴሌግራም የማረጋገጫ ኮድ (OTP) እንዲላክሎት ቁልፉን ይጫኑ።</p>
+            <button class="btn btn-primary" style="width:100%" onclick="sendOTP()" id="txt-send-otp">OTP ወደ ቴሌግራም ላክ</button>
         </div>
         <div id="otp-step-2" class="hidden">
-            <input type="text" id="otp-code" placeholder="ወደ ቴሌግራም የተላከውን 6 አሃዝ ኮድ ያስገቡ">
-            <input type="password" id="new-password" placeholder="አዲስ የይለፍ ቃል ያስገቡ">
-            <button class="btn btn-success" onclick="resetPassword()">ይለፍ ቃል ቀይር እና ግባ</button>
+            <input type="text" id="otp-code" placeholder="የተላከውን 6 አሃዝ ኮድ ያስገቡ">
+            <input type="password" id="new-password" placeholder="አዲስ የይለፍ ቃል">
+            <button class="btn btn-success" style="width:100%" onclick="resetPassword()" id="txt-reset-btn">ይለፍ ቃል ቀይር</button>
         </div>
-        <p><a href="#" onclick="showLogin()" style="color: var(--text-muted); text-decoration: none;">ወደ መግቢያ ተመለስ</a></p>
+        <p><a href="#" onclick="showLogin()" style="color: var(--text-muted); text-decoration: none;" id="txt-back">ወደ መግቢያ ተመለስ</a></p>
     </div>
 
-    <!-- 3. MAIN ADMIN DASHBOARD -->
+    <!-- MAIN DASHBOARD CONTENT -->
     <div id="dashboard-section" class="hidden">
-        
-        <h2>⚙️ የአድሚን መቆጣጠሪያ ፓናል</h2>
 
-        <!-- STATS OVERVIEW -->
+        <!-- TOP SUMMARY CARDS -->
         <div class="stats-grid">
             <div class="stat-card">
-                <h3>ጠቅላላ ተመዝጋቢዎች</h3>
+                <h3 id="lbl-stat-members">ጠቅላላ ተመዝጋቢዎች</h3>
                 <p id="stat-total-members">0</p>
             </div>
-            <div class="stat-card">
-                <h3>የገባ ገንዘብ መጠን</h3>
+            <div class="stat-card" style="border-left-color: #3b82f6;">
+                <h3 id="lbl-stat-capital">የተሰበሰበ ካፒታል (Capital)</h3>
                 <p id="stat-total-money">0 ETB</p>
             </div>
             <div class="stat-card" style="border-left-color: var(--success);">
-                <h3>Approved (የፀደቁ)</h3>
+                <h3 id="lbl-stat-approved">Approved (የፀደቁ)</h3>
                 <p id="stat-approved">0</p>
             </div>
             <div class="stat-card" style="border-left-color: #eab308;">
-                <h3>Pending (በመጠባበቅ ላይ)</h3>
+                <h3 id="lbl-stat-pending">Pending (በመጠባበቅ ላይ)</h3>
                 <p id="stat-pending">0</p>
             </div>
         </div>
 
-        <!-- NOTIFICATIONS & LOAN ALERTS SECTION -->
-        <div class="section-card">
-            <h3 class="section-title">🔔 የማሳሰቢያ እና የብድር ቀናት ማሳወቂያ</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div>
-                    <h4>⚠️ ክፍያ ያለፈባቸው አባላት</h4>
-                    <p id="overdue-list" style="color: var(--text-muted); font-size: 13px;">ክፍያ ያላለፈበት የለም።</p>
-                    <button class="btn btn-danger" onclick="remindOverdue()">ለነዚህ አባላት ማሳሰቢያ ላክ</button>
-                </div>
-                <div>
-                    <h4>📅 የብድር ቀን የቀረባቸው (ዛሬ/ነገ)</h4>
-                    <p id="upcoming-loans-list" style="color: var(--text-muted); font-size: 13px;">ምንም የቀረበ የብድር ቀን የለም።</p>
-                </div>
-            </div>
+        <!-- FOLDER / TAB MENU -->
+        <div class="tab-menu">
+            <button class="tab-btn active" onclick="switchTab('members-folder')" id="tab-btn-members">📁 አባላት (Members)</button>
+            <button class="tab-btn" onclick="switchTab('guarantors-folder')" id="tab-btn-guarantor">🤝 የዋስትና መዝገብ (Guarantors)</button>
+            <button class="tab-btn" onclick="switchTab('alerts-folder')" id="tab-btn-alerts">🔔 ማሳሰቢያና ብድር (Alerts)</button>
+            <button class="tab-btn" onclick="switchTab('settings-folder')" id="tab-btn-settings">⚙️ አድሚንና ቅንብር (Settings)</button>
         </div>
 
-        <!-- MEMBERS MANAGEMENT TABLE -->
-        <div class="section-card">
-            <h3 class="section-title">👥 የተመዝጋቢዎች ማኔጀር (Approve, Block, Delete, Text)</h3>
+        <!-- FOLDER 1: MEMBERS -->
+        <div id="members-folder" class="tab-content active">
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
                             <th>Ref/ID</th>
-                            <th>ስም</th>
-                            <th>ስልክ</th>
-                            <th>ዕጣ ብዛት</th>
-                            <th>ሁኔታ</th>
-                            <th>እርምጃዎች</th>
+                            <th id="th-name">ስም</th>
+                            <th id="th-phone">ስልክ</th>
+                            <th id="th-share">ዕጣ ብዛት</th>
+                            <th id="th-status">ሁኔታ</th>
+                            <th id="th-action">እርምጃዎች</th>
                         </tr>
                     </thead>
-                    <tbody id="members-table-body">
-                        <!-- Javascript auto-populates this -->
-                    </tbody>
+                    <tbody id="members-table-body"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- GUARANTOR REGISTRATION SECTION -->
-        <div class="section-card">
-            <h3 class="section-title">🤝 የዋስትና (የዋስ) ሰው መመዝገቢያ</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+        <!-- FOLDER 2: GUARANTORS -->
+        <div id="guarantors-folder" class="tab-content">
+            <div style="max-width: 500px; background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+                <h3 style="margin-top:0; color:var(--accent-color);" id="txt-guarantor-title">🤝 ለተበዳሪ ዋስ መመዝገቢያ</h3>
                 <input type="text" id="borrower-id" placeholder="የተበዳሪው Ref / ID">
                 <input type="text" id="guarantor-name" placeholder="የዋስ ሙሉ ስም">
                 <input type="text" id="guarantor-phone" placeholder="የዋስ ስልክ ቁጥር">
-                <input type="text" id="guarantor-id-card" placeholder="የዋስ መታወቂያ/የስራ ቦታ">
-                <button class="btn btn-primary" onclick="registerGuarantor()">ዋስ መዝግብ</button>
+                <button class="btn btn-primary" style="width:100%" onclick="registerGuarantor()" id="btn-save-guarantor">ዋስ መዝግብ</button>
             </div>
         </div>
 
-        <!-- ADMIN & BROADCAST MANAGEMENT -->
-        <div class="section-card">
-            <h3 class="section-title">📢 የጋራ ማስታወቂያ እና አዳዲስ አድሚኖችን መሾሚያ</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <h4>📢 ለሁሉም አባላት ማስታወቂያ መላኪያ</h4>
-                    <textarea id="broadcast-msg" rows="3" placeholder="ማስታወቂያ እዚህ ይጻፉ..."></textarea>
-                    <button class="btn" onclick="sendBroadcast()">ለሁሉም ላክ</button>
+        <!-- FOLDER 3: ALERTS -->
+        <div id="alerts-folder" class="tab-content">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+                    <h4 style="color:var(--danger);" id="txt-overdue-title">⚠️ ክፍያ ያለፈባቸው አባላት</h4>
+                    <p id="overdue-list" style="color: var(--text-muted); font-size: 14px;">ምንም የለም።</p>
+                    <button class="btn btn-danger" onclick="remindOverdue()" id="btn-remind">ማሳሰቢያ በቴሌግራም ላክ</button>
                 </div>
-                <div>
-                    <h4>🔑 አዲስ አድሚን መሾሚያ</h4>
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+                    <h4 style="color:var(--accent-color);" id="txt-loan-title">📅 የብድር ቀን የቀረባቸው (ዛሬ/ነገ)</h4>
+                    <p id="upcoming-loans-list" style="color: var(--text-muted); font-size: 14px;">ምንም የቀረበ የብድር ቀን የለም።</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOLDER 4: SETTINGS -->
+        <div id="settings-folder" class="tab-content">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+                    <h4 id="txt-broadcast-title">📢 የጋራ ማስታወቂያ መላኪያ</h4>
+                    <textarea id="broadcast-msg" rows="3" placeholder="ማስታወቂያ እዚህ ይጻፉ..."></textarea>
+                    <button class="btn" style="width:100%" onclick="sendBroadcast()" id="btn-send-broadcast">ለሁሉም ላክ</button>
+                </div>
+                <div style="background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+                    <h4 id="txt-new-admin-title">🔑 አዲስ አድሚን መሾሚያ</h4>
                     <input type="text" id="new-admin-id" placeholder="የአዲሱ አድሚን Telegram ID">
-                    <button class="btn btn-success" onclick="addAdmin()">አዲስ አድሚን ሾም</button>
+                    <button class="btn btn-success" style="width:100%" onclick="addAdmin()" id="btn-add-admin">አዲስ አድሚን ሾም</button>
                 </div>
             </div>
         </div>
@@ -273,8 +283,70 @@
 </div>
 
 <script>
-    // Sample In-Memory Data for Testing on W3Schools
-    let apiHost = ''; // Empty for relative URLs or point to live server
+    let currentLang = 'am';
+
+    const langDict = {
+        am: {
+            loginTitle: "🔒 የአድሚን መግቢያ",
+            loginBtn: "ይግቡ",
+            forgot: "የይለፍ ቃል ረስተዋል? (Forgot Password)",
+            statMembers: "ጠቅላላ ተመዝጋቢዎች",
+            statCapital: "የተሰበሰበ ካፒታል (Capital)",
+            statApproved: "Approved (የፀደቁ)",
+            statPending: "Pending (በመጠባበቅ ላይ)",
+            tabMembers: "📁 አባላት (Members)",
+            tabGuarantor: "🤝 የዋስትና መዝገብ (Guarantors)",
+            tabAlerts: "🔔 ማሳሰቢያና ብድር (Alerts)",
+            tabSettings: "⚙️ አድሚንና ቅንብር (Settings)",
+            thName: "ስም", thPhone: "ስልክ", thShare: "ዕጣ ብዛት", thStatus: "ሁኔታ", thAction: "እርምጃዎች"
+        },
+        en: {
+            loginTitle: "🔒 Admin Login",
+            loginBtn: "Login",
+            forgot: "Forgot Password?",
+            statMembers: "Total Members",
+            statCapital: "Total Capital",
+            statApproved: "Approved",
+            statPending: "Pending Requests",
+            tabMembers: "📁 Members List",
+            tabGuarantor: "🤝 Guarantors",
+            tabAlerts: "🔔 Loan Alerts",
+            tabSettings: "⚙️ Admin Settings",
+            thName: "Name", thPhone: "Phone", thShare: "Shares", thStatus: "Status", thAction: "Actions"
+        }
+    };
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'am' ? 'en' : 'am';
+        document.getElementById('lang-btn').innerText = currentLang === 'am' ? 'English' : 'አማርኛ';
+
+        const t = langDict[currentLang];
+        document.getElementById('txt-login-title').innerText = t.loginTitle;
+        document.getElementById('txt-login-btn').innerText = t.loginBtn;
+        document.getElementById('txt-forgot').innerText = t.forgot;
+        document.getElementById('lbl-stat-members').innerText = t.statMembers;
+        document.getElementById('lbl-stat-capital').innerText = t.statCapital;
+        document.getElementById('lbl-stat-approved').innerText = t.statApproved;
+        document.getElementById('lbl-stat-pending').innerText = t.statPending;
+
+        document.getElementById('tab-btn-members').innerText = t.tabMembers;
+        document.getElementById('tab-btn-guarantor').innerText = t.tabGuarantor;
+        document.getElementById('tab-btn-alerts').innerText = t.tabAlerts;
+        document.getElementById('tab-btn-settings').innerText = t.tabSettings;
+
+        document.getElementById('th-name').innerText = t.thName;
+        document.getElementById('th-phone').innerText = t.thPhone;
+        document.getElementById('th-share').innerText = t.thShare;
+        document.getElementById('th-status').innerText = t.thStatus;
+        document.getElementById('th-action').innerText = t.thAction;
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
 
     function showForgotPassword() {
         document.getElementById('login-section').classList.add('hidden');
@@ -299,92 +371,50 @@
                 document.getElementById('login-section').classList.add('hidden');
                 document.getElementById('dashboard-section').classList.remove('hidden');
                 loadDashboardData();
-            } else {
-                alert(data.message || "የይለፍ ቃል ተሳስቷል!");
-            }
+            } else { alert(data.message); }
         })
         .catch(() => {
-            // Demo Fallback for local testing
             if(pass === "admin123") {
                 document.getElementById('login-section').classList.add('hidden');
                 document.getElementById('dashboard-section').classList.remove('hidden');
                 loadDashboardData();
-            } else {
-                alert("የይለፍ ቃል ተሳስቷል! (Demo pass: admin123)");
-            }
-        });
-    }
-
-    function sendOTP() {
-        fetch('/api/admin/send_otp', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            alert(data.message);
-            document.getElementById('otp-step-1').classList.add('hidden');
-            document.getElementById('otp-step-2').classList.remove('hidden');
-        })
-        .catch(() => alert("OTP በቴሌግራም ተልኳል! (በሙከራ ላይ)"));
-    }
-
-    function resetPassword() {
-        const otp = document.getElementById('otp-code').value;
-        const newPass = document.getElementById('new-password').value;
-        fetch('/api/admin/reset_password', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({otp: otp, new_password: newPass})
-        })
-        .then(res => res.json())
-        .then(data => {
-            alert(data.message);
-            if(data.success) showLogin();
+            } else { alert("የይለፍ ቃል ተሳስቷል!"); }
         });
     }
 
     function loadDashboardData() {
         fetch('/api/admin/data')
         .then(res => res.json())
-        .then(data => {
-            renderMembers(data.members || []);
-        })
+        .then(data => renderMembers(data.members || []))
         .catch(() => {
-            // Dummy data for W3Schools editor testing
-            const dummyMembers = [
-                {id: 1, ref_no: "TS-001", first_name: "አበበ", father_name: "በቀለ", phone_number: "0911000000", share_count: 2, status: "pending", paid_amount: 2000, telegram_id: "123456"},
-                {id: 2, ref_no: "TS-002", first_name: "ኬሪያ", father_name: "አህመድ", phone_number: "0922000000", share_count: 1, status: "approved", paid_amount: 1000, telegram_id: "654321"}
-            ];
-            renderMembers(dummyMembers);
+            renderMembers([
+                {id: 1, ref_no: "TS-001", first_name: "አበበ", father_name: "በቀለ", phone_number: "0911000000", share_count: 2, status: "pending", paid_amount: 2000, telegram_id: "123456"}
+            ]);
         });
     }
 
     function renderMembers(members) {
         const tbody = document.getElementById('members-table-body');
         tbody.innerHTML = '';
-
-        let totalMoney = 0;
-        let approvedCount = 0;
-        let pendingCount = 0;
+        let totalMoney = 0, approved = 0, pending = 0;
 
         members.forEach(m => {
             totalMoney += (m.paid_amount || 0);
-            if(m.status === 'approved') approvedCount++;
-            if(m.status === 'pending') pendingCount++;
+            if(m.status === 'approved') approved++;
+            if(m.status === 'pending') pending++;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${m.ref_no}</td>
+                <td><b>${m.ref_no}</b></td>
                 <td>${m.first_name} ${m.father_name}</td>
                 <td>${m.phone_number}</td>
                 <td>${m.share_count}</td>
                 <td><span class="badge badge-${m.status}">${m.status}</span></td>
                 <td>
-                    <div class="action-btns">
-                        <button class="btn btn-success" onclick="actionMember(${m.id}, 'approve')">Approve</button>
-                        <button class="btn btn-danger" onclick="actionMember(${m.id}, 'cancel')">Cancel</button>
-                        <button class="btn btn-primary" onclick="actionMember(${m.id}, 'block')">Block</button>
-                        <button class="btn btn-danger" onclick="actionMember(${m.id}, 'delete')">Delete</button>
-                        <button class="btn" onclick="sendDirectText('${m.telegram_id}')">Text 💬</button>
-                    </div>
+                    <button class="btn btn-success" onclick="actionMember(${m.id}, 'approve')">Approve</button>
+                    <button class="btn btn-danger" onclick="actionMember(${m.id}, 'cancel')">Cancel</button>
+                    <button class="btn btn-primary" onclick="actionMember(${m.id}, 'block')">Block</button>
+                    <button class="btn btn-danger" onclick="actionMember(${m.id}, 'delete')">Delete</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -392,8 +422,8 @@
 
         document.getElementById('stat-total-members').innerText = members.length;
         document.getElementById('stat-total-money').innerText = totalMoney + " ETB";
-        document.getElementById('stat-approved').innerText = approvedCount;
-        document.getElementById('stat-pending').innerText = pendingCount;
+        document.getElementById('stat-approved').innerText = approved;
+        document.getElementById('stat-pending').innerText = pending;
     }
 
     function actionMember(id, action) {
@@ -403,52 +433,8 @@
             body: JSON.stringify({member_id: id, action: action})
         })
         .then(res => res.json())
-        .then(data => {
-            alert(data.message);
-            loadDashboardData();
-        });
-    }
-
-    function sendDirectText(tgId) {
-        const msg = prompt("ለዚህ አባል የሚላከውን መልእክት ያስገቡ፦");
-        if(msg) {
-            fetch('/api/admin/send_direct_message', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({telegram_id: tgId, message: msg})
-            })
-            .then(res => res.json())
-            .then(data => alert(data.message));
-        }
-    }
-
-    function registerGuarantor() {
-        const bId = document.getElementById('borrower-id').value;
-        const gName = document.getElementById('guarantor-name').value;
-        const gPhone = document.getElementById('guarantor-phone').value;
-        if(!bId || !gName) return alert("እባክዎ የተበዳሪ ID እና የዋስ ስም ያስገቡ!");
-
-        fetch('/api/admin/register_guarantor', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({borrower_id: bId, name: gName, phone: gPhone})
-        })
-        .then(res => res.json())
-        .then(data => alert(data.message));
-    }
-
-    function addAdmin() {
-        const newId = document.getElementById('new-admin-id').value;
-        if(!newId) return alert("እባክዎ Telegram ID ያስገቡ");
-        fetch('/api/admin/add_admin', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({admin_id: newId})
-        })
-        .then(res => res.json())
-        .then(data => alert(data.message));
+        .then(data => { alert(data.message); loadDashboardData(); });
     }
 </script>
-
 </body>
 </html>
