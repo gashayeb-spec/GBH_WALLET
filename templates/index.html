@@ -14,7 +14,7 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         html, body { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        body { background: var(--bg); color: var(--text); padding: 12px; padding-bottom: 60px; }
+        body { background: var(--bg); color: var(--text); padding: 12px; padding-bottom: 75px; }
         .container { max-width: 500px; margin: 0 auto; min-height: 100%; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .admin-link { color: var(--gold); text-decoration: none; font-size: 0.8rem; font-weight: bold; }
@@ -104,6 +104,40 @@
         }
         .file-upload input { display: none; }
         .hidden { display: none !important; }
+
+        /* BOTTOM NAVIGATION BAR STYLES */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background-color: #0f172a;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 9999;
+            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+        }
+        .nav-item {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 11px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .nav-item.active {
+            color: var(--gold);
+        }
+        .nav-icon {
+            font-size: 18px;
+            margin-bottom: 3px;
+        }
     </style>
 </head>
 <body>
@@ -286,11 +320,44 @@
         </div>
     </div>
 
+    <!-- BOTTOM NAVIGATION BAR -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" id="nav_dash_btn" onclick="switchTab('dashboardTab'); switchSubTab('savingsSub');">
+            <span class="nav-icon"><i class="fas fa-book"></i></span>
+            <span>የኔ ደብተር</span>
+        </button>
+
+        <button class="nav-item" id="nav_reg_btn" onclick="switchTab('registerTab');">
+            <span class="nav-icon"><i class="fas fa-user-plus"></i></span>
+            <span>ምዝገባ</span>
+        </button>
+
+        <button class="nav-item" id="nav_loan_btn" onclick="switchTab('dashboardTab'); switchSubTab('loanSub');">
+            <span class="nav-icon"><i class="fas fa-hand-holding-usd"></i></span>
+            <span>ቁጠባ/ብድር</span>
+        </button>
+
+        <!-- ለአድሚኑ TELEGRAM ID ብቻ የሚታይ የአድሚን በተን -->
+        <button class="nav-item hidden" id="nav_admin_btn" onclick="window.location.href='/admin'">
+            <span class="nav-icon"><i class="fas fa-cog"></i></span>
+            <span>አድሚን</span>
+        </button>
+    </nav>
+
     <script>
         const tg = window.Telegram ? window.Telegram.WebApp : null;
         if(tg) tg.expand();
         let currentLang = 'am';
         const bankAccounts = { 'Telebirr': '0916039015', 'CBE_Birr': '0916039015', 'CBE': '1000070780201', 'BOA': '54071628', 'Dashen': '5121355332011', 'Nib': '7000106022734' };
+
+        // የአድሚን TELEGRAM ID ፍተሻ (ለአድሚን ብቻ የአድሚን ታብን ለማሳየት)
+        const ADMIN_TG_ID = "5351353727";
+        const userTgId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? String(tg.initDataUnsafe.user.id) : "";
+
+        if (userTgId === ADMIN_TG_ID) {
+            const adminBtn = document.getElementById('nav_admin_btn');
+            if (adminBtn) adminBtn.classList.remove('hidden');
+        }
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -299,6 +366,14 @@
             
             const activeBtn = document.querySelector(`[onclick="switchTab('${tabId}')"]`);
             if(activeBtn) activeBtn.classList.add('active');
+
+            // Bottom Nav Active State Sync
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
+            if(tabId === 'dashboardTab') {
+                document.getElementById('nav_dash_btn').classList.add('active');
+            } else if(tabId === 'registerTab') {
+                document.getElementById('nav_reg_btn').classList.add('active');
+            }
         }
 
         function switchSubTab(subTabId) {
@@ -306,7 +381,19 @@
             document.querySelectorAll('.sub-tab-btn').forEach(el => el.classList.remove('active'));
 
             document.getElementById(subTabId).classList.remove('hidden');
-            event.currentTarget.classList.add('active');
+            
+            if (event && event.currentTarget && event.currentTarget.classList) {
+                event.currentTarget.classList.add('active');
+            } else {
+                if(subTabId === 'savingsSub') document.getElementById('sub_savings_btn').classList.add('active');
+                if(subTabId === 'loanSub') document.getElementById('sub_loan_btn').classList.add('active');
+            }
+
+            // Bottom Nav Loan Button Active State Sync
+            if(subTabId === 'loanSub') {
+                document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
+                document.getElementById('nav_loan_btn').classList.add('active');
+            }
         }
 
         function toggleLanguage() {
@@ -345,12 +432,14 @@
                 const container = document.getElementById('myMembersContainer');
                 const select = document.getElementById('weeklyMemberSelect');
                 const regTabBtn = document.getElementById('t_tab_reg');
+                const navRegBtn = document.getElementById('nav_reg_btn');
                 
                 container.innerHTML = ''; select.innerHTML = '';
 
                 // አባል ከሆነ "አባልነት ምዝገባ" ታብ እንዲደበቅ ማድረግ
                 if (data.members && data.members.length > 0) {
                     if(regTabBtn) regTabBtn.classList.add('hidden'); // መመዝገቢያውን ይደብቃል
+                    if(navRegBtn) navRegBtn.classList.add('hidden'); // Bottom nav ላይም ይደብቃል
                     switchTab('dashboardTab');
 
                     document.getElementById('weeklyUploadCard').style.display = 'block';
@@ -391,6 +480,7 @@
                 } else {
                     // አባል ካልሆነ አዲስ ምዝገባ እንዲታይ ማድረግ
                     if(regTabBtn) regTabBtn.classList.remove('hidden');
+                    if(navRegBtn) navRegBtn.classList.remove('hidden');
                     container.innerHTML = `<p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); padding: 15px;">ምንም የተመዘገበ የቁጠባ ሂሳብ አልተገኘም። እባክዎን 'አባልነት ምዝገባ' ገጽ ይሂዱ።</p>`;
                     document.getElementById('weeklyUploadCard').style.display = 'none';
                 }
