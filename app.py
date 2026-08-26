@@ -1,18 +1,16 @@
 import os
-import asyncio
+import telebot
 from threading import Thread
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
+# 1. Flask App Setup
 app = Flask(__name__)
 CORS(app)
 
 # Environment Variables
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
-ADMIN_ID = os.environ.get("ADMIN_ID", "5351353727")
 
 members_db = []
 settings_db = {
@@ -22,7 +20,35 @@ settings_db = {
     "support_phone": "0916039015"
 }
 
-# ----------------- Flask Routes -----------------
+# 2. Telegram Bot Setup
+if BOT_TOKEN:
+    try:
+        bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
+
+        @bot.message_handler(commands=['start'])
+        def send_welcome(message):
+            markup = telebot.types.InlineKeyboardMarkup()
+            btn = telebot.types.InlineKeyboardButton(
+                text="🚀 ተራመድ ሳኮ አፕ ክፈት", 
+                web_app=telebot.types.WebAppInfo(url=WEB_APP_URL)
+            )
+            markup.add(btn)
+            
+            bot.reply_to(
+                message, 
+                "እንኳን ወደ **ተራመድ ሳኮ** በሰላም መጡ! ከታች ያለውን አዝራር በመጫን የቁጠባና ብድር አፑን መክፈት ይችላሉ፦", 
+                reply_markup=markup
+            )
+
+        def start_bot():
+            print(">>> TELEGRAM BOT IS RUNNING... <<<")
+            bot.infinity_polling(timeout=10, long_polling_timeout=5)
+
+        Thread(target=start_bot, daemon=True).start()
+    except Exception as e:
+        print("Bot Error:", e)
+
+# 3. Flask Routes & APIs
 @app.route('/', methods=['GET', 'HEAD'])
 def home():
     return render_template('index.html')
@@ -31,7 +57,6 @@ def home():
 def admin_page():
     return render_template('admin.html')
 
-# API Endpoints
 @app.route('/api/member_info/<telegram_id>', methods=['GET'])
 def get_member_info(telegram_id):
     user_members = [m for m in members_db if str(m.get('telegram_id')) == str(telegram_id)]
@@ -68,35 +93,6 @@ def admin_login():
 @app.route('/api/admin/data', methods=['GET'])
 def get_admin_data():
     return jsonify({"settings": settings_db, "members": members_db})
-
-# ----------------- Telegram Bot Handlers -----------------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "🚀 ተራመድ ሳኮ አፕ ክፈት", 
-                web_app=WebAppInfo(url=WEB_APP_URL)
-            )
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "እንኳን ወደ **ተራመድ ሳኮ** በሰላም መጡ! ከታች ያለውን አዝራር በመጫን የቁጠባና ብድር አፑን መክፈት ይችላሉ፦",
-        reply_markup=reply_markup,
-        parse_mode="Markdown"
-    )
-
-def run_bot():
-    if BOT_TOKEN:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
-        bot_app.add_handler(CommandHandler("start", start))
-        bot_app.run_polling(drop_pending_updates=True)
-
-# Render Background Worker setup
-if BOT_TOKEN:
-    Thread(target=run_bot, daemon=True).start()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
