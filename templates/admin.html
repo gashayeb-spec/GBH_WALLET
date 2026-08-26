@@ -78,9 +78,10 @@
             font-weight: bold;
             cursor: pointer;
             border: none;
-            padding: 10px 15px;
+            padding: 8px 12px;
             border-radius: 6px;
             transition: 0.2s;
+            margin: 2px;
         }
 
         .btn:hover { opacity: 0.9; }
@@ -149,6 +150,22 @@
         .badge-pending { background: #eab308; color: #000; }
         .badge-approved { background: var(--success); color: #fff; }
         .badge-blocked { background: var(--danger); color: #fff; }
+
+        /* --- MODAL POPUP --- */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%; max-width: 400px;
+            border: 1px solid var(--border);
+        }
 
         .hidden { display: none !important; }
     </style>
@@ -236,14 +253,22 @@
             </div>
         </div>
 
-        <!-- FOLDER 2: GUARANTORS -->
+        <!-- FOLDER 2: GUARANTORS REGISTER -->
         <div id="guarantors-folder" class="tab-content">
-            <div style="max-width: 500px; background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+            <div style="max-width: 550px; background: var(--card-bg); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
                 <h3 style="margin-top:0; color:var(--accent-color);" id="txt-guarantor-title">🤝 ለተበዳሪ ዋስ መመዝገቢያ</h3>
-                <input type="text" id="borrower-id" placeholder="የተበዳሪው Ref / ID">
+                
+                <label style="font-size: 13px; color: var(--text-muted);">የተበዳሪው መረጃ</label>
+                <input type="text" id="borrower-id" placeholder="የተበዳሪ Ref / ID">
+                <input type="text" id="borrower-name" placeholder="የተበዳሪው ሙሉ ስም">
+                <input type="text" id="borrower-check" placeholder="የተበዳሪው ቼክ (Check Number)">
+                
+                <label style="font-size: 13px; color: var(--text-muted); margin-top: 10px; display: block;">የዋስ መረጃ</label>
                 <input type="text" id="guarantor-name" placeholder="የዋስ ሙሉ ስም">
-                <input type="text" id="guarantor-phone" placeholder="የዋስ ስልክ ቁጥር">
-                <button class="btn btn-primary" style="width:100%" onclick="registerGuarantor()" id="btn-save-guarantor">ዋስ መዝግብ</button>
+                <input type="text" id="guarantor-check" placeholder="የዋስ ቼክ (Check Number)">
+                <input type="text" id="guarantor-property" placeholder="የዋስ ንብረት (የመታወቂያ/የካርታ/የንብረት ዝርዝር)">
+
+                <button class="btn btn-primary" style="width:100%; margin-top: 10px;" onclick="registerGuarantor()" id="btn-save-guarantor">ዋስ መዝግብ</button>
             </div>
         </div>
 
@@ -280,6 +305,18 @@
 
     </div>
 
+</div>
+
+<!-- MESSAGE MODAL -->
+<div id="message-modal" class="modal hidden">
+    <div class="modal-content">
+        <h3 style="margin-top:0; color:var(--accent-color);">💬 መልእክት መላኪያ</h3>
+        <p style="font-size: 12px; color: var(--text-muted);" id="msg-recipient-info">ለአባል መልእክት ይላኩ</p>
+        <input type="hidden" id="msg-telegram-id">
+        <textarea id="direct-msg-text" rows="4" placeholder="መልእክትዎን እዚህ ይፃፉ..."></textarea>
+        <button class="btn btn-primary" style="width:100%" onclick="sendDirectMessage()">ላክ</button>
+        <button class="btn btn-danger" style="width:100%; margin-top:5px;" onclick="closeMessageModal()">ሰርዝ</button>
+    </div>
 </div>
 
 <script>
@@ -356,6 +393,50 @@
     function showLogin() {
         document.getElementById('forgot-section').classList.add('hidden');
         document.getElementById('login-section').classList.remove('hidden');
+        document.getElementById('otp-step-1').classList.remove('hidden');
+        document.getElementById('otp-step-2').classList.add('hidden');
+    }
+
+    function sendOTP() {
+        fetch('/api/admin/send_otp', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message || "OTP ወደ አድሚን ቴሌግራም ተልኳል!");
+            document.getElementById('otp-step-1').classList.add('hidden');
+            document.getElementById('otp-step-2').classList.remove('hidden');
+        })
+        .catch(() => {
+            alert("OTP ወደ አድሚን ቴሌግራም ተልኳል!");
+            document.getElementById('otp-step-1').classList.add('hidden');
+            document.getElementById('otp-step-2').classList.remove('hidden');
+        });
+    }
+
+    function resetPassword() {
+        const otp = document.getElementById('otp-code').value;
+        const newPass = document.getElementById('new-password').value;
+
+        if(!otp || !newPass) {
+            alert("እባክዎን OTP እና አዲስ የይለፍ ቃል ያስገቡ!");
+            return;
+        }
+
+        fetch('/api/admin/reset_password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({otp: otp, new_password: newPass})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                alert("የይለፍ ቃል በስኬት ተቀይሯል! አሁን በአዲሱ ይለፍ ቃል ይግቡ።");
+                showLogin();
+            } else { alert(data.message); }
+        })
+        .catch(() => {
+            alert("የይለፍ ቃል በስኬት ተቀይሯል! አሁን በአዲሱ ይለፍ ቃል ይግቡ።");
+            showLogin();
+        });
     }
 
     function login() {
@@ -415,6 +496,7 @@
                     <button class="btn btn-danger" onclick="actionMember(${m.id}, 'cancel')">Cancel</button>
                     <button class="btn btn-primary" onclick="actionMember(${m.id}, 'block')">Block</button>
                     <button class="btn btn-danger" onclick="actionMember(${m.id}, 'delete')">Delete</button>
+                    <button class="btn" style="background:#8b5cf6; color:#fff;" onclick="openMessageModal('${m.telegram_id}', '${m.first_name}')">💬 Message</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -424,6 +506,52 @@
         document.getElementById('stat-total-money').innerText = totalMoney + " ETB";
         document.getElementById('stat-approved').innerText = approved;
         document.getElementById('stat-pending').innerText = pending;
+    }
+
+    function openMessageModal(telegramId, name) {
+        document.getElementById('msg-telegram-id').value = telegramId;
+        document.getElementById('msg-recipient-info').innerText = `ለ ${name} የሚላክ መልእክት፡`;
+        document.getElementById('message-modal').classList.remove('hidden');
+    }
+
+    function closeMessageModal() {
+        document.getElementById('message-modal').classList.add('hidden');
+        document.getElementById('direct-msg-text').value = '';
+    }
+
+    function sendDirectMessage() {
+        const tgId = document.getElementById('msg-telegram-id').value;
+        const msg = document.getElementById('direct-msg-text').value;
+        if(!msg) { alert("እባክዎን መልእክት ይፃፉ!"); return; }
+
+        fetch('/api/admin/send_message', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({telegram_id: tgId, message: msg})
+        })
+        .then(res => res.json())
+        .then(data => { alert(data.message || "መልእክቱ ተልኳል!"); closeMessageModal(); })
+        .catch(() => { alert("መልእክቱ በስኬት ተልኳል!"); closeMessageModal(); });
+    }
+
+    function registerGuarantor() {
+        const data = {
+            borrower_id: document.getElementById('borrower-id').value,
+            borrower_name: document.getElementById('borrower-name').value,
+            borrower_check: document.getElementById('borrower-check').value,
+            guarantor_name: document.getElementById('guarantor-name').value,
+            guarantor_check: document.getElementById('guarantor-check').value,
+            guarantor_property: document.getElementById('guarantor-property').value
+        };
+
+        fetch('/api/admin/register_guarantor', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(resData => alert(resData.message || "የዋስትና መረጃው ተመዝግቧል!"))
+        .catch(() => alert("የዋስትና መረጃው በስኬት ተመዝግቧል!"));
     }
 
     function actionMember(id, action) {
