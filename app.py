@@ -126,21 +126,21 @@ if BOT_TOKEN:
             except Exception as e:
                 print("Callback Handling Error:", e)
 
-        def start_bot():
-            print(">>> TELEGRAM BOT RUNNING... <<<")
-            try:
-                bot.remove_webhook()
-            except Exception as e:
-                print("Webhook Removal Warning:", e)
-            bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
-
-        if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("SERVER_SOFTWARE", "").startswith("gunicorn"):
-            Thread(target=start_bot, daemon=True).start()
-        elif not os.environ.get("SERVER_SOFTWARE"):
-            Thread(target=start_bot, daemon=True).start()
-
     except Exception as e:
         print("Bot Initialization Error:", e)
+
+# SAFELY RUN BOT POLLING IN A SINGLE THREAD
+def run_bot_safe():
+    if bot:
+        try:
+            bot.remove_webhook()
+        except Exception as e:
+            print("Webhook Removal Warning:", e)
+        try:
+            print(">>> TELEGRAM BOT RUNNING SAFELY... <<<")
+            bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
+        except Exception as e:
+            print("Bot Polling Error:", e)
 
 # Helper function to send Telegram Messages
 def send_telegram_msg(chat_id, message):
@@ -383,6 +383,10 @@ def get_admin_data():
         "receipts": receipts_db,
         "loans": loans_db
     })
+
+# --- START BOT SAFELY IN BACKGROUND ---
+if bot:
+    Thread(target=run_bot_safe, daemon=True).start()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
