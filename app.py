@@ -5,14 +5,11 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# 1. Environment variables ከ .env ወይም ከ Render ይጭናል
 load_dotenv()
 
-# Flask App Setup
 app = Flask(__name__)
 CORS(app)
 
-# Environment Variables
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_ID = os.environ.get("ADMIN_ID", "5351353727")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
@@ -25,12 +22,9 @@ settings_db = {
     "support_phone": "0916039015"
 }
 
-# 2. Telegram Bot Setup
 if BOT_TOKEN:
     try:
         bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
-
-        # የነበረውን Webhook በማጥፋት የ conflict 409 ስህተቱን ይፈታል
         bot.remove_webhook()
 
         @bot.message_handler(commands=['start'])
@@ -41,7 +35,6 @@ if BOT_TOKEN:
                 web_app=telebot.types.WebAppInfo(url=WEB_APP_URL)
             )
             markup.add(btn)
-            
             bot.reply_to(
                 message, 
                 "እንኳን ወደ **ተራመድ ሳኮ** በሰላም መጡ! ከታች ያለውን አዝራር በመጫን የቁጠባና ብድር አፑን መክፈት ይችላሉ፦", 
@@ -56,7 +49,6 @@ if BOT_TOKEN:
     except Exception as e:
         print("Bot Error:", e)
 
-# 3. Flask Routes & APIs
 @app.route('/', methods=['GET', 'HEAD'])
 def home():
     return render_template('index.html')
@@ -91,7 +83,6 @@ def register_member():
     except Exception as e:
         return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
-# የቁጠባ ክፍያ ደረሰኝ መቀበያ ኤንድፖይንት
 @app.route('/api/upload_weekly_receipt', methods=['POST'])
 def upload_weekly_receipt():
     try:
@@ -129,6 +120,58 @@ def admin_login():
 @app.route('/api/admin/data', methods=['GET'])
 def get_admin_data():
     return jsonify({"settings": settings_db, "members": members_db})
+
+@app.route('/api/admin/settings', methods=['POST'])
+def update_settings():
+    try:
+        data = request.get_json()
+        if data:
+            settings_db['latest_draw_number'] = data.get('latest_draw_number', settings_db['latest_draw_number'])
+            settings_db['winner_name'] = data.get('winner_name', settings_db['winner_name'])
+            settings_db['latest_draw_date'] = data.get('latest_draw_date', settings_db['latest_draw_date'])
+            settings_db['support_phone'] = data.get('support_phone', settings_db['support_phone'])
+        return jsonify({"success": True, "message": "ቅንብሮች በስኬት ተዘምነዋል!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
+
+@app.route('/api/admin/broadcast', methods=['POST'])
+def broadcast_message():
+    try:
+        data = request.get_json()
+        message_text = data.get('message', '')
+        if not message_text:
+            return jsonify({"success": False, "message": "መልእክቱ ባዶ ነው!"}), 400
+
+        sent_count = 0
+        if BOT_TOKEN and members_db:
+            for member in members_db:
+                tg_id = member.get('telegram_id')
+                if tg_id:
+                    try:
+                        bot.send_message(tg_id, f"📢 **የአድሚን ማስታወቂያ፦**\n\n{message_text}")
+                        sent_count += 1
+                    except Exception as err:
+                        print(f"Failed to send to {tg_id}:", err)
+
+        return jsonify({"success": True, "message": f"ማስታወቂያው ለ {sent_count} አባላት ተልኳል!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
+
+@app.route('/api/admin/toggle_payment', methods=['POST'])
+def toggle_payment():
+    try:
+        data = request.get_json()
+        member_id = str(data.get('member_id'))
+        status = int(data.get('status', 0))
+
+        for member in members_db:
+            if str(member['id']) == member_id:
+                member['weekly_paid_status'] = status
+                break
+
+        return jsonify({"success": True, "message": "የክፍያ ሁኔታው ተቀይሯል!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
