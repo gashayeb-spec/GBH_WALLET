@@ -2,561 +2,350 @@
 <html lang="am">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ተራመድ ሳኮ - Digital Passbook</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ተራመድ ሳኮ - Admin Management Panel</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
-            --gold-light: #fbbf24; --text: #f8fafc; --text-muted: #94a3b8;
-            --border: rgba(255, 255, 255, 0.1); --success: #10b981; --danger: #ef4444; --primary: #3b82f6;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --gold: #f59e0b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+            --success: #10b981;
+            --danger: #ef4444;
+            --primary: #3b82f6;
         }
+
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        html, body { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        body { background: var(--bg); color: var(--text); padding: 12px; padding-bottom: 75px; }
-        .container { max-width: 500px; margin: 0 auto; min-height: 100%; }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .admin-link { color: var(--gold); text-decoration: none; font-size: 0.8rem; font-weight: bold; }
-        .lang-btn {
-            background: rgba(245, 158, 11, 0.15); border: 1px solid var(--gold);
-            color: var(--gold); padding: 5px 12px; border-radius: 20px; font-weight: bold;
-            font-size: 0.8rem; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px;
+        body { background: var(--bg); color: var(--text); padding: 15px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--card); border: 1px solid var(--border);
+            padding: 15px 20px; border-radius: 12px; margin-bottom: 20px;
         }
-        .header-card {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 1px solid var(--gold); border-radius: 16px; padding: 16px; text-align: center;
-            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15); margin-bottom: 15px;
-        }
-        .header-card h1 { color: var(--gold); font-size: 1.3rem; font-weight: bold; }
-        .header-card p { color: var(--text-muted); font-size: 0.8rem; }
+        .header h2 { color: var(--gold); font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+        .role-badge { background: rgba(245, 158, 11, 0.2); color: var(--gold); border: 1px solid var(--gold); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+
+        .auth-card { max-width: 400px; margin: 50px auto; background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+        input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; }
         
-        .tabs { display: flex; gap: 8px; margin-bottom: 15px; }
-        .tab-btn {
-            flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border);
-            color: var(--text-muted); border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s;
-        }
-        .tab-btn.active { background: var(--gold); color: #0f172a; border-color: var(--gold); }
+        .btn { padding: 8px 14px; background: var(--gold); color: #0f172a; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn:hover { opacity: 0.9; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 10px; border-left: 4px solid var(--gold); }
+        .stat-card h4 { font-size: 0.75rem; color: var(--text-muted); }
+        .stat-card p { font-size: 1.2rem; font-weight: bold; margin-top: 5px; }
+
+        .tabs { display: flex; gap: 8px; border-bottom: 2px solid var(--border); margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; }
+        .tab-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 16px; font-weight: bold; cursor: pointer; border-radius: 8px 8px 0 0; white-space: nowrap; }
+        .tab-btn.active { background: var(--card); color: var(--gold); border-bottom: 3px solid var(--gold); }
+
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* SUB TABS FOR PASSBOOK */
-        .sub-tabs { display: flex; gap: 6px; background: rgba(15, 23, 42, 0.8); padding: 4px; border-radius: 10px; margin-bottom: 15px; }
-        .sub-tab-btn {
-            flex: 1; padding: 8px; background: transparent; border: none; color: var(--text-muted);
-            font-weight: bold; font-size: 0.85rem; border-radius: 8px; cursor: pointer; transition: 0.2s;
-        }
-        .sub-tab-btn.active { background: var(--card); color: var(--gold); border: 1px solid var(--border); }
+        .table-res { overflow-x: auto; background: var(--card); border-radius: 10px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
+        th { background: #0f172a; color: var(--gold); }
 
-        .master-panel {
-            background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-            padding: 16px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;
-        }
-        .panel-title { color: var(--gold); font-weight: bold; font-size: 1rem; }
-        .support-btn {
-            display: inline-flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.15);
-            color: var(--gold); border: 1px solid var(--gold); padding: 6px 12px; border-radius: 20px;
-            text-decoration: none; font-size: 0.8rem; font-weight: bold; transition: 0.2s;
-        }
+        /* Receipt Thumbnail and Zoom Modal */
+        .receipt-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid var(--gold); }
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .modal-body { background: var(--card); padding: 20px; border-radius: 12px; max-width: 500px; width: 90%; text-align: center; border: 1px solid var(--border); position: relative; }
+        .zoom-box { overflow: hidden; border-radius: 8px; cursor: zoom-in; margin: 10px 0; }
+        .zoom-box img { width: 100%; max-height: 400px; object-fit: contain; transition: transform 0.3s; }
+        .zoom-box:hover img { transform: scale(1.8); }
 
-        .summary-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-            background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: 10px; margin-bottom: 12px; text-align: center;
-        }
-        .summary-item span { display: block; font-size: 0.72rem; color: var(--text-muted); }
-        .summary-item b { font-size: 0.85rem; }
-
-        .equb-notebook {
-            background: rgba(15, 23, 42, 0.7); border: 1px dashed var(--gold);
-            border-radius: 12px; padding: 12px; margin-bottom: 12px;
-        }
-        .notebook-header {
-            font-size: 0.85rem; color: var(--gold); font-weight: bold;
-            border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 5px; margin-bottom: 8px;
-        }
-        .book-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem; }
-        .book-row .label { color: var(--text-muted); }
-
-        .input-group { margin-bottom: 12px; }
-        .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; }
-        .input-group input, .input-group select {
-            width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border);
-            border-radius: 8px; color: var(--text); outline: none; font-size: 0.9rem;
-        }
-        .account-display-box {
-            background: rgba(245, 158, 11, 0.1); border: 1px dashed var(--gold);
-            border-radius: 8px; padding: 10px 12px; margin-top: 8px; margin-bottom: 8px; cursor: pointer;
-        }
-        .acc-details { display: flex; justify-content: space-between; align-items: center; }
-        .acc-number { font-size: 0.95rem; font-weight: bold; color: var(--gold); }
-        .copy-tag { font-size: 0.75rem; background: var(--gold); color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-        .btn {
-            width: 100%; padding: 12px; background: var(--gold); color: #0f172a; border: none;
-            border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: 0.3s;
-        }
-        .file-upload {
-            border: 1px dashed var(--gold); border-radius: 8px; padding: 10px; text-align: center; cursor: pointer;
-            background: rgba(245, 158, 11, 0.05); margin-bottom: 10px;
-        }
-        .file-upload input { display: none; }
         .hidden { display: none !important; }
-
-        /* BOTTOM NAVIGATION BAR STYLES */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background-color: #0f172a;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 9999;
-            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
-        }
-        .nav-item {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 11px;
-            cursor: pointer;
-            flex: 1;
-        }
-        .nav-item.active {
-            color: var(--gold);
-        }
-        .nav-icon {
-            font-size: 18px;
-            margin-bottom: 3px;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="top-bar">
-            <a href="/admin" class="admin-link"><i class="fas fa-lock"></i> አድሚን ገጽ</a>
-            <button class="lang-btn" onclick="toggleLanguage()">
-                <i class="fas fa-globe"></i> <span id="langLabel">English</span>
-            </button>
-        </div>
 
-        <div class="header-card">
-            <i class="fas fa-piggy-bank" style="font-size: 2rem; color: var(--gold); margin-bottom: 5px;"></i>
-            <h1>ተራመድ ሳኮ</h1>
-            <p id="t_subtitle">ዲጂታል የቁጠባና ብድር መዝገብና ክፍያ ፓናል</p>
-        </div>
-
-        <!-- MAIN NAVIGATION TABS -->
-        <div class="tabs">
-            <button class="tab-btn active" id="t_tab_dash" onclick="switchTab('dashboardTab')"><i class="fas fa-book"></i> የኔ ደብተር</button>
-            <button class="tab-btn" id="t_tab_reg" onclick="switchTab('registerTab')"><i class="fas fa-user-plus"></i> አባልነት ምዝገባ</button>
-        </div>
-
-        <!-- 1. DASHBOARD TAB (የኔ ደብተር) -->
-        <div id="dashboardTab" class="tab-content active">
-            
-            <!-- SUB-TABS: SAVINGS VS LOAN -->
-            <div class="sub-tabs">
-                <button class="sub-tab-btn active" id="sub_savings_btn" onclick="switchSubTab('savingsSub')"><i class="fas fa-coins"></i> የቁጠባ ደብተር</button>
-                <button class="sub-tab-btn" id="sub_loan_btn" onclick="switchSubTab('loanSub')"><i class="fas fa-hand-holding-usd"></i> የብድር ደብተር</button>
-            </div>
-
-            <!-- A. SAVINGS SUB CONTENT -->
-            <div id="savingsSub" class="sub-content">
-                <div class="master-panel">
-                    <div class="panel-header">
-                        <span class="panel-title"><i class="fas fa-wallet"></i> የቁጠባ መዝገብ</span>
-                        <a href="#" id="supportPhoneBtn" class="support-btn" style="display:none;">
-                            <i class="fas fa-headset"></i> <span>ድጋፍ</span>
-                        </a>
-                    </div>
-
-                    <div id="myMembersContainer"></div>
-
-                    <!-- SAVINGS UPLOAD CARD -->
-                    <div id="weeklyUploadCard" style="display: none; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 10px;">
-                        <form id="weeklyReceiptForm">
-                            <div class="input-group">
-                                <label>የሚቆጥቡበትን አካውንት ይምረጡ</label>
-                                <select id="weeklyMemberSelect" required></select>
-                            </div>
-                            <div class="input-group">
-                                <label>ገንዘብ ገቢ የሚያደርጉበት ባንክ / አካውንት</label>
-                                <select id="weeklyPaymentMethod" onchange="displayWeeklyAccountDetails()">
-                                    <option value="Telebirr">ቴሌብር - 0916039015</option>
-                                    <option value="CBE_Birr">ሲቢኢ ብር - 0916039015</option>
-                                    <option value="CBE">የኢትዮጵያ ንግድ ባንክ - 1000070780201</option>
-                                    <option value="BOA">አቢሲንያ ባንክ - 54071628</option>
-                                    <option value="Dashen">ዳሸን ባንክ - 5121355332011</option>
-                                    <option value="Nib">ንብ ባንክ - 7000106022734</option>
-                                </select>
-                                <div id="weeklyAccountDisplayBox" class="account-display-box" onclick="copyWeeklyAccount()">
-                                    <div class="acc-details">
-                                        <div>
-                                            <span style="font-size: 0.8rem; display: block; color: var(--text-muted);">የባንክ ቁጥር (ለመቅዳት ይጫኑ)፦</span>
-                                            <span id="weeklyAccNumberText" class="acc-number">0916039015</span>
-                                        </div>
-                                        <span class="copy-tag">ቅዳ</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="input-group">
-                                <label>የትራንዛክሽን ቁጥር (Ref No / Transaction ID)</label>
-                                <input type="text" id="weeklyReceiptRef" placeholder="ምሳሌ፦ TX12345678">
-                            </div>
-                            <div class="file-upload" onclick="document.getElementById('weeklyReceiptFile').click()">
-                                <i class="fas fa-camera" style="font-size: 1.5rem; color: var(--gold);"></i>
-                                <p id="weeklyFileStatus" style="font-size: 0.8rem; margin-top: 5px;">የቁጠባ ክፍያ ደረሰኝ ስክሪንሹት ይምረጡ</p>
-                                <input type="file" id="weeklyReceiptFile" accept="image/*" onchange="handleFileSelect(this, 'weeklyFileStatus')">
-                            </div>
-                            <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> የቁጠባ ክፍያውን አረጋግጥ</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- B. LOAN SUB CONTENT -->
-            <div id="loanSub" class="sub-content hidden">
-                <div class="master-panel">
-                    <div class="panel-header">
-                        <span class="panel-title"><i class="fas fa-hand-holding-usd"></i> የብድር ደብተርና ክፍያ</span>
-                    </div>
-
-                    <!-- LOAN SUMMARY GRID -->
-                    <div class="summary-grid">
-                        <div class="summary-item">
-                            <span>የተፈቀደ ብድር</span>
-                            <b id="approvedLoanText" style="color: var(--gold);">0 ብር</b>
-                        </div>
-                        <div class="summary-item">
-                            <span>የተከፈለ ብድር</span>
-                            <b id="paidLoanText" style="color: var(--success);">0 ብር</b>
-                        </div>
-                        <div class="summary-item">
-                            <span>የቀረ ዕዳ</span>
-                            <b id="remainingLoanText" style="color: var(--danger);">0 ብር</b>
-                        </div>
-                    </div>
-
-                    <!-- LOAN REPAYMENT FORM -->
-                    <div id="loanRepaymentCard" style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 10px;">
-                        <h4 style="font-size: 0.9rem; color: var(--gold); margin-bottom: 10px;"><i class="fas fa-receipt"></i> የብድር ክፍያ መመለሻ</h4>
-                        <form id="loanRepaymentForm">
-                            <div class="input-group">
-                                <label>የሚመልሱት ብር መጠን (ETB)</label>
-                                <input type="number" id="loanPayAmount" required placeholder="ምሳሌ፦ 5000">
-                            </div>
-                            <div class="input-group">
-                                <label>ገንዘብ ገቢ የሚያደርጉበት ባንክ</label>
-                                <select id="loanPaymentMethod" onchange="displayLoanAccountDetails()">
-                                    <option value="Telebirr">ቴሌብር - 0916039015</option>
-                                    <option value="CBE">የኢትዮጵያ ንግድ ባንክ - 1000070780201</option>
-                                    <option value="BOA">አቢሲንያ ባንክ - 54071628</option>
-                                    <option value="Dashen">ዳሸን ባንክ - 5121355332011</option>
-                                </select>
-                            </div>
-                            <div class="input-group">
-                                <label>የትራንዛክሽን ቁጥር (Ref No)</label>
-                                <input type="text" id="loanReceiptRef" placeholder="ምሳሌ፦ TX12345678">
-                            </div>
-                            <div class="file-upload" onclick="document.getElementById('loanReceiptFile').click()">
-                                <i class="fas fa-file-invoice-dollar" style="font-size: 1.5rem; color: var(--gold);"></i>
-                                <p id="loanFileStatus" style="font-size: 0.8rem; margin-top: 5px;">የብድር ክፍያ ደረሰኝ ስክሪንሹት ይምረጡ</p>
-                                <input type="file" id="loanReceiptFile" accept="image/*" required onchange="handleFileSelect(this, 'loanFileStatus')">
-                            </div>
-                            <button type="submit" class="btn"><i class="fas fa-paper-plane"></i> የብድር ክፍያ ደረሰኝ ላክ</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- 2. REGISTRATION TAB -->
-        <div id="registerTab" class="tab-content">
-            <div class="master-panel">
-                <div class="panel-header">
-                    <span class="panel-title"><i class="fas fa-user-plus"></i> አዲስ የአባልነት ምዝገባ</span>
-                </div>
-                <form id="regForm">
-                    <div class="input-group"><label>ስም</label><input type="text" id="first_name" required></div>
-                    <div class="input-group"><label>የአባት ስም</label><input type="text" id="father_name" required></div>
-                    <div class="input-group"><label>የአያት ስም</label><input type="text" id="grand_name" required></div>
-                    <div class="input-group"><label>ስልክ ቁጥር</label><input type="tel" id="phone_number" required placeholder="0911223344"></div>
-                    <div class="input-group"><label>መኖሪያ አካባቢ / ክልል / ከተማ</label><input type="text" id="address" required placeholder="ምሳሌ፦ ሀዋሳ፣ ክፍለ ከተማ..."></div>
-                    <div class="input-group"><label>የቲን ቁጥር (TIN Number - ካለዎት)</label><input type="text" id="tin_number" placeholder="አማራጭ"></div>
-                    <div class="input-group"><label>የዕጣ/የቁጠባ ዕድል ብዛት</label><input type="number" id="share_count" value="1" min="1" required></div>
-
-                    <div class="input-group">
-                        <label>የቀበሌ መታወቂያ ፎቶ (መጫን ግዴታ ነው)</label>
-                        <div class="file-upload" onclick="document.getElementById('id_card').click()">
-                            <i class="fas fa-id-card" style="font-size: 1.5rem; color: var(--gold);"></i>
-                            <p id="idCardStatus" style="font-size: 0.8rem; margin-top: 5px;">የመታወቂያ ፎቶ ይምረጡ</p>
-                            <input type="file" id="id_card" accept="image/*" required onchange="handleFileSelect(this, 'idCardStatus')">
-                        </div>
-                    </div>
-
-                    <div class="input-group">
-                        <label>የንግድ ፈቃድ / ሰነድ ፎቶ (ካለዎት)</label>
-                        <div class="file-upload" onclick="document.getElementById('trade_license').click()">
-                            <i class="fas fa-file-contract" style="font-size: 1.5rem; color: var(--gold);"></i>
-                            <p id="licenseStatus" style="font-size: 0.8rem; margin-top: 5px;">የንግድ ፈቃድ / ሰነድ ፎቶ ይምረጡ</p>
-                            <input type="file" id="trade_license" accept="image/*" onchange="handleFileSelect(this, 'licenseStatus')">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn"><i class="fas fa-check-circle"></i> ይመዝገቡ</button>
-                </form>
-            </div>
-        </div>
+<div class="container">
+    <div class="header">
+        <h2><i class="fas fa-user-shield"></i> ተራመድ ሳኮ - Admin Management Panel</h2>
+        <span class="role-badge" id="roleDisplay">ያልገባ</span>
     </div>
 
-    <!-- BOTTOM NAVIGATION BAR -->
-    <nav class="bottom-nav">
-        <button class="nav-item active" id="nav_dash_btn" onclick="switchTab('dashboardTab'); switchSubTab('savingsSub');">
-            <span class="nav-icon"><i class="fas fa-book"></i></span>
-            <span>የኔ ደብተር</span>
-        </button>
+    <!-- LOGIN SECTION -->
+    <div id="loginSection" class="auth-card">
+        <h3><i class="fas fa-lock"></i> የአድሚን መግቢያ</h3>
+        <input type="text" id="adminUser" placeholder="Telegram ID / Username">
+        <input type="password" id="adminPass" placeholder="የይለፍ ቃል">
+        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="adminLogin()">ይግቡ</button>
+    </div>
 
-        <button class="nav-item" id="nav_reg_btn" onclick="switchTab('registerTab');">
-            <span class="nav-icon"><i class="fas fa-user-plus"></i></span>
-            <span>ምዝገባ</span>
-        </button>
+    <!-- MAIN DASHBOARD -->
+    <div id="adminDashboard" class="hidden">
 
-        <button class="nav-item" id="nav_loan_btn" onclick="switchTab('dashboardTab'); switchSubTab('loanSub');">
-            <span class="nav-icon"><i class="fas fa-hand-holding-usd"></i></span>
-            <span>ቁጠባ/ብድር</span>
-        </button>
+        <!-- FINANCIAL DASHBOARD (Super Admin & Auditor Only) -->
+        <div class="stats-grid role-sec role-super role-auditor">
+            <div class="stat-card" style="border-left-color: var(--success);">
+                <h4>የቀን ገቢ (Daily Income)</h4>
+                <p id="statDailyIncome">0 ETB</p>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--danger);">
+                <h4>የወር ወጪ (Monthly Expenses)</h4>
+                <p id="statMonthlyExpense">0 ETB</p>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--gold);">
+                <h4>አመታዊ የተጣራ ትርፍ (Net Profit)</h4>
+                <p id="statAnnualProfit">0 ETB</p>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--primary);">
+                <h4>ጤናማ vs የተበላሸ ብድር (NPL)</h4>
+                <p id="statLoanRatio">0% / 0%</p>
+            </div>
+        </div>
 
-        <!-- ለአድሚኑ TELEGRAM ID ብቻ የሚታይ የአድሚን በተን -->
-        <button class="nav-item hidden" id="nav_admin_btn" onclick="window.location.href='/admin'">
-            <span class="nav-icon"><i class="fas fa-cog"></i></span>
-            <span>አድሚን</span>
-        </button>
-    </nav>
+        <!-- NAVIGATION TABS -->
+        <div class="tabs">
+            <button class="tab-btn role-sec role-super role-registration active" onclick="showTab('regTab', event)"><i class="fas fa-id-card"></i> ምዝገባና አባላት</button>
+            <button class="tab-btn role-sec role-super role-loans" onclick="showTab('loanTab', event)"><i class="fas fa-hand-holding-usd"></i> የብድር ክፍል</button>
+            <button class="tab-btn role-sec role-super role-receipts" onclick="showTab('receiptTab', event)"><i class="fas fa-file-invoice-dollar"></i> ደረሰኝ አጣሪ</button>
+            <button class="tab-btn role-sec role-super role-auditor" onclick="showTab('financeTab', event)"><i class="fas fa-calculator"></i> ሂሳብና ሪፖርት</button>
+            <button class="tab-btn role-sec role-super" onclick="showTab('assignTab', event)"><i class="fas fa-user-plus"></i> አድሚን መሾሚያ</button>
+        </div>
 
-    <script>
-        const tg = window.Telegram ? window.Telegram.WebApp : null;
-        if(tg) tg.expand();
-        let currentLang = 'am';
-        const bankAccounts = { 'Telebirr': '0916039015', 'CBE_Birr': '0916039015', 'CBE': '1000070780201', 'BOA': '54071628', 'Dashen': '5121355332011', 'Nib': '7000106022734' };
+        <!-- TAB 1: REGISTRATION & USER APPROVAL -->
+        <div id="regTab" class="tab-content active">
+            <h3>የአባላት ምዝገባና ፋይል ማጣሪያ</h3>
+            <div class="table-res" style="margin-top:10px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ref No</th>
+                            <th>ስም</th>
+                            <th>ስልክ</th>
+                            <th>መታወቂያ</th>
+                            <th>የንግድ ፈቃድ</th>
+                            <th>እርምጃ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="regTableBody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-        // የአድሚን TELEGRAM ID ፍተሻ (ለአድሚን ብቻ የአድሚን ታብን ለማሳየት)
-        const ADMIN_TG_ID = "5351353727";
-        const userTgId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? String(tg.initDataUnsafe.user.id) : "";
+        <!-- TAB 2: LOAN APPLICATIONS & MONITORING -->
+        <div id="loanTab" class="tab-content">
+            <h3>የብድር ማመልከቻዎች እና ጤናማነት መዝገብ</h3>
+            <div class="table-res" style="margin-top:10px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ref No</th>
+                            <th>ተበዳሪ</th>
+                            <th>የተጠየቀ ብድር</th>
+                            <th>የተፈቀደ</th>
+                            <th>የተከፈለ</th>
+                            <th>ቀሪ</th>
+                            <th>ሁኔታ</th>
+                            <th>እርምጃ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loanTableBody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-        if (userTgId === ADMIN_TG_ID) {
-            const adminBtn = document.getElementById('nav_admin_btn');
-            if (adminBtn) adminBtn.classList.remove('hidden');
+        <!-- TAB 3: RECEIPT VERIFICATION (WITH ZOOM) -->
+        <div id="receiptTab" class="tab-content">
+            <h3>የክፍያ ደረሰኞች ፍተሻ (Receipt Verification)</h3>
+            <div class="table-res" style="margin-top:10px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ref No</th>
+                            <th>አይነት</th>
+                            <th>መጠን</th>
+                            <th>TxID</th>
+                            <th>ደረሰኝ (Hover Zoom)</th>
+                            <th>እርምጃ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receiptTableBody">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: FINANCE & EXPENSES -->
+        <div id="financeTab" class="tab-content">
+            <h3>የወር ወጪ መዝገብና የሂሳብ ማስተካከያ</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div style="background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border);">
+                    <h4 style="color:var(--gold); margin-bottom: 10px;">አዲስ የወጪ መዝገብ</h4>
+                    <input type="text" id="expDesc" placeholder="የወጪ ምክንያት (ምሳሌ፦ የቢሮ ኪራይ)">
+                    <input type="number" id="expAmt" placeholder="የብር መጠን">
+                    <button class="btn btn-danger" style="width: 100%; margin-top: 10px;" onclick="addExpense()">መዝግብ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: ADMIN ASSIGNMENT (Super Admin Only) -->
+        <div id="assignTab" class="tab-content">
+            <div style="max-width: 450px; background: var(--card); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+                <h3 style="color:var(--gold); margin-bottom: 10px;"><i class="fas fa-user-shield"></i> አዲስ አድሚን መሾሚያ</h3>
+                <label style="font-size: 0.8rem; color: var(--text-muted);">የአድሚኑ Telegram ID</label>
+                <input type="text" id="newAdminId" placeholder="ምሳሌ፦ 5351353727">
+                
+                <label style="font-size: 0.8rem; color: var(--text-muted);">የስራ ድርሻ (Role)</label>
+                <select id="newAdminRole">
+                    <option value="registration">የምዝገባና ፋይል አጣሪ</option>
+                    <option value="loans">የብድር ክፍል አድሚን</option>
+                    <option value="receipts">የቀን ገቢና ደረሰኝ አጣሪ</option>
+                    <option value="auditor">የሂሳብና ሪፖርት አድሚን</option>
+                    <option value="super">Super Admin (ሙሉ ስልጣን)</option>
+                </select>
+                <button class="btn btn-success" style="width: 100%; margin-top: 10px;" onclick="assignRole()">አድሚኑን ሾም</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- IMAGE ZOOM MODAL -->
+<div id="zoomModal" class="modal hidden">
+    <div class="modal-body">
+        <h4 style="color:var(--gold);"><i class="fas fa-search-plus"></i> ደረሰኝ ማጉያ (Hover to Zoom)</h4>
+        <div class="zoom-box">
+            <img id="zoomImg" src="" alt="Receipt">
+        </div>
+        <button class="btn btn-danger" style="width: 100%; margin-top: 10px;" onclick="closeZoom()">ዝጋ</button>
+    </div>
+</div>
+
+<script>
+    let currentRole = 'guest';
+
+    // LOGIN FUNCTION
+    async function adminLogin() {
+        const admin_id = document.getElementById('adminUser').value;
+        const pass = document.getElementById('adminPass').value;
+
+        if(!admin_id || !pass) {
+            alert("እባክዎን Telegram ID እና Password ያስገቡ!");
+            return;
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
+        try {
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({admin_id, pass})
+            });
+            const data = await res.json();
             
-            const activeBtn = document.querySelector(`[onclick="switchTab('${tabId}')"]`);
-            if(activeBtn) activeBtn.classList.add('active');
-
-            // Bottom Nav Active State Sync
-            document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
-            if(tabId === 'dashboardTab') {
-                document.getElementById('nav_dash_btn').classList.add('active');
-            } else if(tabId === 'registerTab') {
-                document.getElementById('nav_reg_btn').classList.add('active');
-            }
-        }
-
-        function switchSubTab(subTabId) {
-            document.querySelectorAll('.sub-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.sub-tab-btn').forEach(el => el.classList.remove('active'));
-
-            document.getElementById(subTabId).classList.remove('hidden');
-            
-            if (event && event.currentTarget && event.currentTarget.classList) {
-                event.currentTarget.classList.add('active');
+            if(res.ok) {
+                currentRole = data.role;
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                setupPermissions();
+                loadDashboardData();
             } else {
-                if(subTabId === 'savingsSub') document.getElementById('sub_savings_btn').classList.add('active');
-                if(subTabId === 'loanSub') document.getElementById('sub_loan_btn').classList.add('active');
+                alert(data.message || "የተሳሳተ መረጃ!");
             }
+        } catch(e) {
+            alert("የአድሚን መግቢያ ስህተት! እባክዎ አገልጋዩን (Server) ያረጋግጡ።");
+        }
+    }
 
-            // Bottom Nav Loan Button Active State Sync
-            if(subTabId === 'loanSub') {
-                document.querySelectorAll('.bottom-nav .nav-item').forEach(el => el.classList.remove('active'));
-                document.getElementById('nav_loan_btn').classList.add('active');
-            }
+    // ROLE-BASED VISIBILITY CONTROL
+    function setupPermissions() {
+        document.getElementById('roleDisplay').innerText = `Role: ${currentRole.toUpperCase()}`;
+        document.querySelectorAll('.role-sec').forEach(el => el.classList.add('hidden'));
+
+        if(currentRole === 'super') {
+            document.querySelectorAll('.role-sec').forEach(el => el.classList.remove('hidden'));
+        } else {
+            document.querySelectorAll(`.role-${currentRole}`).forEach(el => el.classList.remove('hidden'));
+        }
+    }
+
+    // TAB SWITCHING
+    function showTab(tabId, evt) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        if(evt) evt.currentTarget.classList.add('active');
+    }
+
+    // IMAGE ZOOM MODAL FUNCTIONS
+    function openZoom(url) {
+        document.getElementById('zoomImg').src = url;
+        document.getElementById('zoomModal').classList.remove('hidden');
+    }
+
+    function closeZoom() {
+        document.getElementById('zoomModal').classList.add('hidden');
+    }
+
+    // ASSIGN ADMIN ROLE
+    async function assignRole() {
+        const admin_id = document.getElementById('newAdminId').value;
+        const role = document.getElementById('newAdminRole').value;
+
+        if(!admin_id) {
+            alert("እባክዎን የአድሚኑን Telegram ID ያስገቡ!");
+            return;
         }
 
-        function toggleLanguage() {
-            currentLang = currentLang === 'am' ? 'en' : 'am';
-            document.getElementById('langLabel').innerText = currentLang === 'am' ? 'English' : 'አማርኛ';
-            loadUserData();
+        try {
+            const res = await fetch('/api/admin/assign_role', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({admin_id, role})
+            });
+            const data = await res.json();
+            alert(data.message);
+        } catch(e) {
+            alert("ሽመታው አልተሳካም።");
+        }
+    }
+
+    // ADD EXPENSE RECORD
+    async function addExpense() {
+        const desc = document.getElementById('expDesc').value;
+        const amt = document.getElementById('expAmt').value;
+
+        if(!desc || !amt) {
+            alert("እባክዎን ወጪውን እና የብር መጠኑን ሙሉ በሙሉ ያስገቡ!");
+            return;
         }
 
-        function displayWeeklyAccountDetails() {
-            const method = document.getElementById('weeklyPaymentMethod').value;
-            document.getElementById('weeklyAccNumberText').innerText = bankAccounts[method] || '0916039015';
+        try {
+            const res = await fetch('/api/admin/add_expense', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({description: desc, amount: parseFloat(amt)})
+            });
+            const data = await res.json();
+            alert(data.message);
+            document.getElementById('expDesc').value = '';
+            document.getElementById('expAmt').value = '';
+        } catch(e) {
+            alert("ወጪውን መመዝገብ አልተቻለም።");
         }
+    }
 
-        function copyWeeklyAccount() {
-            const accNum = document.getElementById('weeklyAccNumberText').innerText;
-            navigator.clipboard.writeText(accNum);
-            alert("የባንክ ቁጥሩ ተቀድቷል፦ " + accNum);
-        }
-
-        function handleFileSelect(input, labelId) {
-            if(input.files && input.files[0]) document.getElementById(labelId).innerText = "ፋይል ተመርጧል፦ " + input.files[0].name;
-        }
-
-        async function loadUserData() {
-            const telegram_id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : '123456789';
-            try {
-                const res = await fetch(`/api/member_info/${telegram_id}`);
-                const data = await res.json();
-                
-                if (data.settings && data.settings.support_phone) {
-                    const btn = document.getElementById('supportPhoneBtn');
-                    btn.href = `tel:${data.settings.support_phone}`;
-                    btn.style.display = 'inline-flex';
-                }
-
-                const container = document.getElementById('myMembersContainer');
-                const select = document.getElementById('weeklyMemberSelect');
-                const regTabBtn = document.getElementById('t_tab_reg');
-                const navRegBtn = document.getElementById('nav_reg_btn');
-                
-                container.innerHTML = ''; select.innerHTML = '';
-
-                // አባል ከሆነ "አባልነት ምዝገባ" ታብ እንዲደበቅ ማድረግ
-                if (data.members && data.members.length > 0) {
-                    if(regTabBtn) regTabBtn.classList.add('hidden'); // መመዝገቢያውን ይደብቃል
-                    if(navRegBtn) navRegBtn.classList.add('hidden'); // Bottom nav ላይም ይደብቃል
-                    switchTab('dashboardTab');
-
-                    document.getElementById('weeklyUploadCard').style.display = 'block';
-                    
-                    let totalApprovedLoan = 0;
-                    let totalPaidLoan = 0;
-
-                    data.members.forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m.id;
-                        opt.innerText = `${m.first_name} ${m.father_name} (${m.ref_no})`;
-                        select.appendChild(opt);
-
-                        const isPaid = m.weekly_paid_status === 1;
-                        const paidBadge = isPaid ? `<span style="color: var(--success); font-weight: bold;">✅ ቁጠባ ተከፍሏል</span>` : `<span style="color: var(--danger); font-weight: bold;">❌ አልተከፈለሙ</span>`;
-                        
-                        const div = document.createElement('div');
-                        div.className = 'equb-notebook';
-                        div.innerHTML = `
-                            <div class="notebook-header"><i class="fas fa-address-card"></i> ${m.first_name} ${m.father_name}</div>
-                            <div class="book-row"><span class="label">የአባልነት መለያ (Ref):</span> <b>${m.ref_no}</b></div>
-                            <div class="book-row"><span class="label">የዕጣ ብዛት:</span> <b>${m.share_count || 1}</b></div>
-                            <div class="book-row"><span class="label">የቁጠባ ሁኔታ:</span> ${paidBadge}</div>
-                            <div class="book-row"><span class="label">የተከፈለ ጠቅላላ ቁጠባ:</span> <b>${(m.paid_amount || 0).toLocaleString()} ብር</b></div>
-                        `;
-                        container.appendChild(div);
-
-                        // የብድር ሂሳብ ድምር
-                        totalApprovedLoan += (m.approved_loan || 0);
-                        totalPaidLoan += (m.paid_loan || 0);
-                    });
-
-                    // የብድር መረጃዎችን በብድር ደብተር ላይ ማሳየት
-                    document.getElementById('approvedLoanText').innerText = totalApprovedLoan.toLocaleString() + ' ብር';
-                    document.getElementById('paidLoanText').innerText = totalPaidLoan.toLocaleString() + ' ብር';
-                    document.getElementById('remainingLoanText').innerText = (totalApprovedLoan - totalPaidLoan).toLocaleString() + ' ብር';
-
-                } else {
-                    // አባል ካልሆነ አዲስ ምዝገባ እንዲታይ ማድረግ
-                    if(regTabBtn) regTabBtn.classList.remove('hidden');
-                    if(navRegBtn) navRegBtn.classList.remove('hidden');
-                    container.innerHTML = `<p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); padding: 15px;">ምንም የተመዘገበ የቁጠባ ሂሳብ አልተገኘም። እባክዎን 'አባልነት ምዝገባ' ገጽ ይሂዱ።</p>`;
-                    document.getElementById('weeklyUploadCard').style.display = 'none';
-                }
-            } catch(e) { console.error(e); }
-        }
-
-        // የቁጠባ ክፍያ መላኪያ
-        document.getElementById('weeklyReceiptForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData();
-            formData.append('member_id', document.getElementById('weeklyMemberSelect').value);
-            formData.append('receipt_ref', document.getElementById('weeklyReceiptRef').value);
-            const fileInput = document.getElementById('weeklyReceiptFile');
-            if(fileInput.files[0]) formData.append('receipt', fileInput.files[0]);
-
-            try {
-                const res = await fetch('/api/upload_weekly_receipt', { method: 'POST', body: formData });
-                const data = await res.json();
-                alert(data.message);
-                if(res.ok) loadUserData();
-            } catch(err) { alert("የቁጠባ ክፍያ መረጃ ማስገባት አልተቻለም!"); }
-        });
-
-        // የብድር ክፍያ መላኪያ
-        document.getElementById('loanRepaymentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const telegram_id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : '123456789';
-            
-            const formData = new FormData();
-            formData.append('telegram_id', telegram_id);
-            formData.append('amount', document.getElementById('loanPayAmount').value);
-            formData.append('payment_method', document.getElementById('loanPaymentMethod').value);
-            formData.append('receipt_ref', document.getElementById('loanReceiptRef').value);
-            const fileInput = document.getElementById('loanReceiptFile');
-            if(fileInput.files[0]) formData.append('receipt', fileInput.files[0]);
-
-            try {
-                const res = await fetch('/api/upload_loan_receipt', { method: 'POST', body: formData });
-                const data = await res.json();
-                alert(data.message || "የብድር ክፍያ ደረሰኝዎ ለአድሚን ተልኳል!");
-                if(res.ok) loadUserData();
-            } catch(err) { alert("የብድር ክፍያ ደረሰኝ መላክ አልተቻለም!"); }
-        });
-
-        // የአባልነት ምዝገባ ፎርም submit
-        document.getElementById('regForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const telegram_id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : '123456789';
-            const ref_no = 'TERAMED-' + Math.floor(1000 + Math.random() * 9000);
-
-            const formData = new FormData();
-            formData.append('ref_no', ref_no);
-            formData.append('telegram_id', telegram_id);
-            formData.append('first_name', document.getElementById('first_name').value);
-            formData.append('father_name', document.getElementById('father_name').value);
-            formData.append('grand_name', document.getElementById('grand_name').value);
-            formData.append('phone_number', document.getElementById('phone_number').value);
-            formData.append('address', document.getElementById('address').value);
-            formData.append('tin_number', document.getElementById('tin_number').value);
-            formData.append('share_count', document.getElementById('share_count').value);
-
-            const idCard = document.getElementById('id_card').files[0];
-            const tradeLicense = document.getElementById('trade_license').files[0];
-
-            if(idCard) formData.append('id_card', idCard);
-            if(tradeLicense) formData.append('trade_license', tradeLicense);
-
-            try {
-                const res = await fetch('/api/register', { method: 'POST', body: formData });
-                const data = await res.json();
-                alert(data.message);
-                if(res.ok) { loadUserData(); }
-            } catch(err) { alert("ምዝገባውን ማከናወን አልተቻለም!"); }
-        });
-
-        loadUserData();
-    </script>
+    // LOAD INITIAL DATA (Placeholders for integration with Backend)
+    function loadDashboardData() {
+        // Here you can fetch registrations, receipts, loans and stats from Flask Backend
+    }
+</script>
 </body>
 </html>
