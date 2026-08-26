@@ -7,43 +7,22 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --gold: #f59e0b;
-            --gold-light: #fbbf24;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: rgba(255, 255, 255, 0.1);
-            --success: #10b981;
-            --danger: #ef4444;
+            --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
+            --gold-light: #fbbf24; --text: #f8fafc; --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1); --success: #10b981; --danger: #ef4444;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
-        html, body {
-            height: 100%;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        body { 
-            background: var(--bg); 
-            color: var(--text); 
-            padding: 15px; 
-            padding-bottom: 60px;
-        }
-
+        html, body { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        body { background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 60px; }
         .container { max-width: 900px; margin: 0 auto; }
-
         .admin-card {
             background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
         .admin-card h2 { color: var(--gold); font-size: 1.2rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-
         .login-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--bg); z-index: 1000; display: flex; justify-content: center; align-items: center; padding: 20px;
-            overflow-y: auto;
         }
         .login-box {
             background: var(--card); border: 1px solid var(--gold); border-radius: 16px;
@@ -51,41 +30,26 @@
         }
         .login-box h2 { color: var(--gold); margin-bottom: 10px; }
         .login-box p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; }
-
         .input-group { margin-bottom: 15px; text-align: left; }
         .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
-        .input-group input, .input-group textarea, .input-group select {
+        .input-group input, .input-group textarea {
             width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border);
             border-radius: 8px; color: var(--text); outline: none; font-size: 0.9rem;
         }
-        .input-group input:focus { border-color: var(--gold); }
-
         .btn {
             width: 100%; padding: 12px; background: var(--gold); color: #0f172a; border: none;
             border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: 0.3s;
         }
-        .btn:hover { background: var(--gold-light); }
         .btn-danger { background: var(--danger); color: #fff; }
-        .btn-danger:hover { background: #dc2626; }
-
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; min-width: 600px; }
         th, td { border: 1px solid var(--border); padding: 10px; text-align: left; }
         th { background: rgba(245, 158, 11, 0.1); color: var(--gold); }
-        tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-
-    <!-- ADMIN LOGIN OVERLAY -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-box">
             <i class="fas fa-user-shield" style="font-size: 3rem; color: var(--gold); margin-bottom: 10px;"></i>
@@ -100,10 +64,7 @@
         </div>
     </div>
 
-    <!-- MAIN ADMIN DASHBOARD PANEL -->
     <div class="container" id="adminDashboard" style="display: none;">
-        
-        <!-- Header Controls -->
         <div class="admin-card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
                 <h2><i class="fas fa-piggy-bank"></i> ተራመድ ሳኮ - አድሚን ፓናል</h2>
@@ -113,31 +74,17 @@
         </div>
 
         <div class="grid-2">
-            <!-- Global System Settings -->
             <div class="admin-card">
                 <h2><i class="fas fa-sliders-h"></i> የቁጠባና ብድር ቅንብሮች</h2>
                 <form id="settingsForm">
-                    <div class="input-group">
-                        <label>የወቅቱ ዙር / መረጃ</label>
-                        <input type="text" id="latest_draw_number" placeholder="ምሳሌ፦ ዙር 05">
-                    </div>
-                    <div class="input-group">
-                        <label>የብድር ተጠቃሚ አባል ስም</label>
-                        <input type="text" id="winner_name" placeholder="የአባል ስም">
-                    </div>
-                    <div class="input-group">
-                        <label>የቀጣይ የቁጠባ ሂሳብ ማረጋገጫ ቀን</label>
-                        <input type="text" id="latest_draw_date" placeholder="ምሳሌ፦ ነሐሴ 30">
-                    </div>
-                    <div class="input-group">
-                        <label>የእርዳታ/ድጋፍ ስልክ ቁጥር</label>
-                        <input type="text" id="support_phone" placeholder="0916039015">
-                    </div>
+                    <div class="input-group"><label>የወቅቱ ዙር / መረጃ</label><input type="text" id="latest_draw_number" placeholder="ምሳሌ፦ ዙር 05"></div>
+                    <div class="input-group"><label>የብድር ተጠቃሚ አባል ስም</label><input type="text" id="winner_name" placeholder="የአባል ስም"></div>
+                    <div class="input-group"><label>የቀጣይ የቁጠባ ሂሳብ ማረጋገጫ ቀን</label><input type="text" id="latest_draw_date" placeholder="ምሳሌ፦ ነሐሴ 30"></div>
+                    <div class="input-group"><label>የእርዳታ/ድጋፍ ስልክ ቁጥር</label><input type="text" id="support_phone" placeholder="0916039015"></div>
                     <button type="submit" class="btn"><i class="fas fa-save"></i> ቅንብሮችን አስቀምጥ</button>
                 </form>
             </div>
 
-            <!-- Broadcast / Announcements -->
             <div class="admin-card">
                 <h2><i class="fas fa-bullhorn"></i> ለአባላት ማስታወቂያ ማስተላለፊያ</h2>
                 <form id="broadcastForm">
@@ -150,42 +97,28 @@
             </div>
         </div>
 
-        <!-- Registered Members Table -->
         <div class="admin-card">
             <h2><i class="fas fa-users"></i> የተመዘገቡ አባላትና የቁጠባ ሁኔታ</h2>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Ref No</th>
-                            <th>ሙሉ ስም</th>
-                            <th>ስልክ</th>
-                            <th>የቁጠባ መጠን</th>
-                            <th>የሳምንቱ ቁጠባ</th>
-                            <th>ጠቅላላ ቁጠባ</th>
-                            <th>ተግባር</th>
+                            <th>Ref No</th><th>ሙሉ ስም</th><th>ስልክ</th><th>የቁጠባ መጠን</th><th>የሳምንቱ ቁጠባ</th><th>ጠቅላላ ቁጠባ</th><th>ተግባር</th>
                         </tr>
                     </thead>
-                    <tbody id="adminMembersTable">
-                        <!-- Loaded dynamically -->
-                    </tbody>
+                    <tbody id="adminMembersTable"></tbody>
                 </table>
             </div>
         </div>
-
     </div>
 
     <script>
         let adminAuthToken = sessionStorage.getItem('adminToken') || '';
-
-        if(adminAuthToken) {
-            showDashboard();
-        }
+        if(adminAuthToken) showDashboard();
 
         document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const pwd = document.getElementById('adminPassword').value;
-            
             try {
                 const res = await fetch('/api/admin/login', {
                     method: 'POST',
@@ -197,9 +130,7 @@
                     adminAuthToken = data.token;
                     sessionStorage.setItem('adminToken', adminAuthToken);
                     showDashboard();
-                } else {
-                    alert(data.message || "ትክክለኛ የይለፍ ቃል አይደለም!");
-                }
+                } else { alert(data.message || "ትክክለኛ የይለፍ ቃል አይደለም!"); }
             } catch(err) { alert("የመግባት ሂደት አልተካሄደም!"); }
         });
 
@@ -216,9 +147,7 @@
 
         async function loadAdminData() {
             try {
-                const res = await fetch('/api/admin/data', {
-                    headers: { 'Authorization': `Bearer ${adminAuthToken}` }
-                });
+                const res = await fetch('/api/admin/data', { headers: { 'Authorization': `Bearer ${adminAuthToken}` } });
                 const data = await res.json();
 
                 if(data.settings) {
@@ -263,10 +192,7 @@
 
             const res = await fetch('/api/admin/settings', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${adminAuthToken}` 
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
@@ -278,10 +204,7 @@
             const msg = document.getElementById('broadcastMessage').value;
             const res = await fetch('/api/admin/broadcast', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${adminAuthToken}` 
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
                 body: JSON.stringify({ message: msg })
             });
             const data = await res.json();
@@ -293,10 +216,7 @@
             const newStatus = currentStatus === 1 ? 0 : 1;
             const res = await fetch('/api/admin/toggle_payment', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${adminAuthToken}` 
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminAuthToken}` },
                 body: JSON.stringify({ member_id: memberId, status: newStatus })
             });
             if(res.ok) loadAdminData();
