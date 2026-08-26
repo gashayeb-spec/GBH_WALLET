@@ -34,6 +34,14 @@ if BOT_TOKEN:
                 text="🚀 ተራመድ ሳኮ አፕ ክፈት", 
                 web_app=telebot.types.WebAppInfo(url=WEB_APP_URL)
             )
+            # ለአድሚኑ ብቻ የሚታይ የአድሚን ፓናል መክፈቻ ቁልፍ
+            if str(message.chat.id) == str(ADMIN_ID):
+                admin_btn = telebot.types.InlineKeyboardButton(
+                    text="⚙️ አድሚን ፓናል ክፈት", 
+                    web_app=telebot.types.WebAppInfo(url=f"{WEB_APP_URL}/admin")
+                )
+                markup.add(admin_btn)
+
             markup.add(btn)
             bot.reply_to(
                 message, 
@@ -65,21 +73,60 @@ def get_member_info(telegram_id):
 @app.route('/api/register', methods=['POST'])
 def register_member():
     try:
-        data = request.form if request.form else request.get_json()
+        first_name = request.form.get('first_name')
+        father_name = request.form.get('father_name')
+        grand_name = request.form.get('grand_name')
+        phone_number = request.form.get('phone_number')
+        address = request.form.get('address')
+        tin_number = request.form.get('tin_number', 'የለም')
+        share_count = int(request.form.get('share_count', 1))
+        ref_no = request.form.get('ref_no')
+        telegram_id = request.form.get('telegram_id')
+
+        id_card_file = request.files.get('id_card')
+        license_file = request.files.get('trade_license')
+
         new_member = {
             "id": len(members_db) + 1,
-            "ref_no": data.get('ref_no'),
-            "telegram_id": data.get('telegram_id'),
-            "first_name": data.get('first_name'),
-            "father_name": data.get('father_name'),
-            "grand_name": data.get('grand_name'),
-            "phone_number": data.get('phone_number'),
-            "share_count": int(data.get('share_count', 1)),
+            "ref_no": ref_no,
+            "telegram_id": telegram_id,
+            "first_name": first_name,
+            "father_name": father_name,
+            "grand_name": grand_name,
+            "phone_number": phone_number,
+            "address": address,
+            "tin_number": tin_number,
+            "share_count": share_count,
             "paid_amount": 0,
             "weekly_paid_status": 0
         }
         members_db.append(new_member)
-        return jsonify({"success": True, "message": "ምዝገባው በስኬት ተጠናቋል!"}), 200
+
+        # ለአድሚኑ በቴሌግራም መልእክትና ፋይሎችን መላክ
+        if BOT_TOKEN and ADMIN_ID:
+            try:
+                msg = (
+                    f"📝 **አዲስ የአባልነት ምዝገባ ደርሷል!**\n\n"
+                    f"🆔 **Ref No:** `{ref_no}`\n"
+                    f"👤 **ስም:** {first_name} {father_name} {grand_name}\n"
+                    f"📞 **ስልክ:** `{phone_number}`\n"
+                    f"📍 **አካባቢ/መኖሪያ:** {address}\n"
+                    f"📄 **ቲን ቁጥር (TIN):** `{tin_number}`\n"
+                    f"🔢 **የዕጣ/ቁጠባ ብዛት:** {share_count}\n"
+                    f"💬 **Telegram ID:** `{telegram_id}`"
+                )
+                bot.send_message(ADMIN_ID, msg)
+
+                if id_card_file:
+                    id_card_file.seek(0)
+                    bot.send_photo(ADMIN_ID, photo=id_card_file, caption=f"🆔 የቀበሌ መታወቂያ - {first_name} {father_name}")
+                if license_file:
+                    license_file.seek(0)
+                    bot.send_photo(ADMIN_ID, photo=license_file, caption=f"📜 የንግድ ፈቃድ/ሰነድ - {first_name} {father_name}")
+            except Exception as err:
+                print("Telegram Registration Notify Error:", err)
+
+        return jsonify({"success": True, "message": "ምዝገባዎ በስኬት ተጠናቆ ለአድሚኑ ተልኳል!"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
@@ -99,11 +146,12 @@ def upload_weekly_receipt():
                     try:
                         msg = f"📩 **አዲስ የቁጠባ ክፍያ ደረሰኝ!**\n\n👤 **አባል:** {member['first_name']} {member['father_name']}\n🆔 **Ref:** `{member['ref_no']}`\n🔢 **Transaction Ref:** `{receipt_ref}`"
                         if file:
+                            file.seek(0)
                             bot.send_photo(ADMIN_ID, photo=file, caption=msg)
                         else:
                             bot.send_message(ADMIN_ID, msg)
                     except Exception as err:
-                        print("Telegram Notify Error:", err)
+                        print("Telegram Receipt Notify Error:", err)
                 break
 
         return jsonify({"success": True, "message": "የቁጠባ ክፍያ መረጃዎ በስኬት ተልኳል!"}), 200
@@ -170,6 +218,25 @@ def toggle_payment():
                 break
 
         return jsonify({"success": True, "message": "የክፍያ ሁኔታው ተቀይሯል!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
+
+@app.route('/api/admin/edit_member', methods=['POST'])
+def edit_member():
+    try:
+        data = request.get_json()
+        member_id = str(data.get('id'))
+        for member in members_db:
+            if str(member['id']) == member_id:
+                member['first_name'] = data.get('first_name', member['first_name'])
+                member['father_name'] = data.get('father_name', member['father_name'])
+                member['grand_name'] = data.get('grand_name', member['grand_name'])
+                member['phone_number'] = data.get('phone_number', member['phone_number'])
+                member['address'] = data.get('address', member.get('address', ''))
+                member['tin_number'] = data.get('tin_number', member.get('tin_number', ''))
+                member['paid_amount'] = float(data.get('paid_amount', member['paid_amount']))
+                break
+        return jsonify({"success": True, "message": "የአባል መረጃ በስኬት ተስተካክሏል!"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
