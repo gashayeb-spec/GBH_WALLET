@@ -251,13 +251,24 @@ def register_member():
         }
         members_db.append(member)
         
-        # ቦቱ ለአድሚን ከእነ Inline Action Buttons እንዲልክ ማድረግ
+        # ቦቱ ለአድሚን ከእነ Inline Action Buttons እና ከ Admin Panel WebApp Button ጋር እንዲልክ ማድረግ
         if bot:
-            markup = telebot.types.InlineKeyboardMarkup(row_width=3)
+            markup = telebot.types.InlineKeyboardMarkup()
+            
             btn_approve = telebot.types.InlineKeyboardButton("✅ Approve", callback_data=f"approve_{new_id}")
             btn_cancel = telebot.types.InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_{new_id}")
             btn_block = telebot.types.InlineKeyboardButton("🚫 Block", callback_data=f"block_{new_id}")
+            
+            # ቀጥታ ወደ አድሚን ፓናል የሚወስድ WEB APP BUTTON
+            admin_panel_url = f"{WEB_APP_URL}/admin"
+            btn_panel = telebot.types.InlineKeyboardButton(
+                "📊 አድሚን ፓናል ክፈት", 
+                web_app=telebot.types.WebAppInfo(url=admin_panel_url)
+            )
+
+            # ቁልፎቹን በሁለት ረድፍ ማደራጀት
             markup.add(btn_approve, btn_cancel, btn_block)
+            markup.add(btn_panel)
 
             admin_msg = (
                 f"🆕 **አዲስ የሰው ምዝገባ ጥያቄ!**\n\n"
