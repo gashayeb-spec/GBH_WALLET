@@ -1,12 +1,19 @@
+import os
+import asyncio
+from threading import Thread
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-app = app = Flask(__name__, template_folder='.')
+# 1. Flask App Setup (HTML ፋይሎችን ከ templates/ ፎልደር በራስ-ሰር ይወስዳል)
+app = Flask(__name__)
+CORS(app)
 
-CORS(app)  # CORS ችግር እንዳይፈጠር ይረዳል
+# Environment Variables
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
 
-# ጊዜያዊ የዳታ መያዣዎች (Database በቅርቡ ሲቀየር እዚህ ይተካል)
 members_db = []
 settings_db = {
     "latest_draw_number": "ዙር 01",
@@ -15,31 +22,25 @@ settings_db = {
     "support_phone": "0916039015"
 }
 
-# 1. ገጾችን ማሳያ Routes
-@app.route('/')
+# ----------------- Flask Routes -----------------
+@app.route('/', methods=['GET', 'HEAD'])
 def home():
     return render_template('index.html')
 
-@app.route('/admin')
+@app.route('/admin', methods=['GET', 'HEAD'])
 def admin_page():
     return render_template('admin.html')
 
-
-# 2. የተጠቃሚዎች API Endpoints
+# APIs
 @app.route('/api/member_info/<telegram_id>', methods=['GET'])
 def get_member_info(telegram_id):
     user_members = [m for m in members_db if str(m.get('telegram_id')) == str(telegram_id)]
-    return jsonify({
-        "settings": settings_db,
-        "members": user_members
-    })
+    return jsonify({"settings": settings_db, "members": user_members})
 
 @app.route('/api/register', methods=['POST'])
 def register_member():
     try:
-        # Form-data ወይም JSON መቀበያ
         data = request.form if request.form else request.get_json()
-        
         new_member = {
             "id": len(members_db) + 1,
             "ref_no": data.get('ref_no'),
@@ -52,64 +53,68 @@ def register_member():
             "paid_amount": 0,
             "weekly_paid_status": 0
         }
-        
         members_db.append(new_member)
         return jsonify({"success": True, "message": "ምዝገባው በስኬት ተጠናቋል!"}), 200
     except Exception as e:
-        return jsonify({"success": False, "message": f"ስህተት ተፈጥሯል: {str(e)}"}), 400
+        return jsonify({"success": False, "message": f"ስህተት: {str(e)}"}), 400
 
 @app.route('/api/upload_weekly_receipt', methods=['POST'])
 def upload_receipt():
-    try:
-        member_id = request.form.get('member_id')
-        receipt_ref = request.form.get('receipt_ref')
-        
-        # ደረሰኝ ምስል ካለ መቀበያ
-        receipt_file = request.files.get('receipt')
-        if receipt_file:
-            # ምስሉን ሴቭ ማድረግ ከፈለግህ እዚህ ማስተካከል ትችላለህ
-            pass
+    return jsonify({"success": True, "message": "የቁጠባ ክፍያ መረጃው ገብቷል!"}), 200
 
-        return jsonify({"success": True, "message": "የቁጠባ ክፍያ መረጃው ገብቷል! አድሚኑ ያረጋግጣል።"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": "ክፍያውን መላክ አልተቻለም!"}), 400
-
-
-# 3. የአድሚን API Endpoints
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
     data = request.get_json()
-    password = data.get('password')
-    # ጊዜያዊ የይለፍ ቃል: admin123
-    if password == "admin123":
+    if data and data.get('password') == "admin123":
         return jsonify({"success": True, "token": "secret-admin-token"}), 200
     return jsonify({"success": False, "message": "የይለፍ ቃል የተሳሳተ ነው!"}), 401
 
 @app.route('/api/admin/data', methods=['GET'])
 def get_admin_data():
-    return jsonify({
-        "settings": settings_db,
-        "members": members_db
-    })
+    return jsonify({"settings": settings_db, "members": members_db})
 
 @app.route('/api/admin/settings', methods=['POST'])
 def update_settings():
-    data = request.get_json()
-    settings_db.update(data)
+    settings_db.update(request.get_json())
     return jsonify({"success": True, "message": "ቅንብሮች ተስተካክለዋል!"})
 
 @app.route('/api/admin/toggle_payment', methods=['POST'])
 def toggle_payment():
     data = request.get_json()
-    member_id = int(data.get('member_id'))
-    status = int(data.get('status'))
-    
     for m in members_db:
-        if m['id'] == member_id:
-            m['weekly_paid_status'] = status
+        if m['id'] == int(data.get('member_id')):
+            m['weekly_paid_status'] = int(data.get('status'))
             break
-            
-    return jsonify({"success": True, "message": "የክፍያ ሁኔታ ተቀይሯል!"})
+    return jsonify({"success": True, "message": "ሁኔታው ተቀይሯል!"})
+
+# ----------------- Telegram Bot -----------------
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "🚀 ተራመድ ሳኮ አፕ ክፈት", 
+                web_app=WebAppInfo(url=WEB_APP_URL)
+            )
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "እንኳን ወደ **ተራመድ ሳኮ** በሰላም መጡ! ከታች ያለውን አዝራር በመጫን የቁጠባና ብድር አፑን መክፈት ይችላሉ፦",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+
+def start_bot_loop():
+    if BOT_TOKEN:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
+        bot_app.add_handler(CommandHandler("start", start))
+        bot_app.run_polling(drop_pending_updates=True)
+
+if BOT_TOKEN:
+    Thread(target=start_bot_loop, daemon=True).start()
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
