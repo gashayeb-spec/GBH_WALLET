@@ -31,7 +31,10 @@ members_db = [
         "ref_no": "TS-001", 
         "first_name": "አበበ", 
         "father_name": "በቀለ", 
+        "grand_name": "ካሳ",
         "phone_number": "0911000000", 
+        "address": "ሀዋሳ",
+        "tin_number": "123456",
         "share_count": 2, 
         "status": "pending", 
         "paid_amount": 2000, 
@@ -66,6 +69,47 @@ if BOT_TOKEN:
             )
             bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
+        # --- TELEGRAM INLINE BUTTON CALLBACK HANDLER (Approve / Cancel / Block) ---
+        @bot.callback_query_handler(func=lambda call: call.data.startswith(('approve_', 'cancel_', 'block_')))
+        def handle_admin_action(call):
+            try:
+                action, member_id = call.data.split('_')
+                member_id = int(member_id)
+                
+                global members_db
+                member = next((m for m in members_db if m['id'] == member_id), None)
+
+                if member:
+                    status_map = {'approve': 'approved', 'cancel': 'cancelled', 'block': 'blocked'}
+                    member['status'] = status_map[action]
+                    
+                    status_text = {
+                        'approve': '✅ **ተፅድቋል (Approved)**',
+                        'cancel': '❌ **ተሰርዟል (Cancelled)**',
+                        'block': '🚫 **ታግዷል (Blocked)**'
+                    }
+
+                    # በአድሚኑ የቴሌግራም መልእክት ስር ውሳኔውን ማሻሻል
+                    bot.edit_message_text(
+                        chat_id=call.message.chat.id,
+                        message_id=call.message.message_id,
+                        text=call.message.text + f"\n\n📌 **የአድሚን ውሳኔ፦** {status_text[action]}"
+                    )
+
+                    # ለተመዝጋቢው ተጠቃሚ በቴሌግራም መልእክት መላክ
+                    if member.get('telegram_id'):
+                        try:
+                            user_msgs = {
+                                "approve": "🎉 **ደስ ደስ ይበልዎት!** የምዝገባ ጥያቄዎ በአድሚኑ ፀድቋል። አሁን መተግበሪያውን መጠቀም ይችላሉ።",
+                                "cancel": "⚠️ **ማሳሰቢያ፦** የምዝገባ ጥያቄዎ አልተቀበለም። እባክዎን መረጃዎን አስተካክለው ድጋሚ ይሞክሩ።",
+                                "block": "🚫 **ማሳሰቢያ፦** መለያዎ በአድሚን ታግዷል። ለበለጠ መረጃ ድጋፍን ያናግሩ።"
+                            }
+                            bot.send_message(member['telegram_id'], user_msgs[action])
+                        except Exception as e:
+                            print("Telegram User Notif Error:", e)
+            except Exception as e:
+                print("Callback Handling Error:", e)
+
         def start_bot():
             print(">>> TELEGRAM BOT RUNNING... <<<")
             try:
@@ -92,12 +136,22 @@ def home():
 def admin_page():
     return render_template('admin.html')
 
+# --- USER INFO API ---
+
+@app.route('/api/member_info/<telegram_id>', methods=['GET'])
+def get_member_info(telegram_id):
+    user_members = [m for m in members_db if str(m.get('telegram_id')) == str(telegram_id)]
+    return jsonify({
+        "members": user_members,
+        "settings": settings_db
+    })
+
 # --- ADMIN AUTH & OTP API ---
 
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
-    data = request.get_json()
-    if data and data.get('password') == admin_config["password"]:
+    data = request.get_json(silent=True) or {}
+    if data.get('password') == admin_config["password"]:
         return jsonify({"success": True, "token": "secret-admin-token"}), 200
     return jsonify({"success": False, "message": "የይለፍ ቃል የተሳሳተ ነው!"}), 401
 
@@ -105,29 +159,39 @@ def admin_login():
 def send_otp():
     otp = str(random.randint(100000, 999999))
     admin_config["otp"] = otp
-    if bot and ADMIN_IDS:
+    if bot and ADMIN_IDS and ADMIN_IDS[0]:
         try:
             bot.send_message(ADMIN_IDS[0], f"🔑 **የይለፍ ቃል ማደሻ ማረጋገጫ ኮድ (OTP)፦** `{otp}`")
-            return jsonify({"success": True, "message": "OTP በቴሌግራም ተልኳል!"})
+            return jsonify({"success": True, "message": "የማረጋገጫ ኮድ (OTP) በቴሌግራም ተልኳል!"})
         except Exception as e:
-            return jsonify({"success": False, "message": f"መልእክት መላክ አልተቻለም: {str(e)}"})
-    return jsonify({"success": True, "message": f"Demo OTP: {otp}"})
+            return jsonify({"success": False, "message": f"ኮዱን በቴሌግራም መላክ አልተቻለም፦ {str(e)}"})
+    return jsonify({"success": False, "message": "የቴሌግራም አድሚን ID አልተገናኘም!"})
 
 @app.route('/api/admin/reset_password', methods=['POST'])
 def reset_password():
-    data = request.get_json()
-    if data.get('otp') == admin_config["otp"] and data.get('new_password'):
-        admin_config["password"] = data.get('new_password')
-        admin_config["otp"] = None
-        return jsonify({"success": True, "message": "የይለፍ ቃል በስኬት ተቀይሯል!"})
-    return jsonify({"success": False, "message": "የተሳሳተ OTP ኮድ!"})
+    data = request.get_json(silent=True) or {}
+    user_otp = str(data.get('otp', '')).strip()
+    new_password = str(data.get('new_password', '')).strip()
 
-# --- MEMBER MANAGEMENT (Approve, Cancel, Block, Delete) ---
+    if not admin_config["otp"]:
+        return jsonify({"success": False, "message": "እባክዎ አስቀድመው የ OTP ኮድ ይላኩ!"}), 400
+
+    if user_otp != admin_config["otp"]:
+        return jsonify({"success": False, "message": "የተሳሳተ OTP ኮድ ነው! እባክዎ እንደገና ይሞክሩ።"}), 400
+
+    if not new_password:
+        return jsonify({"success": False, "message": "እባክዎ አዲስ የይለፍ ቃል ያስገቡ!"}), 400
+
+    admin_config["password"] = new_password
+    admin_config["otp"] = None  # OTPው ጥቅም ላይ ስለዋለ ያጠፋዋል
+    return jsonify({"success": True, "message": "የይለፍ ቃል በስኬት ተቀይሯል! አሁን በአዲሱ የይለፍ ቃል መግባት ይችላሉ።"})
+
+# --- MEMBER MANAGEMENT (Panel & Telegram Action) ---
 
 @app.route('/api/admin/member_action', methods=['POST'])
 def member_action():
-    data = request.get_json()
-    member_id = int(data.get('member_id'))
+    data = request.get_json(silent=True) or {}
+    member_id = int(data.get('member_id', 0))
     action = data.get('action')
 
     global members_db
@@ -142,7 +206,6 @@ def member_action():
             status_map = {'approve': 'approved', 'cancel': 'cancelled', 'block': 'blocked'}
             member['status'] = status_map[action]
             
-            # ለተጠቃሚው በቴሌግራም ማስታወቂያ መላክ
             if bot and member.get('telegram_id'):
                 try:
                     msgs = {
@@ -154,59 +217,73 @@ def member_action():
                 except Exception as e:
                     print("Telegram Notif Error:", e)
 
-            return jsonify({"success": True, "message": f"የተመዝጋቢው ሁኔታ ተቀይሯል!"})
+            return jsonify({"success": True, "message": "የተመዝጋቢው ሁኔታ ተቀይሯል!"})
 
     return jsonify({"success": False, "message": "አባሉ አልተገኘም!"})
 
-@app.route('/api/admin/send_direct_message', methods=['POST'])
-def send_direct_message():
-    data = request.get_json()
-    tg_id = data.get('telegram_id')
-    msg = data.get('message')
-    if bot and tg_id and msg:
-        try:
-            bot.send_message(tg_id, f"💬 **ከአድሚን የተላከ መልእክት፦**\n\n{msg}")
-            return jsonify({"success": True, "message": "መልእክቱ ለአባሉ ተልኳል!"})
-        except Exception as e:
-            return jsonify({"success": False, "message": f"መላክ አልተቻለም: {str(e)}"})
-    return jsonify({"success": False, "message": "መረጃው አልተሟላም!"})
+# --- PUBLIC USER REGISTER API ---
 
-# --- BROADCAST & GUARANTOR API ---
+@app.route('/api/register', methods=['POST'])
+def register_member():
+    try:
+        # FormData ወይም JSON ዳታዎችን በአንድ ላይ ይቀበላል
+        if request.is_json:
+            data = request.get_json() or {}
+        else:
+            data = request.form.to_dict()
 
-@app.route('/api/admin/broadcast', methods=['POST'])
-def broadcast():
-    data = request.get_json()
-    message = data.get('message')
-    if not message:
-        return jsonify({"success": False, "message": "መልእክት አልተፃፈም!"}), 400
+        new_id = len(members_db) + 1
+        ref_no = f"TS-{new_id:03d}"
+        
+        member = {
+            "id": new_id,
+            "ref_no": ref_no,
+            "first_name": data.get("first_name", ""),
+            "father_name": data.get("father_name", ""),
+            "grand_name": data.get("grand_name", ""),
+            "phone_number": data.get("phone_number", ""),
+            "address": data.get("address", ""),
+            "tin_number": data.get("tin_number", ""),
+            "share_count": int(data.get("share_count", 1)),
+            "status": "pending",
+            "paid_amount": 0,
+            "telegram_id": str(data.get("telegram_id", ""))
+        }
+        members_db.append(member)
+        
+        # ቦቱ ለአድሚን ከእነ Inline Action Buttons እንዲልክ ማድረግ
+        if bot:
+            markup = telebot.types.InlineKeyboardMarkup(row_width=3)
+            btn_approve = telebot.types.InlineKeyboardButton("✅ Approve", callback_data=f"approve_{new_id}")
+            btn_cancel = telebot.types.InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_{new_id}")
+            btn_block = telebot.types.InlineKeyboardButton("🚫 Block", callback_data=f"block_{new_id}")
+            markup.add(btn_approve, btn_cancel, btn_block)
 
-    count = 0
-    if bot:
-        for m in members_db:
-            tg_id = m.get('telegram_id')
-            if tg_id:
-                try:
-                    bot.send_message(tg_id, f"📢 **የጋራ ማስታወቂያ፦**\n\n{message}")
-                    count += 1
-                except Exception as e:
-                    print(f"Broadcast Error to {tg_id}:", e)
+            admin_msg = (
+                f"🆕 **አዲስ የሰው ምዝገባ ጥያቄ!**\n\n"
+                f"👤 **ስም፦** {member['first_name']} {member['father_name']} {member['grand_name']}\n"
+                f"📞 **ስልክ፦** {member['phone_number']}\n"
+                f"📍 **አድራሻ፦** {member['address']}\n"
+                f"🆔 **TIN፦** {member['tin_number'] if member['tin_number'] else 'የለውም'}\n"
+                f"🔢 **ዕድል ብዛት፦** {member['share_count']}\n"
+                f"🆔 **Ref No፦** `{ref_no}`\n"
+                f"💬 **TG ID፦** `{member['telegram_id']}`"
+            )
 
-    return jsonify({"success": True, "message": f"ማስታወቂያው ለ {count} አባላት ተልኳል!"})
+            for admin_id in ADMIN_IDS:
+                if admin_id:
+                    try:
+                        bot.send_message(admin_id, admin_msg, reply_markup=markup)
+                    except Exception as e:
+                        print(f"Admin Notification Error for {admin_id}:", e)
 
-@app.route('/api/admin/register_guarantor', methods=['POST'])
-def register_guarantor():
-    data = request.get_json()
-    guarantors_db.append(data)
-    return jsonify({"success": True, "message": "የዋስ መረጃ በስኬት ተመዝግቧል!"})
+        return jsonify({"success": True, "message": "ምዝገባዎ ተጠናቋል። ከአድሚን ማረጋገጫ ይጠብቁ!", "ref_no": ref_no}), 200
 
-@app.route('/api/admin/add_admin', methods=['POST'])
-def add_admin():
-    data = request.get_json()
-    new_admin_id = str(data.get('admin_id'))
-    if new_admin_id and new_admin_id not in ADMIN_IDS:
-        ADMIN_IDS.append(new_admin_id)
-        return jsonify({"success": True, "message": "አዲስ አድሚን ተሾሟል!"})
-    return jsonify({"success": False, "message": "አድሚኑ ቀደም ሲል አለ ወይም የተሳሳተ ID ነው!"})
+    except Exception as e:
+        print("Registration Error:", e)
+        return jsonify({"success": False, "message": f"ምዝገባውን ማካሄድ አልተቻለም፦ {str(e)}"}), 500
+
+# --- ADMIN API DATA GETTER ---
 
 @app.route('/api/admin/data', methods=['GET'])
 def get_admin_data():
@@ -215,43 +292,6 @@ def get_admin_data():
         "members": members_db,
         "guarantors": guarantors_db
     })
-
-# --- PUBLIC USER REGISTER API ---
-
-@app.route('/api/register', methods=['POST'])
-def register_member():
-    data = request.get_json()
-    new_id = len(members_db) + 1
-    ref_no = f"TS-{new_id:03d}"
-    
-    member = {
-        "id": new_id,
-        "ref_no": ref_no,
-        "first_name": data.get("first_name", ""),
-        "father_name": data.get("father_name", ""),
-        "phone_number": data.get("phone_number", ""),
-        "share_count": int(data.get("share_count", 1)),
-        "status": "pending",
-        "paid_amount": 0,
-        "telegram_id": data.get("telegram_id", "")
-    }
-    members_db.append(member)
-    
-    # Notify Admins
-    if bot:
-        for admin_id in ADMIN_IDS:
-            try:
-                bot.send_message(
-                    admin_id,
-                    f"🆕 **አዲስ ተመዝጋቢ አባል!**\n\n"
-                    f"👤 ስም፦ {member['first_name']} {member['father_name']}\n"
-                    f"📞 ስልክ፦ {member['phone_number']}\n"
-                    f"🆔 Ref No፦ `{ref_no}`"
-                )
-            except Exception as e:
-                print("Admin Notification Error:", e)
-
-    return jsonify({"success": True, "message": "ምዝገባዎ ተጠናቋል። ከአድሚን ማረጋገጫ ይጠብቁ!", "ref_no": ref_no})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
