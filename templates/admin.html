@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ተራመድ ሳኮ - Admin Management Panel</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Telegram Mini App WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -229,6 +231,14 @@
 </div>
 
 <script>
+    // TELEGRAM MINI APP KEEP-ALIVE CONFIG
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation(); // ከቴሌግራም ሲወጡ አፑ በራሱ እንዳይዘጋ ይከላከላል
+    }
+
     let currentRole = 'guest';
     let pendingAdminId = '';
 
