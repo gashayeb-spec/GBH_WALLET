@@ -25,6 +25,9 @@ if BOT_TOKEN:
     try:
         bot = telebot.TeleBot(BOT_TOKEN, parse_mode="Markdown")
 
+        # የነበረውን Webhook በማጥፋት የ conflict 409 ስህተቱን ይፈታል
+        bot.remove_webhook()
+
         @bot.message_handler(commands=['start'])
         def send_welcome(message):
             markup = telebot.types.InlineKeyboardMarkup()
