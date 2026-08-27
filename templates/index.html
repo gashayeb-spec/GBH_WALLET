@@ -106,7 +106,7 @@
 
         .pending-banner {
             background: rgba(245, 158, 11, 0.15); border: 1px solid var(--gold);
-            border-radius: 12px; padding: 15px; text-align: center; color: var(--gold); font-size: 0.9rem; margin-bottom: 15px;
+            border-radius: 12px; padding: 20px; text-align: center; color: var(--gold); font-size: 0.9rem; margin: 20px 0;
         }
 
         .bottom-nav {
@@ -147,14 +147,15 @@
         <!-- 1. DASHBOARD TAB (የኔ ደብተር) -->
         <div id="dashboardTab" class="tab-content active">
             
+            <!-- PENDING BANNER (ይህ የሚታየው ቅጹን ሞልቶ ከላከ በኋላ አድሚኑ እስኪያጸድቅ ድረስ ብቻ ነው) -->
             <div id="approvalPendingBanner" class="pending-banner hidden">
-                <i class="fas fa-clock" style="font-size: 1.5rem; margin-bottom: 5px;"></i><br>
-                <b>ምዝገባዎ በአድሚን በመጣራት ላይ ነው!</b><br>
-                አድሚኑ መረጃዎን አረጋግጦ ሲያጸድቀው ደብተርዎ በራስ-ሰር ይከፈታል።
+                <i class="fas fa-clock" style="font-size: 2.5rem; margin-bottom: 10px; color: var(--gold);"></i><br>
+                <b style="font-size: 1.1rem;">የምዝገባ መረጃዎ በተሳካ ሁኔታ ተልኳል!</b><br><br>
+                <p style="color: var(--text-muted); line-height: 1.5;">የላኩት መታወቂያ እና የንግድ ሰነድ በአድሚን በመጣራት ላይ ይገኛል። አድሚኑ መረጃዎን አረጋግጦ እንዳጸደቀው የቁጠባና ብድር ደብተርዎ በራስ-ሰር ይከፈታል።</p>
             </div>
 
-            <!-- SUB-TABS: SAVINGS VS LOAN -->
-            <div id="approvedContentSection">
+            <!-- SUB-TABS: SAVINGS VS LOAN (አድሚኑ ሲያጸድቀው ብቻ የሚከፈት) -->
+            <div id="approvedContentSection" class="hidden">
                 <div class="sub-tabs">
                     <button class="sub-tab-btn active" id="sub_savings_btn" onclick="switchSubTab('savingsSub', event)"><i class="fas fa-coins"></i> የቁጠባ ደብተር</button>
                     <button class="sub-tab-btn" id="sub_loan_btn" onclick="switchSubTab('loanSub', event)"><i class="fas fa-hand-holding-usd"></i> የብድር ደብተር</button>
@@ -272,23 +273,23 @@
 
         </div>
 
-        <!-- 2. REGISTRATION TAB -->
+        <!-- 2. REGISTRATION TAB (ምዝገባ ቅጽ) -->
         <div id="registerTab" class="tab-content">
             <div class="master-panel">
                 <div class="panel-header">
-                    <span class="panel-title" id="t_reg_title"><i class="fas fa-user-plus"></i> አዲስ የአባልነት ምዝገባ</span>
+                    <span class="panel-title" id="t_reg_title"><i class="fas fa-user-plus"></i> አዲስ የአባልነት ምዝገባ ቅጽ</span>
                 </div>
                 <form id="regForm">
-                    <div class="input-group"><label id="lbl_fname">ስም</label><input type="text" id="first_name" required></div>
-                    <div class="input-group"><label id="lbl_mname">የአባት ስም</label><input type="text" id="father_name" required></div>
-                    <div class="input-group"><label id="lbl_gname">የአያት ስም</label><input type="text" id="grand_name" required></div>
+                    <div class="input-group"><label id="lbl_fname">ስም</label><input type="text" id="first_name" required placeholder="የእርስዎን ስም ያስገቡ"></div>
+                    <div class="input-group"><label id="lbl_mname">የአባት ስም</label><input type="text" id="father_name" required placeholder="የአባትዎን ስም ያስገቡ"></div>
+                    <div class="input-group"><label id="lbl_gname">የአያት ስም</label><input type="text" id="grand_name" required placeholder="የአያትዎን ስም ያስገቡ"></div>
                     <div class="input-group"><label id="lbl_phone">ስልክ ቁጥር</label><input type="tel" id="phone_number" required placeholder="0911223344"></div>
                     <div class="input-group"><label id="lbl_address">መኖሪያ አካባቢ / ክልል / ከተማ</label><input type="text" id="address" required placeholder="ምሳሌ፦ ሀዋሳ፣ ክፍለ ከተማ..."></div>
                     <div class="input-group"><label id="lbl_tin">የቲን ቁጥር (TIN Number - ካለዎት)</label><input type="text" id="tin_number" placeholder="አማራጭ"></div>
                     <div class="input-group"><label id="lbl_share">የዕጣ/የቁጠባ ዕድል ብዛት</label><input type="number" id="share_count" value="1" min="1" required></div>
 
                     <div class="input-group">
-                        <label id="lbl_id_card">የቀበሌ መታወቂያ ፎቶ (መጫን ግዴታ ነው)</label>
+                        <label id="lbl_id_card">የቀበሌ መታወቂያ / National ID ፎቶ (ግዴታ ነው)</label>
                         <div class="file-upload" onclick="document.getElementById('id_card').click()">
                             <i class="fas fa-id-card" style="font-size: 1.5rem; color: var(--gold);"></i>
                             <p id="idCardStatus" style="font-size: 0.8rem; margin-top: 5px;">የመታወቂያ ፎቶ ይምረጡ</p>
@@ -297,7 +298,7 @@
                     </div>
 
                     <div class="input-group">
-                        <label id="lbl_license">የንግድ ፈቃድ / ሰነድ ፎቶ (ካለዎት)</label>
+                        <label id="lbl_license">የንግድ ፈቃድ / ንግድ ምዝገባ ስክሪንሹት (ካለዎት)</label>
                         <div class="file-upload" onclick="document.getElementById('trade_license').click()">
                             <i class="fas fa-file-contract" style="font-size: 1.5rem; color: var(--gold);"></i>
                             <p id="licenseStatus" style="font-size: 0.8rem; margin-top: 5px;">የንግድ ፈቃድ / ሰነድ ፎቶ ይምረጡ</p>
@@ -305,7 +306,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn" id="btn_register"><i class="fas fa-check-circle"></i> ይመዝገቡ</button>
+                    <button type="submit" class="btn" id="btn_register"><i class="fas fa-check-circle"></i> መረጃውን ላክና ተመዝገብ</button>
                 </form>
             </div>
         </div>
@@ -427,7 +428,7 @@
         }
 
         // -------------------------------------------------------------
-        // የአባልነት ፍተሻ (APPROVED VS PENDING VS NOT REGISTERED) LOGIC
+        // ተጠቃሚውን የመለየትና የፍሰት LOGIC (NEW USER vs PENDING vs APPROVED)
         // -------------------------------------------------------------
         async function loadUserData() {
             const telegram_id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : '123456789';
@@ -443,84 +444,71 @@
 
                 const container = document.getElementById('myMembersContainer');
                 const select = document.getElementById('weeklyMemberSelect');
-                const regTabBtn = document.getElementById('t_tab_reg');
-                const navRegBtn = document.getElementById('nav_reg_btn');
                 const pendingBanner = document.getElementById('approvalPendingBanner');
                 const approvedContentSection = document.getElementById('approvedContentSection');
 
                 container.innerHTML = ''; select.innerHTML = '';
 
-                // 1. አባሉ ከተመዘገበ
-                if (data.members && data.members.length > 0) {
-                    const member = data.members[0]; // ለዚህ ተጠቃሚ የሚመለከት አባል
-
-                    // አባሉ ከተሰረዘ ወይም አድሚኑ ካላጸደቀው (Pending ከሆነ)
-                    if (member.status !== 'approved') {
-                        // ደብተሩን መደብቅ እና የማጠባበቂያ መልእክት ማሳየት
-                        approvedContentSection.classList.add('hidden');
-                        pendingBanner.classList.remove('hidden');
-
-                        if(regTabBtn) regTabBtn.classList.add('hidden');
-                        if(navRegBtn) navRegBtn.classList.add('hidden');
-                        switchTab('dashboardTab');
-                    } 
-                    // አድሚኑ ካጸደቀው (Approved ከሆነ)
-                    else {
-                        approvedContentSection.classList.remove('hidden');
-                        pendingBanner.classList.add('hidden');
-
-                        if(regTabBtn) regTabBtn.classList.add('hidden');
-                        if(navRegBtn) navRegBtn.classList.add('hidden');
-                        switchTab('dashboardTab');
-
-                        document.getElementById('weeklyUploadCard').style.display = 'block';
-                        
-                        let totalApprovedLoan = 0;
-                        let totalPaidLoan = 0;
-
-                        data.members.forEach(m => {
-                            const opt = document.createElement('option');
-                            opt.value = m.id;
-                            opt.innerText = `${m.first_name} ${m.father_name} (${m.ref_no})`;
-                            select.appendChild(opt);
-
-                            const isPaid = m.weekly_paid_status === 1;
-                            const paidBadge = isPaid 
-                                ? `<span style="color: var(--success); font-weight: bold;">✅ ${currentLang === 'am' ? 'ቁጠባ ተከፍሏል' : 'Paid'}</span>` 
-                                : `<span style="color: var(--danger); font-weight: bold;">❌ ${currentLang === 'am' ? 'አልተከፈለሙ' : 'Unpaid'}</span>`;
-                            
-                            const div = document.createElement('div');
-                            div.className = 'equb-notebook';
-                            div.innerHTML = `
-                                <div class="notebook-header"><i class="fas fa-address-card"></i> ${m.first_name} ${m.father_name}</div>
-                                <div class="book-row"><span class="label">${currentLang === 'am' ? 'የአባልነት መለያ (Ref):' : 'Member Ref:'}</span> <b>${m.ref_no}</b></div>
-                                <div class="book-row"><span class="label">${currentLang === 'am' ? 'የዕጣ ብዛት:' : 'Shares:'}</span> <b>${m.share_count || 1}</b></div>
-                                <div class="book-row"><span class="label">${currentLang === 'am' ? 'የቁጠባ ሁኔታ:' : 'Savings Status:'}</span> ${paidBadge}</div>
-                                <div class="book-row"><span class="label">${currentLang === 'am' ? 'የተከፈለ ጠቅላላ ቁጠባ:' : 'Total Savings:'}</span> <b>${(m.paid_amount || 0).toLocaleString()} ETB</b></div>
-                            `;
-                            container.appendChild(div);
-
-                            totalApprovedLoan += (m.approved_loan || 0);
-                            totalPaidLoan += (m.paid_loan || 0);
-                        });
-
-                        // የብድር እና የቀሪ እዳ ቦርድ በራስ-ሰር አሰላስሎ ማሳያ
-                        document.getElementById('approvedLoanText').innerText = totalApprovedLoan.toLocaleString() + ' ETB';
-                        document.getElementById('paidLoanText').innerText = totalPaidLoan.toLocaleString() + ' ETB';
-                        document.getElementById('remainingLoanText').innerText = (totalApprovedLoan - totalPaidLoan).toLocaleString() + ' ETB';
-                    }
-
-                } 
-                // 2. አባሉ ካልተመዘገበ ወይም በአድሚኑ ሙሉ በሙሉ ሪሙቭ (Remove) ከተደረገ
-                else {
+                // ህግ 1፦ ተጠቃሚው በሲስተሙ ጭራሽ ካልተመዘገበ (አዲስ ተመዝጋቢ ከሆነ)
+                if (!data.members || data.members.length === 0) {
                     approvedContentSection.classList.add('hidden');
                     pendingBanner.classList.add('hidden');
                     
-                    if(regTabBtn) regTabBtn.classList.remove('hidden');
-                    if(navRegBtn) navRegBtn.classList.remove('hidden');
-                    
-                    switchTab('registerTab'); // በቀጥታ ወደ ምዝገባ ገጽ መውሰድ
+                    // በቀጥታ የምዝገባ ቅጹን ክፈትለት
+                    switchTab('registerTab');
+                    return;
                 }
+
+                // ህግ 2፦ ተጠቃሚው ተመዝግቧል፤ ነገር ግን የአባልነት ሁኔታው የሚከተሉትን ይመስላል
+                const member = data.members[0];
+
+                if (member.status !== 'approved') {
+                    // አሁንም Pending ላይ ከሆነ የመጠባበቂያ መልእክቱን ብቻ አሳይ፤ ደብተሩን ደብቅ
+                    approvedContentSection.classList.add('hidden');
+                    pendingBanner.classList.remove('hidden');
+                    switchTab('dashboardTab');
+                } else {
+                    // አድሚኑ ያጸደቀው ከሆነ ደብተሩን ክፈትለት
+                    approvedContentSection.classList.remove('hidden');
+                    pendingBanner.classList.add('hidden');
+                    switchTab('dashboardTab');
+
+                    document.getElementById('weeklyUploadCard').style.display = 'block';
+                    
+                    let totalApprovedLoan = 0;
+                    let totalPaidLoan = 0;
+
+                    data.members.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.innerText = `${m.first_name} ${m.father_name} (${m.ref_no})`;
+                        select.appendChild(opt);
+
+                        const isPaid = m.weekly_paid_status === 1;
+                        const paidBadge = isPaid 
+                            ? `<span style="color: var(--success); font-weight: bold;">✅ ${currentLang === 'am' ? 'ቁጠባ ተከፍሏል' : 'Paid'}</span>` 
+                            : `<span style="color: var(--danger); font-weight: bold;">❌ ${currentLang === 'am' ? 'አልተከፈለሙ' : 'Unpaid'}</span>`;
+                        
+                        const div = document.createElement('div');
+                        div.className = 'equb-notebook';
+                        div.innerHTML = `
+                            <div class="notebook-header"><i class="fas fa-address-card"></i> ${m.first_name} ${m.father_name}</div>
+                            <div class="book-row"><span class="label">${currentLang === 'am' ? 'የአባልነት መለያ (Ref):' : 'Member Ref:'}</span> <b>${m.ref_no}</b></div>
+                            <div class="book-row"><span class="label">${currentLang === 'am' ? 'የዕጣ ብዛት:' : 'Shares:'}</span> <b>${m.share_count || 1}</b></div>
+                            <div class="book-row"><span class="label">${currentLang === 'am' ? 'የቁጠባ ሁኔታ:' : 'Savings Status:'}</span> ${paidBadge}</div>
+                            <div class="book-row"><span class="label">${currentLang === 'am' ? 'የተከፈለ ጠቅላላ ቁጠባ:' : 'Total Savings:'}</span> <b>${(m.paid_amount || 0).toLocaleString()} ETB</b></div>
+                        `;
+                        container.appendChild(div);
+
+                        totalApprovedLoan += (m.approved_loan || 0);
+                        totalPaidLoan += (m.paid_loan || 0);
+                    });
+
+                    document.getElementById('approvedLoanText').innerText = totalApprovedLoan.toLocaleString() + ' ETB';
+                    document.getElementById('paidLoanText').innerText = totalPaidLoan.toLocaleString() + ' ETB';
+                    document.getElementById('remainingLoanText').innerText = (totalApprovedLoan - totalPaidLoan).toLocaleString() + ' ETB';
+                }
+
             } catch(e) { console.error(e); }
         }
 
@@ -562,7 +550,7 @@
             } catch(err) { alert(currentLang === 'am' ? "የብድር ክፍያ ደረሰኝ መላክ አልተቻለም!" : "Failed to send loan receipt!"); }
         });
 
-        // የአባልነት ምዝገባ ፎርም submit
+        // የአባልነት ምዝገባ ፎርም submit (መረጃዎቹን ወደ አድሚን ይልካል)
         document.getElementById('regForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const telegram_id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : '123456789';
@@ -588,7 +576,7 @@
             try {
                 const res = await fetch('/api/register', { method: 'POST', body: formData });
                 const data = await res.json();
-                alert(data.message);
+                alert(data.message || "መረጃዎ በተሳካ ሁኔታ ተልኳል!");
                 if(res.ok) { loadUserData(); }
             } catch(err) { alert(currentLang === 'am' ? "ምዝገባውን ማከናወን አልተቻለም!" : "Registration failed!"); }
         });
