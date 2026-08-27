@@ -36,7 +36,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. አባላት
+    # 1. አባላት (Members Table)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +58,7 @@ def init_db():
         )
     ''')
 
-    # 2. አድሚኖች
+    # 2. አድሚኖች (Admins Table)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             admin_id TEXT PRIMARY KEY,
@@ -69,7 +69,7 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO admins (admin_id, password, role) VALUES (?, ?, 'super')", 
                    (SUPER_ADMIN_ID, admin_config["password"]))
 
-    # 3. ወጪዎች
+    # 3. ወጪዎች (Expenses Table)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,7 +79,7 @@ def init_db():
         )
     ''')
 
-    # 4. ሴቲንግ
+    # 4. ሴቲንግ (Settings Table)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
@@ -150,12 +150,12 @@ if BOT_TOKEN:
             user_id = str(message.chat.id).strip()
             keyboard = telebot.types.InlineKeyboardMarkup()
             
-            # የተጠቃሚ መተግበሪያ ቁልፍ
+            # 1. የተጠቃሚ መተግበሪያ ቁልፍ
             web_app_info = telebot.types.WebAppInfo(url=WEB_APP_URL)
             btn_user = telebot.types.InlineKeyboardButton(text="📱 ተራመድ ሳኮ መተግበሪያን ክፈት", web_app=web_app_info)
             keyboard.add(btn_user)
 
-            # ተጠቃሚው አድሚን ከሆነ የአድሚን ፓናል ቁልፍ ጨምርለት
+            # 2. ተጠቃሚው አድሚን ከሆነ የአድሚን ፓናል ቁልፍ ጨምርለት
             if user_id == SUPER_ADMIN_ID:
                 admin_web_info = telebot.types.WebAppInfo(url=f"{WEB_APP_URL}/admin")
                 btn_admin = telebot.types.InlineKeyboardButton(text="📊 የአድሚን ፓናል ክፈት", web_app=admin_web_info)
@@ -183,7 +183,7 @@ if BOT_TOKEN:
                 member = cursor.fetchone()
 
                 if member:
-                    cursor.execute("UPDATE members SET status = ? WHERE id = ?", (member_id,))
+                    cursor.execute("UPDATE members SET status = ? WHERE id = ?", (new_status, member_id))
                     conn.commit()
 
                     status_text = {'ap': '✅ **ተፅድቋል**', 'can': '❌ **ተሰርዟል**', 'blk': '🚫 **ታግዷል**'}
@@ -243,7 +243,7 @@ def get_admin_members():
 def update_member_status():
     data = request.get_json(silent=True) or {}
     member_id = data.get('member_id')
-    status = data.get('status') # 'approved', 'cancelled', 'blocked'
+    status = data.get('status')
 
     if not member_id or status not in ['approved', 'cancelled', 'blocked']:
         return jsonify({"success": False, "message": "የተሳሳተ መረጃ!"}), 400
@@ -262,7 +262,7 @@ def update_member_status():
             "cancelled": "⚠️ **ማሳሰቢያ፦** የምዝገባ ጥያቄዎ አልተቀበለም።",
             "blocked": "🚫 **ማሳሰቢያ፦** መለያዎ በአድሚን ታግዷል።"
         }
-        send_async_msg(member['telegram_id'], status_msgs[status])
+        send_async_msg(member['telegram_id'], status_msgs.get(status, ""))
 
     return jsonify({"success": True, "message": f"የተጠቃሚው ሁኔታ ወደ {status} ተቀይሯል!"}), 200
 
@@ -353,6 +353,42 @@ def verify_otp():
         return jsonify({"status": "success", "role": "super"}), 200
     else:
         return jsonify({"message": "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!"}), 400
+
+@app.route('/api/admin/change_password', methods=['POST'])
+def change_admin_password():
+    data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
+    old_pass = str(data.get('old_pass', '')).strip()
+    new_pass = str(data.get('new_pass', '')).strip()
+
+    if not admin_id or not old_pass or not new_pass:
+        return jsonify({"message": "እባክዎን ሁሉንም መስኮች ይሙሉ!"}), 400
+
+    if admin_id == SUPER_ADMIN_ID:
+        if old_pass == admin_config["password"]:
+            admin_config["password"] = new_pass
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE admins SET password = ? WHERE admin_id = ?", (new_pass, admin_id))
+            conn.commit()
+            conn.close()
+            return jsonify({"message": "የይለፍ ቃል በስኬት ተቀይሯል!"}), 200
+        else:
+            return jsonify({"message": "የድሮው የይለፍ ቃል ስህተት ነው!"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM admins WHERE admin_id = ? AND password = ?", (admin_id, old_pass))
+    admin = cursor.fetchone()
+
+    if admin:
+        cursor.execute("UPDATE admins SET password = ? WHERE admin_id = ?", (new_pass, admin_id))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "የይለፍ ቃል በስኬት ተቀይሯል!"}), 200
+    else:
+        conn.close()
+        return jsonify({"message": "የድሮው የይለፍ ቃል ስህተት ነው!"}), 400
 
 @app.route('/api/admin/assign_role', methods=['POST'])
 def assign_role():
