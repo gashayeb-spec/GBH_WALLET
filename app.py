@@ -93,7 +93,7 @@ def init_db():
 
 init_db()
 
-# --- ASYNC TELEGRAM MESSAGING (ሲስተሙ እንዳይዘገይ በጀርባ ይልካል) ---
+# --- ASYNC TELEGRAM MESSAGING ---
 def send_async_msg(chat_id, text, reply_markup=None):
     def run():
         if bot and chat_id:
@@ -114,10 +114,11 @@ def send_async_admin_notification(member_id, ref_no, data):
         btn_cancel = telebot.types.InlineKeyboardButton("❌ Cancel", callback_data=f"can_{member_id}")
         btn_block = telebot.types.InlineKeyboardButton("🚫 Block", callback_data=f"blk_{member_id}")
         
+        # የአድሚን ፓናል ሊንክ (ቀጥታ URL ሆኖ በተኑ እንዳይጠፋ ተደርጓል)
         admin_panel_url = f"{WEB_APP_URL}/admin"
         btn_panel = telebot.types.InlineKeyboardButton(
             "📊 አድሚን ፓናል ክፈት", 
-            web_app=telebot.types.WebAppInfo(url=admin_panel_url)
+            url=admin_panel_url
         )
 
         markup.add(btn_approve, btn_cancel, btn_block)
@@ -433,7 +434,7 @@ def member_action():
     status_map = {'approve': 'approved', 'cancel': 'cancelled', 'block': 'blocked'}
     if action in status_map:
         new_status = status_map[action]
-        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (member_id,))
+        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (new_status, member_id))
         cursor.execute("SELECT telegram_id FROM members WHERE id = ?", (member_id,))
         member = cursor.fetchone()
         conn.commit()
