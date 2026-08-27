@@ -66,6 +66,7 @@
         .zoom-box:hover img { transform: scale(1.8); }
 
         .hidden { display: none !important; }
+        .inline-input { width: 100px; padding: 5px; margin: 0; display: inline-block; }
     </style>
 </head>
 <body>
@@ -118,7 +119,7 @@
 
         <!-- TAB 1: REGISTRATION & USER APPROVAL -->
         <div id="regTab" class="tab-content active">
-            <h3>የአባላት ምዝገባና ፋይል ማጣሪያ</h3>
+            <h3>የአባላት ምዝገባና ፋይል ማጣሪያ (የአባልነት ማረጋገጫ)</h3>
             <div class="table-res" style="margin-top:10px;">
                 <table>
                     <thead>
@@ -126,9 +127,9 @@
                             <th>Ref No</th>
                             <th>ስም</th>
                             <th>ስልክ</th>
-                            <th>መታወቂያ</th>
-                            <th>የንግድ ፈቃድ</th>
-                            <th>እርምጃ</th>
+                            <th>ሁኔታ</th>
+                            <th>መታወቂያ / ፈቃድ</th>
+                            <th>እርምጃ (Action)</th>
                         </tr>
                     </thead>
                     <tbody id="regTableBody">
@@ -140,18 +141,16 @@
 
         <!-- TAB 2: LOAN APPLICATIONS & MONITORING -->
         <div id="loanTab" class="tab-content">
-            <h3>የብድር ማመልከቻዎች እና ጤናማነት መዝገብ</h3>
+            <h3>የብድር ማመልከቻዎች እና የብድር መጠን መቆጣጠሪያ</h3>
             <div class="table-res" style="margin-top:10px;">
                 <table>
                     <thead>
                         <tr>
                             <th>Ref No</th>
                             <th>ተበዳሪ</th>
-                            <th>የተጠየቀ ብድር</th>
-                            <th>የተፈቀደ</th>
+                            <th>የተፈቀደ ብድር (Set Loan)</th>
                             <th>የተከፈለ</th>
-                            <th>ቀሪ</th>
-                            <th>ሁኔታ</th>
+                            <th>ቀሪ እዳ (Remaining)</th>
                             <th>እርምጃ</th>
                         </tr>
                     </thead>
@@ -246,14 +245,12 @@
 <script>
     let telegramUserId = '';
 
-    // TELEGRAM MINI APP KEEP-ALIVE CONFIG & AUTO DETECT USER ID
     if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-        tg.enableClosingConfirmation(); // ከቴሌግራም ሲወጡ አፑ በራሱ እንዳይዘጋ ይከላከላል
+        tg.enableClosingConfirmation();
 
-        // ቴሌግራም አፑን የከፈተውን ሰው ID በራሱ መለየት
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             telegramUserId = String(tg.initDataUnsafe.user.id);
             document.getElementById('adminUser').value = telegramUserId;
@@ -263,7 +260,6 @@
     let currentRole = 'guest';
     let pendingAdminId = '';
 
-    // CLIPBOARD AUTO-PASTE FOR OTP
     window.addEventListener('focus', async () => {
         if (!pendingAdminId) return;
         try {
@@ -280,7 +276,6 @@
         }
     });
 
-    // 1. ADMIN LOGIN WITH DIRECT SUPER-ADMIN BYPASS INTEGRATION
     async function adminLogin() {
         const admin_id = document.getElementById('adminUser').value.trim();
         const pass = document.getElementById('adminPass').value.trim();
@@ -297,7 +292,7 @@
                 body: JSON.stringify({
                     admin_id: admin_id, 
                     pass: pass,
-                    tg_user_id: telegramUserId // ቴሌግራም አፑን የከፈተውን ሰው ID አብሮ ይልካል
+                    tg_user_id: telegramUserId
                 })
             });
             const data = await res.json();
@@ -319,7 +314,6 @@
         }
     }
 
-    // OTP MODAL HANDLERS
     function openOtpModal() {
         document.getElementById('otpCodeInput').value = '';
         document.getElementById('otpModal').classList.remove('hidden');
@@ -339,7 +333,6 @@
         verifyOtp(pendingAdminId, otp);
     }
 
-    // 2. VERIFY OTP FUNCTION
     async function verifyOtp(admin_id, otp) {
         try {
             const res = await fetch('/api/admin/verify_otp', {
@@ -363,14 +356,13 @@
         }
     }
 
-    // 3. SHOW DASHBOARD
     function showDashboard() {
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('adminDashboard').classList.remove('hidden');
         setupPermissions();
+        loadAdminData();
     }
 
-    // 4. ROLE-BASED VISIBILITY CONTROL
     function setupPermissions() {
         document.getElementById('roleDisplay').innerText = `Role: ${currentRole.toUpperCase()}`;
         document.querySelectorAll('.role-sec').forEach(el => el.classList.add('hidden'));
@@ -382,7 +374,6 @@
         }
     }
 
-    // TAB SWITCHING
     function showTab(tabId, evt) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -390,7 +381,6 @@
         if(evt) evt.currentTarget.classList.add('active');
     }
 
-    // IMAGE ZOOM MODAL FUNCTIONS
     function openZoom(url) {
         document.getElementById('zoomImg').src = url;
         document.getElementById('zoomModal').classList.remove('hidden');
@@ -400,7 +390,129 @@
         document.getElementById('zoomModal').classList.add('hidden');
     }
 
-    // ASSIGN ADMIN ROLE
+    // -------------------------------------------------------------
+    // Аዲሳድሚን ዳታ መጫኛ እና አፕሩቭ/ሪሙቭ/ብድር ማስተካከያ LOGIC
+    // -------------------------------------------------------------
+    async function loadAdminData() {
+        try {
+            const res = await fetch('/api/admin/members');
+            const members = await res.json();
+            
+            // 1. REGISTRATION TABLE POPULATION
+            const regBody = document.getElementById('regTableBody');
+            regBody.innerHTML = '';
+            
+            // 2. LOAN TABLE POPULATION
+            const loanBody = document.getElementById('loanTableBody');
+            loanBody.innerHTML = '';
+
+            members.forEach(m => {
+                const statusBadge = m.status === 'approved' 
+                    ? '<span style="color:var(--success); font-weight:bold;">የጸደቀ</span>' 
+                    : '<span style="color:var(--gold); font-weight:bold;">እየተጠባበቀ</span>';
+
+                // Registration Table Row
+                const regRow = `
+                    <tr>
+                        <td>${m.ref_no}</td>
+                        <td>${m.first_name} ${m.father_name}</td>
+                        <td>${m.phone_number}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            ${m.id_card_url ? `<button class="btn btn-primary" onclick="openZoom('${m.id_card_url}')">መታወቂያ</button>` : 'የለም'}
+                        </td>
+                        <td>
+                            ${m.status !== 'approved' ? `<button class="btn btn-success" onclick="approveUser('${m.id}')"><i class="fas fa-check"></i> አጽድቅ</button>` : ''}
+                            <button class="btn btn-danger" onclick="removeUser('${m.id}')"><i class="fas fa-trash"></i> ሰርዝ</button>
+                        </td>
+                    </tr>
+                `;
+                regBody.innerHTML += regRow;
+
+                // Loan Table Row (የተበደረውን ብድር አድሚኑ ሴት የሚያደርግበትና በራስ-ሰር የሚቀንሰው)
+                const approvedLoan = m.approved_loan || 0;
+                const paidLoan = m.paid_loan || 0;
+                const remainingLoan = approvedLoan - paidLoan;
+
+                const loanRow = `
+                    <tr>
+                        <td>${m.ref_no}</td>
+                        <td>${m.first_name} ${m.father_name}</td>
+                        <td>
+                            <input type="number" id="loan_input_${m.id}" class="inline-input" value="${approvedLoan}">
+                            <button class="btn btn-primary" onclick="setLoanAmount('${m.id}')">ሴት አድርግ</button>
+                        </td>
+                        <td style="color:var(--success); font-weight:bold;">${paidLoan.toLocaleString()} ETB</td>
+                        <td style="color:var(--danger); font-weight:bold;">${remainingLoan.toLocaleString()} ETB</td>
+                        <td>
+                            <button class="btn btn-success" onclick="confirmLoanPayment('${m.id}')">ክፍያ አጽድቅ</button>
+                        </td>
+                    </tr>
+                `;
+                loanBody.innerHTML += loanRow;
+            });
+
+        } catch(e) {
+            console.error("ዳታ መጫን አልተቻለም", e);
+        }
+    }
+
+    // ተጠቃሚን Approve የማድረጊያ ተግባር
+    async function approveUser(memberId) {
+        if(!confirm("ይህንን አባል ማጽደቅ ይፈልጋሉ?")) return;
+        try {
+            const res = await fetch('/api/admin/approve_user', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ member_id: memberId })
+            });
+            const data = await res.json();
+            alert(data.message);
+            loadAdminData();
+        } catch(e) {
+            alert("ማጽደቅ አልተቻለም");
+        }
+    }
+
+    // ተጠቃሚን Remove የማድረጊያ ተግባር (ድጋሚ እንዲመዘገብ ያደርገዋል)
+    async function removeUser(memberId) {
+        if(!confirm("ይህንን አባል ሰርዝ ማድረጉን ያረጋግጣሉ? አባሉ ድጋሚ የመመዝገብ ዕድል ያገኛል።")) return;
+        try {
+            const res = await fetch('/api/admin/remove_user', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ member_id: memberId })
+            });
+            const data = await res.json();
+            alert(data.message);
+            loadAdminData();
+        } catch(e) {
+            alert("ማስወገድ አልተቻለም");
+        }
+    }
+
+    // የብድር መጠን ሴት የማድረጊያ ተግባር
+    async function setLoanAmount(memberId) {
+        const amt = document.getElementById(`loan_input_${memberId}`).value;
+        if(amt === '' || amt < 0) {
+            alert("እባክዎን ትክክለኛ የብድር መጠን ያስገቡ");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/set_loan', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ member_id: memberId, approved_loan: parseFloat(amt) })
+            });
+            const data = await res.json();
+            alert(data.message);
+            loadAdminData();
+        } catch(e) {
+            alert("የብድር መጠን ማስተካከል አልተቻለም");
+        }
+    }
+
     async function assignRole() {
         const admin_id = document.getElementById('newAdminId').value.trim();
         const role = document.getElementById('newAdminRole').value;
@@ -423,7 +535,6 @@
         }
     }
 
-    // ADD EXPENSE RECORD
     async function addExpense() {
         const desc = document.getElementById('expDesc').value.trim();
         const amt = document.getElementById('expAmt').value.trim();
