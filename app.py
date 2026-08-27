@@ -8,7 +8,6 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Env variables
 load_dotenv()
 
 app = Flask(__name__)
@@ -16,14 +15,13 @@ CORS(app)
 
 # --- CONFIGURATION ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727"))
+SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
 
 admin_config = {
     "password": "admin123"
 }
 
-# Temporary OTP Store
 otp_store = {}
 
 # --- DATABASE SETUP (SQLite) ---
@@ -38,7 +36,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # አባላት
+    # 1. አባላት
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,11 +51,12 @@ def init_db():
             status TEXT DEFAULT 'pending',
             paid_amount REAL DEFAULT 0.0,
             telegram_id TEXT,
+            loan_date TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
-    # አድሚኖች
+
+    # 2. አድሚኖች
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             admin_id TEXT PRIMARY KEY,
@@ -68,7 +67,7 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO admins (admin_id, password, role) VALUES (?, ?, 'super')", 
                    (SUPER_ADMIN_ID, admin_config["password"]))
 
-    # ወጪዎች
+    # 3. ወጪዎች
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,11 +75,71 @@ def init_db():
             amount REAL
         )
     ''')
+
+    # 4. ሴቲንግ
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            latest_draw_number TEXT DEFAULT 'ዙር 01',
+            winner_name TEXT DEFAULT '-',
+            latest_draw_date TEXT DEFAULT 'የለም',
+            support_phone TEXT DEFAULT '0916039015'
+        )
+    ''')
+    cursor.execute("INSERT OR IGNORE INTO settings (id) VALUES (1)")
     
     conn.commit()
     conn.close()
 
 init_db()
+
+# --- ASYNC TELEGRAM MESSAGING (ሲስተሙ እንዳይዘገይ በጀርባ ይልካል) ---
+def send_async_msg(chat_id, text, reply_markup=None):
+    def run():
+        if bot and chat_id:
+            try:
+                bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode="Markdown")
+            except Exception as e:
+                print(f"Async Message Error ({chat_id}):", e)
+    Thread(target=run).start()
+
+def send_async_admin_notification(member_id, ref_no, data):
+    def run():
+        if not bot or not SUPER_ADMIN_ID:
+            print("Bot or SUPER_ADMIN_ID is missing!")
+            return
+            
+        markup = telebot.types.InlineKeyboardMarkup()
+        btn_approve = telebot.types.InlineKeyboardButton("✅ Approve", callback_data=f"ap_{member_id}")
+        btn_cancel = telebot.types.InlineKeyboardButton("❌ Cancel", callback_data=f"can_{member_id}")
+        btn_block = telebot.types.InlineKeyboardButton("🚫 Block", callback_data=f"blk_{member_id}")
+        
+        admin_panel_url = f"{WEB_APP_URL}/admin"
+        btn_panel = telebot.types.InlineKeyboardButton(
+            "📊 አድሚን ፓናል ክፈት", 
+            web_app=telebot.types.WebAppInfo(url=admin_panel_url)
+        )
+
+        markup.add(btn_approve, btn_cancel, btn_block)
+        markup.add(btn_panel)
+
+        admin_msg = (
+            f"🆕 **አዲስ የሰው ምዝገባ ጥያቄ!**\n\n"
+            f"👤 **ስም፦** {data.get('first_name')} {data.get('father_name')} {data.get('grand_name')}\n"
+            f"📞 **ስልክ፦** {data.get('phone_number')}\n"
+            f"📍 **አድራሻ፦** {data.get('address')}\n"
+            f"🆔 **TIN፦** {data.get('tin_number') if data.get('tin_number') else 'የለውም'}\n"
+            f"🔢 **ዕድል ብዛት፦** {data.get('share_count', 1)}\n"
+            f"🆔 **Ref No፦** `{ref_no}`\n"
+            f"💬 **TG ID፦** `{data.get('telegram_id')}`"
+        )
+        try:
+            bot.send_message(SUPER_ADMIN_ID, admin_msg, reply_markup=markup, parse_mode="Markdown")
+            print(f"Successfully sent admin notification to {SUPER_ADMIN_ID}")
+        except Exception as e:
+            print("Admin Notification Error:", e)
+
+    Thread(target=run).start()
 
 # --- TELEGRAM BOT SETUP ---
 bot = None
@@ -108,16 +167,15 @@ if BOT_TOKEN:
                 "⚡ **3. የድንገተኛ ጊዜ ብድር፦** ላልታሰቡ አጣዳፊ ፍላጎቶች በፈጣን ሂደት የሚሰጥ።\n\n"
                 "👇 **አሁኑኑ ለመመዝገብና አገልግሎቱን ለማግኘት ከታች ያለውን ቁልፍ ይጫኑ!**"
             )
-            bot.send_message(message.chat.id, text, reply_markup=keyboard, parse_mode="HTML")
+            bot.send_message(message.chat.id, text, reply_markup=keyboard, parse_mode="Markdown")
 
-        # --- TELEGRAM INLINE BUTTON CALLBACK HANDLER ---
-        @bot.callback_query_handler(func=lambda call: call.data.startswith(('approve_', 'cancel_', 'block_')))
+        @bot.callback_query_handler(func=lambda call: call.data.startswith(('ap_', 'can_', 'blk_')))
         def handle_admin_action(call):
             try:
-                action, member_id = call.data.split('_')
+                prefix, member_id = call.data.split('_')
                 member_id = int(member_id)
-                status_map = {'approve': 'approved', 'cancel': 'cancelled', 'block': 'blocked'}
-                new_status = status_map[action]
+                status_map = {'ap': 'approved', 'can': 'cancelled', 'blk': 'blocked'}
+                new_status = status_map[prefix]
 
                 conn = get_db_connection()
                 cursor = conn.cursor()
@@ -129,75 +187,30 @@ if BOT_TOKEN:
                     conn.commit()
 
                     status_text = {
-                        'approve': '✅ **ተፅድቋል (Approved)**',
-                        'cancel': '❌ **ተሰርዟል (Cancelled)**',
-                        'block': '🚫 **ታግዷል (Blocked)**'
+                        'ap': '✅ **ተፅድቋል (Approved)**',
+                        'can': '❌ **ተሰርዟል (Cancelled)**',
+                        'blk': '🚫 **ታግዷል (Blocked)**'
                     }
 
                     bot.edit_message_text(
                         chat_id=call.message.chat.id,
                         message_id=call.message.message_id,
-                        text=call.message.text + f"\n\n📌 **የአድሚን ውሳኔ፦** {status_text[action]}"
+                        text=call.message.text + f"\n\n📌 **የአድሚን ውሳኔ፦** {status_text[prefix]}"
                     )
 
                     if member['telegram_id']:
                         user_msgs = {
-                            "approve": "🎉 **ደስ ደስ ይበልዎት!** የምዝገባ ጥያቄዎ በአድሚኑ ፀድቋል። አሁን መተግበሪያውን መጠቀም ይችላሉ።",
-                            "cancel": "⚠️ **ማሳሰቢያ፦** የምዝገባ ጥያቄዎ አልተቀበለም። እባክዎን መረጃዎን አስተካክለው ድጋሚ ይሞክሩ።",
-                            "block": "🚫 **ማሳሰቢያ፦** መለያዎ በአድሚን ታግዷል። ለበለጠ መረጃ ድጋፍን ያናግሩ።"
+                            "ap": "🎉 **ደስ ደስ ይበልዎት!** የምዝገባ ጥያቄዎ በአድሚኑ ፀድቋል። አሁን መተግበሪያውን መጠቀም ይችላሉ።",
+                            "can": "⚠️ **ማሳሰቢያ፦** የምዝገባ ጥያቄዎ አልተቀበለም። እባክዎን መረጃዎን አስተካክለው ድጋሚ ይሞክሩ።",
+                            "blk": "🚫 **ማሳሰቢያ፦** መለያዎ በአድሚን ታግዷል። ለበለጠ መረጃ ድጋፍን ያናግሩ።"
                         }
-                        send_async_msg(member['telegram_id'], user_msgs[action])
+                        send_async_msg(member['telegram_id'], user_msgs[prefix])
                 conn.close()
             except Exception as e:
                 print("Callback Handling Error:", e)
 
     except Exception as e:
         print("Bot Initialization Error:", e)
-
-# --- ASYNC TELEGRAM MESSAGING (ሲስተሙ እንዳይዘገይ በጀርባ ይልካል) ---
-def send_async_msg(chat_id, text, reply_markup=None):
-    def run():
-        if bot:
-            try:
-                bot.send_message(chat_id, text, reply_markup=reply_markup)
-            except Exception as e:
-                print(f"Async Message Error ({chat_id}):", e)
-    Thread(target=run).start()
-
-def send_async_admin_notification(member_id, ref_no, data):
-    def run():
-        if not bot:
-            return
-        markup = telebot.types.InlineKeyboardMarkup()
-        btn_approve = telebot.types.InlineKeyboardButton("✅ Approve", callback_data=f"approve_{member_id}")
-        btn_cancel = telebot.types.InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_{member_id}")
-        btn_block = telebot.types.InlineKeyboardButton("🚫 Block", callback_data=f"block_{member_id}")
-        
-        admin_panel_url = f"{WEB_APP_URL}/admin"
-        btn_panel = telebot.types.InlineKeyboardButton(
-            "📊 አድሚን ፓናል ክፈት", 
-            web_app=telebot.types.WebAppInfo(url=admin_panel_url)
-        )
-
-        markup.add(btn_approve, btn_cancel, btn_block)
-        markup.add(btn_panel)
-
-        admin_msg = (
-            f"🆕 **አዲስ የሰው ምዝገባ ጥያቄ!**\n\n"
-            f"👤 **ስም፦** {data.get('first_name')} {data.get('father_name')} {data.get('grand_name')}\n"
-            f"📞 **ስልክ፦** {data.get('phone_number')}\n"
-            f"📍 **አድራሻ፦** {data.get('address')}\n"
-            f"🆔 **TIN፦** {data.get('tin_number') if data.get('tin_number') else 'የለውም'}\n"
-            f"🔢 **ዕድል ብዛት፦** {data.get('share_count', 1)}\n"
-            f"🆔 **Ref No፦** `{ref_no}`\n"
-            f"💬 **TG ID፦** `{data.get('telegram_id')}`"
-        )
-        try:
-            bot.send_message(SUPER_ADMIN_ID, admin_msg, reply_markup=markup)
-        except Exception as e:
-            print("Admin Notification Error:", e)
-
-    Thread(target=run).start()
 
 def run_bot_safe():
     if bot:
@@ -225,22 +238,113 @@ def admin_page():
 def get_member_info(telegram_id):
     conn = get_db_connection()
     cursor = conn.cursor()
+    
     cursor.execute("SELECT * FROM members WHERE telegram_id = ?", (telegram_id,))
-    rows = cursor.fetchall()
+    members = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("SELECT * FROM settings WHERE id = 1")
+    sett = cursor.fetchone()
+    settings_db = dict(sett) if sett else {}
+    
     conn.close()
-
-    members = [dict(row) for row in rows]
-    settings_db = {
-        "latest_draw_number": "ዙር 01",
-        "winner_name": "-",
-        "latest_draw_date": "የለም",
-        "support_phone": "0916039015"
-    }
 
     return jsonify({
         "members": members,
         "settings": settings_db
     })
+
+# --- ADMIN AUTH, ROLES & OTP API ---
+@app.route('/api/admin/login', methods=['POST'])
+def admin_login():
+    data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
+    password = str(data.get('pass', '')).strip()
+
+    if admin_id == SUPER_ADMIN_ID:
+        if password == admin_config["password"]:
+            otp = str(random.randint(100000, 999999))
+            otp_store[admin_id] = otp
+            
+            msg = f"🔐 **ተራመድ ሳኮ - Super Admin Login OTP**\n\nየመግቢያ ማረጋገጫ ኮድዎ፦ `{otp}`\n\nእባክዎን ይህንን ኮድ ለማንም አያጋሩ!"
+            send_async_msg(SUPER_ADMIN_ID, msg)
+            
+            return jsonify({"status": "otp_required", "message": "OTP ማረጋገጫ ኮድ ወደ ቴሌግራምህ ተልኳል!"}), 200
+        else:
+            return jsonify({"message": "የተሳሳተ የይለፍ ቃል!"}), 401
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM admins WHERE admin_id = ? AND password = ?", (admin_id, password))
+    target_admin = cursor.fetchone()
+    conn.close()
+    
+    if target_admin:
+        return jsonify({"status": "success", "role": target_admin['role']}), 200
+    else:
+        return jsonify({"message": "የተሳሳተ የይለፍ ቃል ወይም Admin ID!"}), 401
+
+@app.route('/api/admin/verify_otp', methods=['POST'])
+def verify_otp():
+    data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
+    user_otp = str(data.get('otp', '')).strip()
+
+    if admin_id in otp_store and otp_store[admin_id] == user_otp:
+        del otp_store[admin_id]
+        return jsonify({"status": "success", "role": "super"}), 200
+    else:
+        return jsonify({"message": "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!"}), 400
+
+@app.route('/api/admin/assign_role', methods=['POST'])
+def assign_role():
+    data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
+    role = str(data.get('role', '')).strip()
+
+    if not admin_id or not role:
+        return jsonify({"message": "እባክዎን Admin ID እና Role ያስገቡ!"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR REPLACE INTO admins (admin_id, password, role) VALUES (?, '123456', ?)", (admin_id, role))
+    conn.commit()
+    conn.close()
+
+    msg = f"🎖 **አዲስ የአድሚን ስልጣን ተሰጥቶዎታል!**\n\nየስራ ድርሻዎ፦ **{role.upper()}**\nመግቢያ Password፦ `123456`\nእባክዎን ገብተው ፓስወርድዎን ይቀይሩ።"
+    send_async_msg(admin_id, msg)
+
+    return jsonify({"message": f"አድሚን {admin_id} በ {role} ስልጣን በስኬት ተሾሟል!"}), 200
+
+@app.route('/api/admin/request_reset', methods=['POST'])
+def request_reset():
+    data = request.get_json(silent=True) or {}
+    admin_id = str(data.get('admin_id', '')).strip()
+
+    otp = str(random.randint(100000, 999999))
+    otp_store[f"reset_{admin_id}"] = otp
+
+    msg = f"⚠️ **የይለፍ ቃል ቅያሬ ጥያቄ!**\n\nAdmin ID: `{admin_id}` የይለፍ ቃል ለመቀየር እየሞከረ ነው።\n\nለመፍቀድ ይህንን OTP ይስጡት፦ `{otp}`"
+    send_async_msg(SUPER_ADMIN_ID, msg)
+
+    return jsonify({"message": "የይለፍ ቃል መቀየሪያ OTP ለ Super Admin ተልኳል። ከእሱ ተቀብለው ያስገቡ!"}), 200
+
+# --- FINANCE & EXPENSES API ---
+@app.route('/api/admin/add_expense', methods=['POST'])
+def add_expense():
+    data = request.get_json(silent=True) or {}
+    desc = data.get('description', '')
+    amount = float(data.get('amount', 0))
+
+    if not desc or amount <= 0:
+        return jsonify({"message": "እባክዎን ትክክለኛ መረጃ ያስገቡ!"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO expenses (description, amount) VALUES (?, ?)", (desc, amount))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "ወጪው በስኬት ተመዝግቧል!"}), 200
 
 # --- PUBLIC USER REGISTER API ---
 @app.route('/api/register', methods=['POST'])
@@ -274,7 +378,7 @@ def register_member():
         conn.commit()
         conn.close()
 
-        # ለቴሌግራም አድሚን በጀርባ (Thread) ማስታወቂያ መላክ
+        # ለቴሌግራም አድሚን በጀርባ ማስታወቂያ መላክ
         send_async_admin_notification(member_id, ref_no, data)
 
         return jsonify({"success": True, "message": "ምዝገባዎ ተጠናቋል። ከአድሚን ማረጋገጫ ይጠብቁ!", "ref_no": ref_no}), 200
@@ -289,19 +393,17 @@ def get_admin_data():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM members")
+    cursor.execute("SELECT * FROM members ORDER BY id DESC")
     members = [dict(row) for row in cursor.fetchall()]
     
     cursor.execute("SELECT * FROM expenses")
     expenses = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("SELECT * FROM settings WHERE id = 1")
+    sett = cursor.fetchone()
+    settings_db = dict(sett) if sett else {}
+    
     conn.close()
-
-    settings_db = {
-        "latest_draw_number": "ዙር 01",
-        "winner_name": "-",
-        "latest_draw_date": "የለም",
-        "support_phone": "0916039015"
-    }
 
     return jsonify({
         "settings": settings_db,
@@ -312,7 +414,7 @@ def get_admin_data():
         "loans": []
     })
 
-# --- ADMIN MEMBER ACTION API ---
+# --- MEMBER MANAGEMENT ---
 @app.route('/api/admin/member_action', methods=['POST'])
 def member_action():
     data = request.get_json(silent=True) or {}
@@ -331,7 +433,7 @@ def member_action():
     status_map = {'approve': 'approved', 'cancel': 'cancelled', 'block': 'blocked'}
     if action in status_map:
         new_status = status_map[action]
-        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (new_status, member_id))
+        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (member_id,))
         cursor.execute("SELECT telegram_id FROM members WHERE id = ?", (member_id,))
         member = cursor.fetchone()
         conn.commit()
