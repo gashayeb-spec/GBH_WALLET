@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ተራመድ ሳኮ - Admin Management Panel</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Telegram Mini App WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -35,10 +34,11 @@
         .auth-card { max-width: 400px; margin: 50px auto; background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
         input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; }
         
-        .btn { padding: 8px 14px; background: var(--gold); color: #0f172a; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem; }
+        .btn { padding: 6px 10px; background: var(--gold); color: #0f172a; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 0.8rem; margin: 2px; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-success { background: var(--success); color: #fff; }
         .btn-primary { background: var(--primary); color: #fff; }
+        .btn-warning { background: #d97706; color: #fff; }
         .btn:hover { opacity: 0.9; }
 
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
@@ -55,15 +55,11 @@
 
         .table-res { overflow-x: auto; background: var(--card); border-radius: 10px; border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
+        th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
         th { background: #0f172a; color: var(--gold); }
 
-        .receipt-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid var(--gold); }
         .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-        .modal-body { background: var(--card); padding: 20px; border-radius: 12px; max-width: 500px; width: 90%; text-align: center; border: 1px solid var(--border); position: relative; }
-        .zoom-box { overflow: hidden; border-radius: 8px; cursor: zoom-in; margin: 10px 0; }
-        .zoom-box img { width: 100%; max-height: 400px; object-fit: contain; transition: transform 0.3s; }
-        .zoom-box:hover img { transform: scale(1.8); }
+        .modal-body { background: var(--card); padding: 20px; border-radius: 12px; max-width: 500px; width: 90%; border: 1px solid var(--border); position: relative; }
 
         .hidden { display: none !important; }
         .inline-input { width: 100px; padding: 5px; margin: 0; display: inline-block; }
@@ -82,14 +78,13 @@
         <h3><i class="fas fa-lock"></i> የአድሚን መግቢያ</h3>
         <input type="text" id="adminUser" placeholder="Telegram ID / Username">
         <input type="password" id="adminPass" placeholder="የይለፍ ቃል">
-        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="adminLogin()">ይግቡ</button>
+        <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="adminLogin()">ይግቡ</button>
     </div>
 
     <!-- MAIN DASHBOARD -->
     <div id="adminDashboard" class="hidden">
 
-        <!-- FINANCIAL DASHBOARD (Super Admin & Auditor Only) -->
-        <div class="stats-grid role-sec role-super role-auditor">
+        <div class="stats-grid">
             <div class="stat-card" style="border-left-color: var(--success);">
                 <h4>የቀን ገቢ (Daily Income)</h4>
                 <p id="statDailyIncome">0 ETB</p>
@@ -102,24 +97,20 @@
                 <h4>አመታዊ የተጣራ ትርፍ (Net Profit)</h4>
                 <p id="statAnnualProfit">0 ETB</p>
             </div>
-            <div class="stat-card" style="border-left-color: var(--primary);">
-                <h4>ጤናማ vs የተበላሸ ብድር (NPL)</h4>
-                <p id="statLoanRatio">0% / 0%</p>
-            </div>
         </div>
 
         <!-- NAVIGATION TABS -->
         <div class="tabs">
-            <button class="tab-btn role-sec role-super role-registration active" onclick="showTab('regTab', event)"><i class="fas fa-id-card"></i> ምዝገባና አባላት</button>
-            <button class="tab-btn role-sec role-super role-loans" onclick="showTab('loanTab', event)"><i class="fas fa-hand-holding-usd"></i> የብድር ክፍል</button>
-            <button class="tab-btn role-sec role-super role-receipts" onclick="showTab('receiptTab', event)"><i class="fas fa-file-invoice-dollar"></i> ደረሰኝ አጣሪ</button>
-            <button class="tab-btn role-sec role-super role-auditor" onclick="showTab('financeTab', event)"><i class="fas fa-calculator"></i> ሂሳብና ሪፖርት</button>
-            <button class="tab-btn role-sec role-super" onclick="showTab('assignTab', event)"><i class="fas fa-user-plus"></i> አድሚን መሾሚያ</button>
+            <button class="tab-btn active" onclick="showTab('regTab', event)"><i class="fas fa-id-card"></i> ምዝገባና አባላት</button>
+            <button class="tab-btn" onclick="showTab('loanTab', event)"><i class="fas fa-hand-holding-usd"></i> የብድር ክፍል</button>
+            <button class="tab-btn" onclick="showTab('financeTab', event)"><i class="fas fa-calculator"></i> ሂሳብና ሪፖርት</button>
+            <button class="tab-btn" onclick="showTab('assignTab', event)"><i class="fas fa-user-plus"></i> አድሚን መሾሚያ</button>
+            <button class="tab-btn" onclick="showTab('passTab', event)"><i class="fas fa-key"></i> የይለፍ ቃል ቅያሬ</button>
         </div>
 
         <!-- TAB 1: REGISTRATION & USER APPROVAL -->
         <div id="regTab" class="tab-content active">
-            <h3>የአባላት ምዝገባና ፋይል ማጣሪያ (የአባልነት ማረጋገጫ)</h3>
+            <h3>የአባላት ምዝገባና ፋይል ማጣሪያ</h3>
             <div class="table-res" style="margin-top:10px;">
                 <table>
                     <thead>
@@ -128,102 +119,79 @@
                             <th>ስም</th>
                             <th>ስልክ</th>
                             <th>ሁኔታ</th>
-                            <th>መታወቂያ / ፈቃድ</th>
-                            <th>እርምጃ (Action)</th>
+                            <th>እርምጃዎች (Actions)</th>
                         </tr>
                     </thead>
-                    <tbody id="regTableBody">
-                        <!-- Dynamic content -->
-                    </tbody>
+                    <tbody id="regTableBody"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- TAB 2: LOAN APPLICATIONS & MONITORING -->
+        <!-- TAB 2: LOANS -->
         <div id="loanTab" class="tab-content">
-            <h3>የብድር ማመልከቻዎች እና የብድር መጠን መቆጣጠሪያ</h3>
+            <h3>የብድር ማመልከቻዎች እና መቆጣጠሪያ</h3>
             <div class="table-res" style="margin-top:10px;">
                 <table>
                     <thead>
                         <tr>
                             <th>Ref No</th>
                             <th>ተበዳሪ</th>
-                            <th>የተፈቀደ ብድር (Set Loan)</th>
+                            <th>የተፈቀደ ብድር</th>
                             <th>የተከፈለ</th>
-                            <th>ቀሪ እዳ (Remaining)</th>
+                            <th>ቀሪ እዳ</th>
                             <th>እርምጃ</th>
                         </tr>
                     </thead>
-                    <tbody id="loanTableBody">
-                        <!-- Dynamic content -->
-                    </tbody>
+                    <tbody id="loanTableBody"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- TAB 3: RECEIPT VERIFICATION (WITH ZOOM) -->
-        <div id="receiptTab" class="tab-content">
-            <h3>የክፍያ ደረሰኞች ፍተሻ (Receipt Verification)</h3>
-            <div class="table-res" style="margin-top:10px;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Ref No</th>
-                            <th>አይነት</th>
-                            <th>መጠን</th>
-                            <th>TxID</th>
-                            <th>ደረሰኝ (Hover Zoom)</th>
-                            <th>እርምጃ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="receiptTableBody">
-                        <!-- Dynamic content -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- TAB 4: FINANCE & EXPENSES -->
+        <!-- TAB 3: FINANCE -->
         <div id="financeTab" class="tab-content">
-            <h3>የወር ወጪ መዝገብና የሂሳብ ማስተካከያ</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 15px;">
-                <div style="background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border);">
-                    <h4 style="color:var(--gold); margin-bottom: 10px;">አዲስ የወጪ መዝገብ</h4>
-                    <input type="text" id="expDesc" placeholder="የወጪ ምክንያት (ምሳሌ፦ የቢሮ ኪራይ)">
-                    <input type="number" id="expAmt" placeholder="የብር መጠን">
-                    <button class="btn btn-danger" style="width: 100%; margin-top: 10px;" onclick="addExpense()">መዝግብ</button>
-                </div>
+            <h3>የወር ወጪ መዝገብና ሂሳብ</h3>
+            <div style="max-width: 450px; background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid var(--border); margin-top: 15px;">
+                <h4 style="color:var(--gold); margin-bottom: 10px;">አዲስ የወጪ መዝገብ</h4>
+                <input type="text" id="expDesc" placeholder="የወጪ ምክንያት">
+                <input type="number" id="expAmt" placeholder="የብር መጠን">
+                <button class="btn btn-danger" style="width: 100%; margin-top: 10px;" onclick="addExpense()">መዝግብ</button>
             </div>
         </div>
 
-        <!-- TAB 5: ADMIN ASSIGNMENT (Super Admin Only) -->
+        <!-- TAB 4: ADMIN ASSIGNMENT -->
         <div id="assignTab" class="tab-content">
-            <div style="max-width: 450px; background: var(--card); padding: 20px; border-radius: 10px; border: 1px solid var(--border);">
+            <div style="max-width: 450px; background: var(--card); padding: 20px; border-radius: 10px; border: 1px solid var(--border); margin-top: 15px;">
                 <h3 style="color:var(--gold); margin-bottom: 10px;"><i class="fas fa-user-shield"></i> አዲስ አድሚን መሾሚያ</h3>
-                <label style="font-size: 0.8rem; color: var(--text-muted);">የአድሚኑ Telegram ID</label>
-                <input type="text" id="newAdminId" placeholder="ምሳሌ፦ 5351353727">
-                
-                <label style="font-size: 0.8rem; color: var(--text-muted);">የስራ ድርሻ (Role)</label>
+                <input type="text" id="newAdminId" placeholder="Telegram ID">
                 <select id="newAdminRole">
-                    <option value="registration">የምዝገባና ፋይል አጣሪ</option>
+                    <option value="registration">የምዝገባ አጣሪ</option>
                     <option value="loans">የብድር ክፍል አድሚን</option>
-                    <option value="receipts">የቀን ገቢና ደረሰኝ አጣሪ</option>
-                    <option value="auditor">የሂሳብና ሪፖርት አድሚን</option>
-                    <option value="super">Super Admin (ሙሉ ስልጣን)</option>
+                    <option value="auditor">የሂሳብ አድሚን</option>
+                    <option value="super">Super Admin</option>
                 </select>
                 <button class="btn btn-success" style="width: 100%; margin-top: 10px;" onclick="assignRole()">አድሚኑን ሾም</button>
+            </div>
+        </div>
+
+        <!-- TAB 5: PASSWORD CHANGE -->
+        <div id="passTab" class="tab-content">
+            <div style="max-width: 450px; background: var(--card); padding: 20px; border-radius: 10px; border: 1px solid var(--border); margin-top: 15px;">
+                <h3 style="color:var(--gold); margin-bottom: 10px;"><i class="fas fa-key"></i> የይለፍ ቃል መቀየሪያ</h3>
+                <input type="password" id="oldPassInput" placeholder="የድሮ የይለፍ ቃል">
+                <input type="password" id="newPassInput" placeholder="አዲስ የይለፍ ቃል">
+                <button class="btn btn-primary" style="width: 100%; margin-top: 10px;" onclick="changePassword()">ቀይር</button>
             </div>
         </div>
 
     </div>
 </div>
 
-<!-- OTP INPUT MODAL -->
+<!-- OTP MODAL -->
 <div id="otpModal" class="modal hidden">
-    <div class="modal-body">
+    <div class="modal-body" style="text-align: center;">
         <h3 style="color:var(--gold); margin-bottom: 10px;"><i class="fas fa-key"></i> OTP ማረጋገጫ</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">ወደ Telegram የተላከውን 6-Digit OTP ኮድ አስገባ፦</p>
-        <input type="text" id="otpCodeInput" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; font-size: 1.2rem; letter-spacing: 4px;">
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">ወደ Telegram የተላከውን 6-Digit OTP አስገባ፦</p>
+        <input type="text" id="otpCodeInput" placeholder="6-Digit OTP" maxlength="6" style="text-align: center; font-size: 1.2rem;">
         <div style="display: flex; gap: 10px; margin-top: 15px;">
             <button class="btn btn-success" style="flex: 1;" onclick="submitOtp()">አረጋግጥ</button>
             <button class="btn btn-danger" style="flex: 1;" onclick="closeOtpModal()">ሰርዝ</button>
@@ -231,50 +199,33 @@
     </div>
 </div>
 
-<!-- IMAGE ZOOM MODAL -->
-<div id="zoomModal" class="modal hidden">
+<!-- SEND MESSAGE MODAL -->
+<div id="msgModal" class="modal hidden">
     <div class="modal-body">
-        <h4 style="color:var(--gold);"><i class="fas fa-search-plus"></i> ደረሰኝ ማጉያ (Hover to Zoom)</h4>
-        <div class="zoom-box">
-            <img id="zoomImg" src="" alt="Receipt">
+        <h3 style="color:var(--gold); margin-bottom: 10px;"><i class="fas fa-paper-plane"></i> ለተጠቃሚው መልእክት ላክ</h3>
+        <textarea id="customMsgInput" rows="4" placeholder="የሚላከውን መልእክት እዚህ ይጻፉ..."></textarea>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn btn-success" style="flex: 1;" onclick="submitCustomMessage()">ላክ</button>
+            <button class="btn btn-danger" style="flex: 1;" onclick="closeMsgModal()">ዝጋ</button>
         </div>
-        <button class="btn btn-danger" style="width: 100%; margin-top: 10px;" onclick="closeZoom()">ዝጋ</button>
     </div>
 </div>
 
 <script>
     let telegramUserId = '';
+    let pendingAdminId = '';
+    let currentRole = 'guest';
+    let targetMemberIdForMsg = null;
 
     if (window.Telegram && window.Telegram.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-        tg.enableClosingConfirmation();
-
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             telegramUserId = String(tg.initDataUnsafe.user.id);
             document.getElementById('adminUser').value = telegramUserId;
         }
     }
-
-    let currentRole = 'guest';
-    let pendingAdminId = '';
-
-    window.addEventListener('focus', async () => {
-        if (!pendingAdminId) return;
-        try {
-            const text = await navigator.clipboard.readText();
-            const cleanOtp = text ? text.trim() : '';
-            if (cleanOtp && /^\d{6}$/.test(cleanOtp)) {
-                const otpInput = document.getElementById('otpCodeInput');
-                if (otpInput && !otpInput.value) {
-                    otpInput.value = cleanOtp;
-                }
-            }
-        } catch (err) {
-            console.log("Clipboard permission error");
-        }
-    });
 
     async function adminLogin() {
         const admin_id = document.getElementById('adminUser').value.trim();
@@ -289,18 +240,14 @@
             const res = await fetch('/api/admin/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    admin_id: admin_id, 
-                    pass: pass,
-                    tg_user_id: telegramUserId
-                })
+                body: JSON.stringify({ admin_id, pass })
             });
             const data = await res.json();
             
             if(res.ok) {
                 if(data.status === 'otp_required') {
                     pendingAdminId = admin_id;
-                    openOtpModal();
+                    document.getElementById('otpModal').classList.remove('hidden');
                 } else if (data.status === 'success') {
                     currentRole = data.role;
                     showDashboard();
@@ -309,49 +256,32 @@
                 alert(data.message || "የተሳሳተ መረጃ!");
             }
         } catch(e) {
-            console.error(e);
-            alert("ከአገልጋዩ (Server) ጋር መገናኘት አልተቻለም!");
+            alert("ከአገልጋዩ ጋር መገናኘት አልተቻለም!");
         }
-    }
-
-    function openOtpModal() {
-        document.getElementById('otpCodeInput').value = '';
-        document.getElementById('otpModal').classList.remove('hidden');
     }
 
     function closeOtpModal() {
         document.getElementById('otpModal').classList.add('hidden');
-        pendingAdminId = '';
     }
 
-    function submitOtp() {
+    async function submitOtp() {
         const otp = document.getElementById('otpCodeInput').value.trim();
-        if (!otp) {
-            alert("እባክዎን OTP ኮዱን ያስገቡ!");
-            return;
-        }
-        verifyOtp(pendingAdminId, otp);
-    }
-
-    async function verifyOtp(admin_id, otp) {
         try {
             const res = await fetch('/api/admin/verify_otp', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({admin_id: admin_id, otp: otp})
+                body: JSON.stringify({admin_id: pendingAdminId, otp: otp})
             });
             const data = await res.json();
 
             if(res.ok && data.status === 'success') {
                 currentRole = data.role;
-                pendingAdminId = '';
                 closeOtpModal();
                 showDashboard();
             } else {
-                alert(data.message || "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!");
+                alert(data.message || "የተሳሳተ OTP!");
             }
         } catch(e) {
-            console.error(e);
             alert("OTP ማረጋገጥ አልተቻለም!");
         }
     }
@@ -359,19 +289,8 @@
     function showDashboard() {
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('adminDashboard').classList.remove('hidden');
-        setupPermissions();
-        loadAdminData();
-    }
-
-    function setupPermissions() {
         document.getElementById('roleDisplay').innerText = `Role: ${currentRole.toUpperCase()}`;
-        document.querySelectorAll('.role-sec').forEach(el => el.classList.add('hidden'));
-
-        if(currentRole === 'super') {
-            document.querySelectorAll('.role-sec').forEach(el => el.classList.remove('hidden'));
-        } else {
-            document.querySelectorAll(`.role-${currentRole}`).forEach(el => el.classList.remove('hidden'));
-        }
+        loadAdminData();
     }
 
     function showTab(tabId, evt) {
@@ -381,75 +300,54 @@
         if(evt) evt.currentTarget.classList.add('active');
     }
 
-    function openZoom(url) {
-        document.getElementById('zoomImg').src = url;
-        document.getElementById('zoomModal').classList.remove('hidden');
-    }
-
-    function closeZoom() {
-        document.getElementById('zoomModal').classList.add('hidden');
-    }
-
-    // -------------------------------------------------------------
-    // Аዲሳድሚን ዳታ መጫኛ እና አፕሩቭ/ሪሙቭ/ብድር ማስተካከያ LOGIC
-    // -------------------------------------------------------------
     async function loadAdminData() {
         try {
             const res = await fetch('/api/admin/members');
             const members = await res.json();
             
-            // 1. REGISTRATION TABLE POPULATION
             const regBody = document.getElementById('regTableBody');
-            regBody.innerHTML = '';
-            
-            // 2. LOAN TABLE POPULATION
             const loanBody = document.getElementById('loanTableBody');
+            regBody.innerHTML = '';
             loanBody.innerHTML = '';
 
             members.forEach(m => {
-                const statusBadge = m.status === 'approved' 
-                    ? '<span style="color:var(--success); font-weight:bold;">የጸደቀ</span>' 
-                    : '<span style="color:var(--gold); font-weight:bold;">እየተጠባበቀ</span>';
-
+                let badgeColor = m.status === 'approved' ? 'var(--success)' : (m.status === 'blocked' ? 'var(--danger)' : 'var(--gold)');
+                
                 // Registration Table Row
-                const regRow = `
+                regBody.innerHTML += `
                     <tr>
                         <td>${m.ref_no}</td>
                         <td>${m.first_name} ${m.father_name}</td>
                         <td>${m.phone_number}</td>
-                        <td>${statusBadge}</td>
+                        <td><span style="color:${badgeColor}; font-weight:bold;">${m.status}</span></td>
                         <td>
-                            ${m.id_card_url ? `<button class="btn btn-primary" onclick="openZoom('${m.id_card_url}')">መታወቂያ</button>` : 'የለም'}
-                        </td>
-                        <td>
-                            ${m.status !== 'approved' ? `<button class="btn btn-success" onclick="approveUser('${m.id}')"><i class="fas fa-check"></i> አጽድቅ</button>` : ''}
-                            <button class="btn btn-danger" onclick="removeUser('${m.id}')"><i class="fas fa-trash"></i> ሰርዝ</button>
+                            <button class="btn btn-success" onclick="updateStatus(${m.id}, 'approved')"><i class="fas fa-check"></i> Approve</button>
+                            <button class="btn btn-warning" onclick="updateStatus(${m.id}, 'cancelled')"><i class="fas fa-times"></i> Cancel</button>
+                            <button class="btn btn-danger" onclick="updateStatus(${m.id}, 'blocked')"><i class="fas fa-ban"></i> Block</button>
+                            <button class="btn btn-danger" style="background:#888;" onclick="removeUser(${m.id})"><i class="fas fa-trash"></i> Delete</button>
+                            <button class="btn btn-primary" onclick="openMsgModal(${m.id})"><i class="fas fa-envelope"></i> Message</button>
                         </td>
                     </tr>
                 `;
-                regBody.innerHTML += regRow;
 
-                // Loan Table Row (የተበደረውን ብድር አድሚኑ ሴት የሚያደርግበትና በራስ-ሰር የሚቀንሰው)
+                // Loan Table Row
                 const approvedLoan = m.approved_loan || 0;
                 const paidLoan = m.paid_loan || 0;
                 const remainingLoan = approvedLoan - paidLoan;
 
-                const loanRow = `
+                loanBody.innerHTML += `
                     <tr>
                         <td>${m.ref_no}</td>
                         <td>${m.first_name} ${m.father_name}</td>
                         <td>
                             <input type="number" id="loan_input_${m.id}" class="inline-input" value="${approvedLoan}">
-                            <button class="btn btn-primary" onclick="setLoanAmount('${m.id}')">ሴት አድርግ</button>
+                            <button class="btn btn-primary" onclick="setLoanAmount(${m.id})">Set</button>
                         </td>
                         <td style="color:var(--success); font-weight:bold;">${paidLoan.toLocaleString()} ETB</td>
                         <td style="color:var(--danger); font-weight:bold;">${remainingLoan.toLocaleString()} ETB</td>
-                        <td>
-                            <button class="btn btn-success" onclick="confirmLoanPayment('${m.id}')">ክፍያ አጽድቅ</button>
-                        </td>
+                        <td><button class="btn btn-primary" onclick="openMsgModal(${m.id})">መልእክት ላክ</button></td>
                     </tr>
                 `;
-                loanBody.innerHTML += loanRow;
             });
 
         } catch(e) {
@@ -457,26 +355,24 @@
         }
     }
 
-    // ተጠቃሚን Approve የማድረጊያ ተግባር
-    async function approveUser(memberId) {
-        if(!confirm("ይህንን አባል ማጽደቅ ይፈልጋሉ?")) return;
+    async function updateStatus(memberId, newStatus) {
+        if(!confirm(`የዚህን አባል ሁኔታ ወደ ${newStatus} መቀየር ይፈልጋሉ?`)) return;
         try {
-            const res = await fetch('/api/admin/approve_user', {
+            const res = await fetch('/api/admin/update_status', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ member_id: memberId })
+                body: JSON.stringify({ member_id: memberId, status: newStatus })
             });
             const data = await res.json();
             alert(data.message);
             loadAdminData();
         } catch(e) {
-            alert("ማጽደቅ አልተቻለም");
+            alert("ሁኔታውን መቀየር አልተቻለም!");
         }
     }
 
-    // ተጠቃሚን Remove የማድረጊያ ተግባር (ድጋሚ እንዲመዘገብ ያደርገዋል)
     async function removeUser(memberId) {
-        if(!confirm("ይህንን አባል ሰርዝ ማድረጉን ያረጋግጣሉ? አባሉ ድጋሚ የመመዝገብ ዕድል ያገኛል።")) return;
+        if(!confirm("ይህንን አባል ሰርዝ ማድረጉን ያረጋግጣሉ?")) return;
         try {
             const res = await fetch('/api/admin/remove_user', {
                 method: 'POST',
@@ -491,14 +387,40 @@
         }
     }
 
-    // የብድር መጠን ሴት የማድረጊያ ተግባር
-    async function setLoanAmount(memberId) {
-        const amt = document.getElementById(`loan_input_${memberId}`).value;
-        if(amt === '' || amt < 0) {
-            alert("እባክዎን ትክክለኛ የብድር መጠን ያስገቡ");
+    function openMsgModal(memberId) {
+        targetMemberIdForMsg = memberId;
+        document.getElementById('customMsgInput').value = '';
+        document.getElementById('msgModal').classList.remove('hidden');
+    }
+
+    function closeMsgModal() {
+        document.getElementById('msgModal').classList.add('hidden');
+        targetMemberIdForMsg = null;
+    }
+
+    async function submitCustomMessage() {
+        const msg = document.getElementById('customMsgInput').value.trim();
+        if(!msg || !targetMemberIdForMsg) {
+            alert("እባክዎን መልእክት ያስገቡ!");
             return;
         }
 
+        try {
+            const res = await fetch('/api/admin/send_custom_msg', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ member_id: targetMemberIdForMsg, message: msg })
+            });
+            const data = await res.json();
+            alert(data.message);
+            closeMsgModal();
+        } catch(e) {
+            alert("መልእክቱን መላክ አልተቻለም!");
+        }
+    }
+
+    async function setLoanAmount(memberId) {
+        const amt = document.getElementById(`loan_input_${memberId}`).value;
         try {
             const res = await fetch('/api/admin/set_loan', {
                 method: 'POST',
@@ -509,19 +431,13 @@
             alert(data.message);
             loadAdminData();
         } catch(e) {
-            alert("የብድር መጠን ማስተካከል አልተቻለም");
+            alert("ማስተካከል አልተቻለም!");
         }
     }
 
     async function assignRole() {
         const admin_id = document.getElementById('newAdminId').value.trim();
         const role = document.getElementById('newAdminRole').value;
-
-        if(!admin_id) {
-            alert("እባክዎን የአድሚኑ Telegram ID ያስገቡ!");
-            return;
-        }
-
         try {
             const res = await fetch('/api/admin/assign_role', {
                 method: 'POST',
@@ -531,19 +447,13 @@
             const data = await res.json();
             alert(data.message);
         } catch(e) {
-            alert("ሽመታው አልተሳካም።");
+            alert("ስህተት ተፈጥሯል!");
         }
     }
 
     async function addExpense() {
         const desc = document.getElementById('expDesc').value.trim();
         const amt = document.getElementById('expAmt').value.trim();
-
-        if(!desc || !amt) {
-            alert("እባክዎን ወጪውን እና የብር መጠኑን ሙሉ በሙሉ ያስገቡ!");
-            return;
-        }
-
         try {
             const res = await fetch('/api/admin/add_expense', {
                 method: 'POST',
@@ -555,7 +465,34 @@
             document.getElementById('expDesc').value = '';
             document.getElementById('expAmt').value = '';
         } catch(e) {
-            alert("ወጪውን መመዝገብ አልተቻለም።");
+            alert("ስህተት ተፈጥሯል!");
+        }
+    }
+
+    async function changePassword() {
+        const old_pass = document.getElementById('oldPassInput').value.trim();
+        const new_pass = document.getElementById('newPassInput').value.trim();
+        const admin_id = document.getElementById('adminUser').value.trim();
+
+        if(!old_pass || !new_pass) {
+            alert("እባክዎን ሁሉንም ቦታዎች ይሙሉ!");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/change_password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ admin_id, old_pass, new_pass })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if(res.ok) {
+                document.getElementById('oldPassInput').value = '';
+                document.getElementById('newPassInput').value = '';
+            }
+        } catch(e) {
+            alert("የይለፍ ቃል መቀየር አልተቻለም!");
         }
     }
 </script>
