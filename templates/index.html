@@ -3,336 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ተራመድ ሳኮ - አድሚን ቁጥጥር ፓናል</title>
+    <title>ተራመድ ሳኮ - አባልነት እና የኔ ደብተር</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
             --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
             --success: #10b981; --danger: #ef4444; --primary: #3b82f6;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 15px; }
-        .container { max-width: 1100px; margin: 0 auto; }
-
-        .header { display: flex; justify-content: space-between; align-items: center; background: var(--card); border: 1px solid var(--border); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; }
-        .header h2 { color: var(--gold); font-size: 1.2rem; }
-
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .card { background: var(--card); border: 1px solid var(--border); padding: 15px; border-radius: 12px; }
-        .card h3 { color: var(--gold); font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
-        th { color: var(--gold); background: rgba(15, 23, 42, 0.5); }
-
-        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-        .badge-pending { background: rgba(245, 158, 11, 0.2); color: var(--gold); }
-        .badge-approved { background: rgba(16, 185, 129, 0.2); color: var(--success); }
-        .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-
-        .btn-action { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; margin-right: 4px; }
-        .btn-approve { background: var(--success); color: #fff; }
-        .btn-reject { background: var(--danger); color: #fff; }
-        .btn-edit { background: var(--primary); color: #fff; }
-        .btn-msg { background: var(--gold); color: #0f172a; }
-
-        .input-group { margin-bottom: 10px; }
-        .input-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
-        .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: #fff; outline: none; font-size: 0.85rem; }
+        .container { max-width: 500px; margin: 0 auto; }
         
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; }
-        .modal-content { background: var(--card); border: 1px solid var(--gold); border-radius: 12px; width: 90%; max-width: 450px; padding: 20px; }
+        .card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .card h2 { color: var(--gold); text-align: center; margin-bottom: 15px; font-size: 1.3rem; }
+        
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 11px; background: #0f172a; border: 1px solid var(--border);
+            border-radius: 8px; color: #fff; outline: none; font-size: 0.95rem;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: var(--gold); }
+        
+        .btn-submit {
+            width: 100%; padding: 12px; background: var(--gold); border: none;
+            border-radius: 8px; color: #0f172a; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 10px;
+            transition: 0.2s ease-in-out;
+        }
+        .btn-submit:hover { opacity: 0.9; }
+        
+        /* Passbook Dashboard Styles */
+        .passbook-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--gold); border-radius: 12px; padding: 16px; margin-bottom: 15px; }
+        .balance-box { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 8px; }
+        .balance-title { font-size: 0.85rem; color: var(--text-muted); }
+        .balance-amount { font-size: 1.2rem; font-weight: bold; color: var(--gold); }
+        
+        .status-banner { text-align: center; padding: 20px; border-radius: 10px; font-weight: bold; }
+        .pending { background: rgba(245, 158, 11, 0.12); color: var(--gold); border: 1px solid var(--gold); }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <h2><i class="fas fa-user-shield"></i> ተራመድ ሳኮ - አድሚን መቆጣጠሪያ ፓናል</h2>
-        <button class="btn-action btn-msg" onclick="loadAdminMembers()"><i class="fas fa-sync"></i> ዳታ አድስ</button>
-    </div>
 
-    <!-- 1. አባላትን ማስተዳደሪያና የብድር ደብተር መቆጣጠሪያ table -->
-    <div class="card" style="margin-bottom: 20px;">
-        <h3><i class="fas fa-users-cog"></i> የተመዘገቡ አባላት፣ የብድር ደብተርና ውሳኔ መስጫ</h3>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>መለያ (Ref)</th>
-                        <th>ስም</th>
-                        <th>ስልክ</th>
-                        <th>የተፈቀደ ብድር</th>
-                        <th>የተከፈለ ብድር</th>
-                        <th>ቀሪ ዕዳ</th>
-                        <th>ሁኔታ</th>
-                        <th>እርምጃዎች</th>
-                    </tr>
-                </thead>
-                <tbody id="memberAdminTable">
-                    <!-- በ JavaScript ይሞላል -->
-                </tbody>
-            </table>
+    <!-- 1. PENDING STATUS DISPLAY -->
+    <div id="pendingSection" class="card hidden">
+        <div class="status-banner pending">
+            <i class="fas fa-user-clock fa-3x"></i><br><br>
+            <h3>ምዝገባዎ በማጣራት ላይ (Pending) ይገኛል!</h3><br>
+            <p style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">
+                አድሚኑ ያስገቡትን ሰነዶችና መረጃዎች አይቶ ሲያጸድቀው «የኔ ደብተር» አገልግሎት በራስ-ሰር የሚከፈት ይሆናል።
+            </p>
         </div>
     </div>
 
-    <div class="grid">
-        <!-- 2. ለተበዳሪው የብድር መጠን መመዝገቢያና ማዘመኛ -->
+    <!-- 2. የኔ ደብተር MODULE (APPROVED MEMBERS) -->
+    <div id="passbookSection" class="hidden">
         <div class="card">
-            <h3><i class="fas fa-hand-holding-usd"></i> የብድርና ዕዳ መዝገብ ማዘመኛ</h3>
-            <form id="updateLoanForm">
-                <div class="input-group">
-                    <label>አባል ይምረጡ</label>
-                    <select id="loanMemberSelect" required></select>
+            <h2><i class="fas fa-book-open"></i> የኔ ደብተር</h2>
+            <p style="text-align: center; font-size: 0.9rem; color: var(--gold); font-weight: bold; margin-bottom: 15px;" id="memberNameDisplay"></p>
+            
+            <!-- የቁጠባ ደብተር -->
+            <div class="passbook-card">
+                <div style="color: var(--success); font-weight: bold;"><i class="fas fa-piggy-bank"></i> የቁጠባ ሂሳብ</div>
+                <div class="balance-box">
+                    <span class="balance-title">የተቆጠበ ጠቅላላ ቁጠባ፦</span>
+                    <span class="balance-amount" id="savingsBalanceDisplay" style="color: var(--success);">0.00 ETB</span>
                 </div>
-                <div class="input-group">
-                    <label>የተፈቀደ አዲስ የብድር መጠን (ETB)</label>
-                    <input type="number" id="approvedLoanInput" placeholder="ምሳሌ፦ 50000" required>
-                </div>
-                <div class="input-group">
-                    <label>እስካሁን የተከፈለ ብድር (ETB)</label>
-                    <input type="number" id="paidLoanInput" placeholder="ምሳሌ፦ 10000" value="0" required>
-                </div>
-                <button type="submit" class="btn-action btn-approve" style="width: 100%; padding: 10px;"><i class="fas fa-save"></i> የብድር መረጃውን አፕዴት አድርግ</button>
-            </form>
-        </div>
+            </div>
 
-        <!-- 3. ለአባሉ ቀጥታ መልእክት / ማሳወቂያ መላኪያ -->
-        <div class="card">
-            <h3><i class="fas fa-paper-plane"></i> ለአባሉ ቀጥታ መልእክት / SMS መላኪያ</h3>
-            <form id="sendMessageForm">
-                <div class="input-group">
-                    <label>የሚላክለት አባል</label>
-                    <select id="msgMemberSelect" required></select>
+            <!-- የብድር ደብተር -->
+            <div class="passbook-card">
+                <div style="color: var(--gold); font-weight: bold;"><i class="fas fa-hand-holding-usd"></i> የብድር ሂሳብ</div>
+                <div class="balance-box">
+                    <span class="balance-title">የተፈቀደ ብድር፦</span>
+                    <span class="balance-amount" id="approvedLoanDisplay">0.00 ETB</span>
                 </div>
-                <div class="input-group">
-                    <label>የመልእክቱ ርዕስ</label>
-                    <input type="text" id="msgTitle" placeholder="ምሳሌ፦ የብድር ክፍያ ማሳሰቢያ" required>
+                <div class="balance-box">
+                    <span class="balance-title">የተከፈለ ብድር፦</span>
+                    <span class="balance-amount" style="color: var(--success);" id="paidLoanDisplay">0.00 ETB</span>
                 </div>
-                <div class="input-group">
-                    <label>መልእክት</label>
-                    <textarea id="msgBody" rows="3" placeholder="መልእክትዎን እዚህ ይፃፉ..." required></textarea>
+                <div class="balance-box">
+                    <span class="balance-title">ቀሪ የብድር ዕዳ፦</span>
+                    <span class="balance-amount" style="color: var(--danger);" id="remainingLoanDisplay">0.00 ETB</span>
                 </div>
-                <button type="submit" class="btn-action btn-msg" style="width: 100%; padding: 10px;"><i class="fas fa-paper-plane"></i> መልእክቱን ላክ</button>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- 4. የተበላሹ ብድሮች (Non-Performing / Default Loans) መከታተያ -->
-    <div class="card">
-        <h3 style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> የተበላሹ ብድሮች እና የዘገዩ ክፍያዎች መከታተያ</h3>
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>መለያ (Ref)</th>
-                        <th>ስም</th>
-                        <th>ያልተከፈለ ቀሪ ዕዳ</th>
-                        <th>ሁኔታ</th>
-                        <th>እርምጃ</th>
-                    </tr>
-                </thead>
-                <tbody id="defaultLoansTable">
-                    <!-- በ JavaScript ይሞላል -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+    <!-- 3. REGISTRATION FORM MODULE -->
+    <div id="registerSection" class="card">
+        <h2><i class="fas fa-id-card"></i> የአባልነት ምዝገባ ቅጽ</h2>
+        <form id="registrationForm" enctype="multipart/form-data">
+            <div class="input-group">
+                <label>የራስ ስም</label>
+                <input type="text" id="firstName" required placeholder="ምሳሌ፦ አበበ">
+            </div>
+            <div class="input-group">
+                <label>የአባት ስም</label>
+                <input type="text" id="fatherName" required placeholder="ምሳሌ፦ ከበደ">
+            </div>
+            <div class="input-group">
+                <label>የአያት ስም</label>
+                <input type="text" id="grandName" required placeholder="ምሳሌ፦ ለማ">
+            </div>
 
-<!-- MODAL: አባልን ሰርዝ ማረጋገጫ -->
-<div id="deleteModal" class="modal hidden">
-    <div class="modal-content">
-        <h3 style="color: var(--danger); margin-bottom: 10px;"><i class="fas fa-exclamation-triangle"></i> አባል ማሰረዣ</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">ይህንን አባል ከአባልነት መሰረዝ ይፈልጋሉ? ይህ ድርጊት አይመለስም።</p>
-        <input type="hidden" id="deleteTargetId">
-        <div style="display: flex; gap: 10px;">
-            <button class="btn-action btn-reject" style="flex: 1; padding: 8px;" onclick="confirmDeleteMember()">አዎ ሰርዝ</button>
-            <button class="btn-action btn-edit" style="flex: 1; padding: 8px;" onclick="closeDeleteModal()">ተመለስ</button>
-        </div>
+            <!-- Auto Country Picker & Dial Code Selector -->
+            <div class="input-group">
+                <label>የሚኖርበት ሀገር</label>
+                <select id="countrySelect" onchange="updateCountryCode()" required>
+                    <option value="ኢትዮጵያ" data-code="+251">ኢትዮጵያ (Ethiopia)</option>
+                    <option value="አሜሪካ" data-code="+1">አሜሪካ (USA)</option>
+                    <option value="ዱባይ" data-code="+971">ዱባይ (UAE)</option>
+                    <option value="ሳውዲ አረቢያ" data-code="+966">ሳውዲ አረቢያ (Saudi Arabia)</option>
+                    <option value="እንግሊዝ" data-code="+44">እንግሊዝ (UK)</option>
+                    <option value="ካናዳ" data-code="+1">ካናዳ (Canada)</option>
+                    <option value="ጀርመን" data-code="+49">ጀርመን (Germany)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>ስልክ ቁጥር</label>
+                <input type="text" id="phoneNumber" value="+251 " required>
+            </div>
+
+            <div class="input-group">
+                <label>ብሔራዊ መታወቂያ (National ID / Passport)</label>
+                <input type="file" id="nationalId" accept="image/*" required>
+            </div>
+            <div class="input-group">
+                <label>የንግድ ፈቃድ (Trade License - ካለዎት)</label>
+                <input type="file" id="tradeLicense" accept="image/*">
+            </div>
+            <div class="input-group">
+                <label>የንግድ ምዝገባ (TIN Number)</label>
+                <input type="text" id="tinNumber" placeholder="TIN ቁጥር ያስገቡ">
+            </div>
+            <div class="input-group">
+                <label>የራስ ፎቶግራፍ (Photo)</label>
+                <input type="file" id="userPhoto" accept="image/*" required>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <i class="fas fa-paper-plane"></i> መረጃውን ለአድሚን ላክ
+            </button>
+        </form>
     </div>
+
 </div>
 
 <script>
-    let membersData = [];
+    // ሀገር ሲመረጥ የስልክ ኮዱን አውቶማቲክ መሙያ
+    function updateCountryCode() {
+        const select = document.getElementById('countrySelect');
+        const selectedOption = select.options[select.selectedIndex];
+        const code = selectedOption.getAttribute('data-code');
+        document.getElementById('phoneNumber').value = code + ' ';
+    }
 
-    window.addEventListener('DOMContentLoaded', () => {
-        loadAdminMembers();
-    });
-
-    // 1. አባላትን ከ Backend መጫን
-    async function loadAdminMembers() {
-        try {
-            const res = await fetch('/api/admin/members');
-            const data = await res.json();
-            membersData = data.members || [];
-            
-            renderTables();
-            populateSelects();
-        } catch(e) {
-            console.error("አባላትን መጫን አልተቻለም", e);
+    // Telegram User ID ን ማግኛ
+    let telegramId = "";
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+        const initData = window.Telegram.WebApp.initDataUnsafe;
+        if (initData && initData.user) {
+            telegramId = initData.user.id.toString();
         }
     }
 
-    // 2. ሰንጠረዦችን መሙላት
-    function renderTables() {
-        const tbody = document.getElementById('memberAdminTable');
-        const defaultTbody = document.getElementById('defaultLoansTable');
-        tbody.innerHTML = '';
-        defaultTbody.innerHTML = '';
+    // ገጹ ሲከፈት የተጠቃሚውን ሁኔታ መፈተሽ
+    window.addEventListener('DOMContentLoaded', checkMemberStatus);
 
-        if(membersData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">ምንም የተመዘገበ አባል አልተገኘም።</td></tr>`;
-            defaultTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">ምንም የተበላሸ ብድር የለም።</td></tr>`;
-            return;
-        }
+    async function checkMemberStatus() {
+        if (!telegramId) return;
 
-        let hasDefaultLoans = false;
+        try {
+            const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
+            const data = await res.json();
 
-        membersData.forEach(m => {
-            const approved = m.approved_loan || 0;
-            const paid = m.paid_loan || 0;
-            const remaining = approved - paid;
-            
-            let statusBadge = `<span class="badge badge-pending">በማጣራት ላይ</span>`;
-            if (m.status === 'approved') statusBadge = `<span class="badge badge-approved">የጸደቀ</span>`;
-            if (m.status === 'rejected') statusBadge = `<span class="badge badge-danger">ውድቅ የተደረገ</span>`;
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${m.ref_no || '-'}</b></td>
-                <td>${m.first_name} ${m.father_name}</td>
-                <td>${m.phone_number}</td>
-                <td style="color: var(--gold);">${approved.toLocaleString()} ብር</td>
-                <td style="color: var(--success);">${paid.toLocaleString()} ብር</td>
-                <td style="color: var(--danger);">${remaining.toLocaleString()} ብር</td>
-                <td>${statusBadge}</td>
-                <td>
-                    ${m.status !== 'approved' ? `<button class="btn-action btn-approve" onclick="updateMemberStatus('${m.id}', 'approved')">አጽድቅ</button>` : ''}
-                    ${m.status !== 'rejected' ? `<button class="btn-action btn-reject" onclick="updateMemberStatus('${m.id}', 'rejected')">Reject</button>` : ''}
-                    <button class="btn-action btn-reject" style="background:#b91c1c" onclick="openDeleteModal('${m.id}')">ሰርዝ</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-
-            // የተበላሹ/ያልተከፈሉ ብድሮች ካሉ
-            if (remaining > 0 && m.is_defaulted) {
-                hasDefaultLoans = true;
-                const dTr = document.createElement('tr');
-                dTr.innerHTML = `
-                    <td><b>${m.ref_no}</b></td>
-                    <td>${m.first_name} ${m.father_name}</td>
-                    <td style="color: var(--danger); font-weight: bold;">${remaining.toLocaleString()} ብር</td>
-                    <td><span class="badge badge-danger">የዘገየ/የተበላሸ</span></td>
-                    <td>
-                        <button class="btn-action btn-msg" onclick="quickWarning('${m.id}')">ማስጠንቀቂያ ላክ</button>
-                    </td>
-                `;
-                defaultTbody.appendChild(dTr);
+            if (data.exists) {
+                document.getElementById('registerSection').classList.add('hidden');
+                
+                if (data.member.status === 'pending') {
+                    document.getElementById('pendingSection').classList.remove('hidden');
+                } else if (data.member.status === 'approved') {
+                    document.getElementById('passbookSection').classList.remove('hidden');
+                    
+                    // የኔ ደብተር መረጃዎችን ማሳያ
+                    document.getElementById('memberNameDisplay').innerText = `${data.member.first_name} ${data.member.father_name} (${data.member.ref_no})`;
+                    document.getElementById('savingsBalanceDisplay').innerText = `${(data.member.paid_amount || 0).toLocaleString()} ETB`;
+                    document.getElementById('approvedLoanDisplay').innerText = `${(data.member.approved_loan || 0).toLocaleString()} ETB`;
+                    document.getElementById('paidLoanDisplay').innerText = `${(data.member.paid_loan || 0).toLocaleString()} ETB`;
+                    
+                    const remaining = (data.member.approved_loan || 0) - (data.member.paid_loan || 0);
+                    document.getElementById('remainingLoanDisplay').innerText = `${remaining.toLocaleString()} ETB`;
+                }
             }
-        });
-
-        if(!hasDefaultLoans) {
-            defaultTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--success);">ምንም አይነት የተበላሸ ወይም የዘገየ ብድር የለም።</td></tr>`;
+        } catch (e) {
+            console.error("Status check error:", e);
         }
     }
 
-    // Dropdown ምርጫዎችን መሙላት
-    function populateSelects() {
-        const loanSelect = document.getElementById('loanMemberSelect');
-        const msgSelect = document.getElementById('msgMemberSelect');
-        loanSelect.innerHTML = '<option value="">አባል ይምረጡ...</option>';
-        msgSelect.innerHTML = '<option value="">አባል ይምረጡ...</option>';
-
-        membersData.forEach(m => {
-            const opt = `<option value="${m.id}">${m.first_name} ${m.father_name} (${m.ref_no})</option>`;
-            loanSelect.innerHTML += opt;
-            msgSelect.innerHTML += opt;
-        });
-    }
-
-    // 3. የብድርና ዕዳ መረጃዎችን ማዘመን (Update Loan Balance)
-    document.getElementById('updateLoanForm').addEventListener('submit', async (e) => {
+    // Form Submission
+    document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const member_id = document.getElementById('loanMemberSelect').value;
-        const approved_loan = document.getElementById('approvedLoanInput').value;
-        const paid_loan = document.getElementById('paidLoanInput').value;
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> በመላክ ላይ...';
+
+        const formData = new FormData();
+        formData.append('first_name', document.getElementById('firstName').value);
+        formData.append('father_name', document.getElementById('fatherName').value);
+        formData.append('grand_name', document.getElementById('grandName').value);
+        formData.append('country', document.getElementById('countrySelect').value);
+        formData.append('phone_number', document.getElementById('phoneNumber').value);
+        formData.append('tin_number', document.getElementById('tinNumber').value);
+        formData.append('telegram_id', telegramId);
+
+        // Files
+        formData.append('national_id', document.getElementById('nationalId').files[0]);
+        formData.append('user_photo', document.getElementById('userPhoto').files[0]);
+        const tradeLic = document.getElementById('tradeLicense').files[0];
+        if (tradeLic) formData.append('trade_license', tradeLic);
 
         try {
-            const res = await fetch('/api/admin/update_loan', {
+            const res = await fetch('/api/register', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ member_id, approved_loan, paid_loan })
+                body: formData
             });
-            const resData = await res.json();
-            alert(resData.message || "የብድር መረጃው ተዘምኗል!");
-            loadAdminMembers();
-        } catch(err) {
-            alert("ማዘመን አልተቻለም!");
+            const result = await res.json();
+            
+            if (result.success) {
+                alert(result.message);
+                checkMemberStatus();
+            } else {
+                alert(result.message || "ስህተት ተከሰቷል!");
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> መረጃውን ለአድሚን ላክ';
+            }
+        } catch (err) {
+            alert("መረጃውን መላክ አልተቻለም! እባክዎ እንደገና ይሞክሩ።");
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> መረጃውን ለአድሚን ላክ';
         }
     });
-
-    // 4. አባል ማጽደቅ / ውድቅ ማድረግ (Approve / Reject)
-    async function updateMemberStatus(member_id, status) {
-        try {
-            const res = await fetch('/api/admin/update_status', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ member_id, status })
-            });
-            const data = await res.json();
-            alert(data.message);
-            loadAdminMembers();
-        } catch(e) { alert("ሁኔታውን መቀየር አልተቻለም!"); }
-    }
-
-    // 5. አባል መሰረዝ (Delete Member)
-    function openDeleteModal(id) {
-        document.getElementById('deleteTargetId').value = id;
-        document.getElementById('deleteModal').classList.remove('hidden');
-    }
-    function closeDeleteModal() {
-        document.getElementById('deleteModal').classList.add('hidden');
-    }
-    async function confirmDeleteMember() {
-        const id = document.getElementById('deleteTargetId').value;
-        try {
-            const res = await fetch(`/api/admin/delete_member/${id}`, { method: 'DELETE' });
-            const data = await res.json();
-            alert(data.message || "አባሉ ተሰርዟል!");
-            closeDeleteModal();
-            loadAdminMembers();
-        } catch(e) { alert("መሰረዝ አልተቻለም!"); }
-    }
-
-    // 6. ለአባሉ ቀጥታ ማሳወቂያ መላክ
-    document.getElementById('sendMessageForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const payload = {
-            member_id: document.getElementById('msgMemberSelect').value,
-            title: document.getElementById('msgTitle').value,
-            body: document.getElementById('msgBody').value
-        };
-        try {
-            const res = await fetch('/api/admin/send_notification', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            alert(data.message || "መልእክቱ ተልኳል!");
-            document.getElementById('sendMessageForm').reset();
-        } catch(e) { alert("መልእክት መላክ አልተቻለም!"); }
-    });
-
-    function quickWarning(memberId) {
-        document.getElementById('msgMemberSelect').value = memberId;
-        document.getElementById('msgTitle').value = "የአስቸኳይ ብድር ክፍያ ማሳሰቢያ";
-        document.getElementById('msgBody').value = "ውድ አባል፣ ያለብዎትን የብድር ክፍያ ማጠናቀቂያ ጊዜ ያለፈ በመሆኑ እባክዎን በአስቸኳይ ክፍያውን ይፈጽሙ።";
-        window.scrollTo({ top: document.getElementById('sendMessageForm').offsetTop, behavior: 'smooth' });
-    }
 </script>
 </body>
 </html>
