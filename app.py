@@ -36,7 +36,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. አባላት (Members Table)
+    # 1. አባላት (Members Table - updated with is_defaulted)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,6 +52,7 @@ def init_db():
             paid_amount REAL DEFAULT 0.0,
             approved_loan REAL DEFAULT 0.0,
             paid_loan REAL DEFAULT 0.0,
+            is_defaulted INTEGER DEFAULT 0,
             telegram_id TEXT,
             id_card_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -150,12 +151,10 @@ if BOT_TOKEN:
             user_id = str(message.chat.id).strip()
             keyboard = telebot.types.InlineKeyboardMarkup()
             
-            # 1. የተጠቃሚ መተግበሪያ ቁልፍ
             web_app_info = telebot.types.WebAppInfo(url=WEB_APP_URL)
             btn_user = telebot.types.InlineKeyboardButton(text="📱 ተራመድ ሳኮ መተግበሪያን ክፈት", web_app=web_app_info)
             keyboard.add(btn_user)
 
-            # 2. ተጠቃሚው አድሚን ከሆነ የአድሚን ፓናል ቁልፍ ጨምርለት
             if user_id == SUPER_ADMIN_ID:
                 admin_web_info = telebot.types.WebAppInfo(url=f"{WEB_APP_URL}/admin")
                 btn_admin = telebot.types.InlineKeyboardButton(text="📊 የአድሚን ፓናል ክፈት", web_app=admin_web_info)
@@ -174,7 +173,7 @@ if BOT_TOKEN:
             try:
                 prefix, member_id = call.data.split('_')
                 member_id = int(member_id)
-                status_map = {'ap': 'approved', 'can': 'cancelled', 'blk': 'blocked'}
+                status_map = {'ap': 'approved', 'can': 'rejected', 'blk': 'blocked'}
                 new_status = status_map[prefix]
 
                 conn = get_db_connection()
@@ -237,7 +236,46 @@ def get_admin_members():
     cursor.execute("SELECT * FROM members ORDER BY id DESC")
     members = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    return jsonify(members), 200
+    return jsonify({"status": "success", "members": members}), 200
+
+@app.route('/api/admin/update_loan', methods=['POST'])
+def update_loan():
+    data = request.get_json(silent=True) or {}
+    member_id = data.get('member_id')
+    approved = float(data.get('approved_loan', 0))
+    paid = float(data.get('paid_loan', 0))
+
+    if not member_id:
+        return jsonify({"success": False, "message": "እባክዎን አባል ይምረጡ!"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if defaulted (if remaining loan exists and conditions met)
+    remaining = approved - paid
+    is_defaulted = 1 if remaining > 0 else 0
+
+    cursor.execute("""
+        UPDATE members 
+        SET approved_loan = ?, paid_loan = ?, is_defaulted = ? 
+        WHERE id = ?
+    """, (approved, paid, is_defaulted, member_id))
+    
+    cursor.execute("SELECT telegram_id, first_name FROM members WHERE id = ?", (member_id,))
+    member = cursor.fetchone()
+    conn.commit()
+    conn.close()
+
+    if member and member['telegram_id']:
+        msg = (
+            f"📊 **የብድር መረጃዎ ተዘምኗል!**\n\n"
+            f"💵 የተፈቀደ ብድር፦ **{approved:,.2f} ETB**\n"
+            f"✅ የተከፈለ ብድር፦ **{paid:,.2f} ETB**\n"
+            f"🔴 የቀረ ዕዳ፦ **{remaining:,.2f} ETB**"
+        )
+        send_async_msg(member['telegram_id'], msg)
+
+    return jsonify({"status": "success", "message": "የብድርና ዕዳ መረጃው በስኬት ተዘምኗል!"}), 200
 
 @app.route('/api/admin/update_status', methods=['POST'])
 def update_member_status():
@@ -245,7 +283,7 @@ def update_member_status():
     member_id = data.get('member_id')
     status = data.get('status')
 
-    if not member_id or status not in ['approved', 'cancelled', 'blocked']:
+    if not member_id or status not in ['approved', 'rejected', 'cancelled', 'blocked']:
         return jsonify({"success": False, "message": "የተሳሳተ መረጃ!"}), 400
 
     conn = get_db_connection()
@@ -259,61 +297,46 @@ def update_member_status():
     if member and member['telegram_id']:
         status_msgs = {
             "approved": "🎉 **ደስ ደስ ይበልዎት!** የምዝገባ ጥያቄዎ በአድሚኑ ፀድቋል።",
-            "cancelled": "⚠️ **ማሳሰቢያ፦** የምዝገባ ጥያቄዎ አልተቀበለም።",
+            "rejected": "⚠️ **ማሳሰቢያ፦** የምዝገባ ጥያቄዎ አልተቀበለም።",
+            "cancelled": "⚠️ **ማሳሰቢያ፦** የምዝገባ ጥያቄዎ ተሰርዟል።",
             "blocked": "🚫 **ማሳሰቢያ፦** መለያዎ በአድሚን ታግዷል።"
         }
         send_async_msg(member['telegram_id'], status_msgs.get(status, ""))
 
-    return jsonify({"success": True, "message": f"የተጠቃሚው ሁኔታ ወደ {status} ተቀይሯል!"}), 200
+    return jsonify({"status": "success", "message": f"የተጠቃሚው ሁኔታ ወደ {status} ተቀይሯል!"}), 200
 
-@app.route('/api/admin/remove_user', methods=['POST'])
-def remove_user():
-    data = request.get_json(silent=True) or {}
-    member_id = data.get('member_id')
-
+@app.route('/api/admin/delete_member/<int:member_id>', methods=['DELETE'])
+def delete_member(member_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM members WHERE id = ?", (member_id,))
     conn.commit()
     conn.close()
 
-    return jsonify({"success": True, "message": "አባሉ በስኬት ተሰርዟል!"}), 200
+    return jsonify({"status": "success", "message": "አባሉ በስኬት ከሲስተሙ ተሰርዟል!"}), 200
 
-@app.route('/api/admin/send_custom_msg', methods=['POST'])
-def send_custom_msg():
+@app.route('/api/admin/send_notification', methods=['POST'])
+def send_notification():
     data = request.get_json(silent=True) or {}
     member_id = data.get('member_id')
-    custom_msg = data.get('message', '').strip()
+    title = data.get('title', '').strip()
+    body = data.get('body', '').strip()
 
-    if not custom_msg:
-        return jsonify({"success": False, "message": "መልእክቱ ባዶ መሆን አይችልም!"}), 400
+    if not member_id or not body:
+        return jsonify({"status": "error", "message": "እባክዎን አባል እና መልእክት ያስገቡ!"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT telegram_id, first_name FROM members WHERE id = ?", (member_id,))
+    cursor.execute("SELECT telegram_id FROM members WHERE id = ?", (member_id,))
     member = cursor.fetchone()
     conn.close()
 
     if member and member['telegram_id']:
-        formatted_text = f"📩 **ከአድሚን የተላከ መልእክት፦**\n\n{custom_msg}"
+        formatted_text = f"📩 **{title}**\n\n{body}"
         send_async_msg(member['telegram_id'], formatted_text)
-        return jsonify({"success": True, "message": "መልእክቱ ለተጠቃሚው በቴሌግራም ተልኳል!"}), 200
+        return jsonify({"status": "success", "message": "ማሳወቂያው ለተጠቃሚው በቴሌግራም ተልኳል!"}), 200
     else:
-        return jsonify({"success": False, "message": "ተጠቃሚው Telegram ID የለውም!"}), 400
-
-@app.route('/api/admin/set_loan', methods=['POST'])
-def set_loan():
-    data = request.get_json(silent=True) or {}
-    member_id = data.get('member_id')
-    approved_loan = float(data.get('approved_loan', 0))
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE members SET approved_loan = ? WHERE id = ?", (approved_loan, member_id))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"success": True, "message": "የብድር መጠኑ በስኬት ተስተካክሏል!"}), 200
+        return jsonify({"status": "error", "message": "ተጠቃሚው Telegram ID የለውም!"}), 400
 
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
@@ -353,79 +376,6 @@ def verify_otp():
         return jsonify({"status": "success", "role": "super"}), 200
     else:
         return jsonify({"message": "የተሳሳተ ወይም ጊዜው ያለፈበት OTP!"}), 400
-
-@app.route('/api/admin/change_password', methods=['POST'])
-def change_admin_password():
-    data = request.get_json(silent=True) or {}
-    admin_id = str(data.get('admin_id', '')).strip()
-    old_pass = str(data.get('old_pass', '')).strip()
-    new_pass = str(data.get('new_pass', '')).strip()
-
-    if not admin_id or not old_pass or not new_pass:
-        return jsonify({"message": "እባክዎን ሁሉንም መስኮች ይሙሉ!"}), 400
-
-    if admin_id == SUPER_ADMIN_ID:
-        if old_pass == admin_config["password"]:
-            admin_config["password"] = new_pass
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE admins SET password = ? WHERE admin_id = ?", (new_pass, admin_id))
-            conn.commit()
-            conn.close()
-            return jsonify({"message": "የይለፍ ቃል በስኬት ተቀይሯል!"}), 200
-        else:
-            return jsonify({"message": "የድሮው የይለፍ ቃል ስህተት ነው!"}), 400
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM admins WHERE admin_id = ? AND password = ?", (admin_id, old_pass))
-    admin = cursor.fetchone()
-
-    if admin:
-        cursor.execute("UPDATE admins SET password = ? WHERE admin_id = ?", (new_pass, admin_id))
-        conn.commit()
-        conn.close()
-        return jsonify({"message": "የይለፍ ቃል በስኬት ተቀይሯል!"}), 200
-    else:
-        conn.close()
-        return jsonify({"message": "የድሮው የይለፍ ቃል ስህተት ነው!"}), 400
-
-@app.route('/api/admin/assign_role', methods=['POST'])
-def assign_role():
-    data = request.get_json(silent=True) or {}
-    admin_id = str(data.get('admin_id', '')).strip()
-    role = str(data.get('role', '')).strip()
-
-    if not admin_id or not role:
-        return jsonify({"message": "እባክዎን Admin ID እና Role ያስገቡ!"}), 400
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT OR REPLACE INTO admins (admin_id, password, role) VALUES (?, '123456', ?)", (admin_id, role))
-    conn.commit()
-    conn.close()
-
-    msg = f"🎖 **አዲስ የአድሚን ስልጣን ተሰጥቶዎታል!**\n\nየስራ ድርሻዎ፦ **{role.upper()}**\nየመጀመሪያ የይለፍ ቃል፦ `123456`"
-    send_async_msg(admin_id, msg)
-
-    return jsonify({"message": f"አድሚን {admin_id} በ {role} ስልጣን ተሾሟል!"}), 200
-
-@app.route('/api/admin/add_expense', methods=['POST'])
-def add_expense():
-    data = request.get_json(silent=True) or {}
-    desc = data.get('description', '')
-    amount = float(data.get('amount', 0))
-
-    if not desc or amount <= 0:
-        return jsonify({"message": "እባክዎን ትክክለኛ መረጃ ያስገቡ!"}), 400
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO expenses (description, amount) VALUES (?, ?)", (desc, amount))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "ወጪው በስኬት ተመዝግቧል!"}), 200
 
 @app.route('/api/register', methods=['POST'])
 def register_member():
