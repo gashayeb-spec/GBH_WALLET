@@ -34,7 +34,7 @@ bot = telebot.TeleBot(BOT_TOKEN) if BOT_TOKEN else None
 # Database Setup
 # ---------------------------------------------------------
 def get_db_connection():
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -73,7 +73,7 @@ def sanitize_input(text):
     return html.escape(str(text).strip())
 
 # ---------------------------------------------------------
-# TELEGRAM BOT HANDLERS
+# TELEGRAM BOT & INLINE ACTION HANDLERS
 # ---------------------------------------------------------
 if bot:
     @bot.message_handler(commands=['start', 'admin'])
@@ -99,6 +99,53 @@ if bot:
             bot.send_message(message.chat.id, welcome_msg, reply_markup=markup, parse_mode="Markdown")
         except Exception as e:
             print(f"Start command error: {e}")
+
+    # አድሚኑ ከቴሌግራም ቀጥታ Approve/Cancel ሲያደርግ የሚሰራ
+    @bot.callback_query_handler(func=lambda call: True)
+    def callback_inline(call):
+        try:
+            data = call.data.split(":")
+            action = data[0]
+            
+            if action in ["approve_member", "cancel_member"]:
+                member_id = data[1]
+                new_status = "approved" if action == "approve_member" else "rejected"
+                
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("UPDATE members SET status = ? WHERE id = ?", (new_status, member_id))
+                conn.commit()
+                conn.close()
+                
+                status_txt = "✅ አባልነቱ ጸድቋል!" if new_status == "approved" else "❌ አባልነቱ ተሰርዟል!"
+                bot.answer_callback_query(call.id, status_txt)
+                bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                         caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> {status_txt}", parse_mode="HTML")
+            
+            elif action in ["approve_pay", "cancel_pay"]:
+                pay_type = data[1]
+                member_id = data[2]
+                amount = float(data[3])
+
+                if action == "approve_pay":
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    if pay_type == "savings":
+                        cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (amount, member_id))
+                    else: # loan return
+                        cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (amount, member_id))
+                    conn.commit()
+                    conn.close()
+                    
+                    bot.answer_callback_query(call.id, "✅ ክፍያው ተቀባይነት አግኝቶ ደብተሩ ተዘምኗል!")
+                    bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                             caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ✅ ክፍያው ጸድቋል (ደብተሩ ተዘምኗል)", parse_mode="HTML")
+                else:
+                    bot.answer_callback_query(call.id, "❌ ክፍያው ውድቅ ተደርጓል!")
+                    bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                             caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ❌ ክፍያው ውድቅ ተደርጓል", parse_mode="HTML")
+        except Exception as e:
+            print(f"Callback error: {e}")
 
     def run_bot_polling():
         while True:
@@ -150,7 +197,15 @@ def submit_payment():
         amount = req.get('amount')
         telegram_id = req.get('telegram_id')
         ref_no = req.get('ref_no')
-        series_no = req.get('series_no', '')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM members WHERE ref_no = ?", (ref_no,))
+        member = cursor.fetchone()
+        conn.close()
+
+        if not member:
+            return jsonify({"success": False, "message": "አባሉ አልተገኘም!"}), 404
 
         if 'receipt' not in files:
             return jsonify({"success": False, "message": "እባክዎን የባንክ ደረሰኝ ስክሪንሾት ያያይዙ!"}), 400
@@ -160,25 +215,29 @@ def submit_payment():
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         receipt_file.save(save_path)
 
+        # ለቴሌግራም አድሚን ፈጣን Approve/Cancel በተን መላክ
         if bot and SUPER_ADMIN_ID:
-            if pay_type == "savings":
-                type_str = "💰 የቁጠባ ገቢ ደረሰኝ"
-                detail_str = f"<b>የቁጠባ ደብተር ቁጥር:</b> {ref_no}"
-            else:
-                type_str = "💳 የብድር ክፍያ ተመላሽ ደረሰኝ"
-                detail_str = f"<b>የቁጠባ ደብተር:</b> {ref_no}\n<b>የብድር ሴሪ ቁጥር:</b> {series_no}"
-
+            type_str = "💰 የቁጠባ ገቢ" if pay_type == "savings" else "💳 የብድር ክፍያ ተመላሽ"
             caption = (
                 f"📥 <b>አዲስ የክፍያ ማረጋገጫ ተልኳል!</b>\n\n"
-                f"<b>ዓይነት:</b> {type_str}\n"
-                f"{detail_str}\n"
-                f"<b>የተከፈለው መጠን:</b> {amount} ETB\n"
-                f"<b>Telegram ID:</b> {telegram_id}"
+                f"👤 <b>አባል:</b> {member['first_name']} {member['father_name']}\n"
+                f"📞 <b>ስልክ:</b> {member['phone_number']}\n"
+                f"🆔 <b>የቁጠባ No:</b> {member['ref_no']}\n"
+                f"🔢 <b>የብድር ሴሪ:</b> {member['loan_series_no'] or 'የለውም'}\n"
+                f"💵 <b>የተከፈለው መጠን:</b> {amount} ETB\n"
+                f"📌 <b>ዓይነት:</b> {type_str}"
             )
-            with open(save_path, 'rb') as photo:
-                bot.send_photo(SUPER_ADMIN_ID, photo, caption=caption, parse_mode="HTML")
+            
+            markup = types.InlineKeyboardMarkup()
+            markup.add(
+                types.InlineKeyboardButton("✅ Approve (አጽድቅ)", callback_data=f"approve_pay:{pay_type}:{member['id']}:{amount}"),
+                types.InlineKeyboardButton("❌ Cancel (ሰርዝ)", callback_data=f"cancel_pay:{pay_type}:{member['id']}:{amount}")
+            )
 
-        return jsonify({"success": True, "message": "የክፍያ ማረጋገጫው ለአድሚን በስኬት ተልኳል! አድሚኑ አረጋግጦ ሂሳብዎን ያዘምነዋል።"}), 200
+            with open(save_path, 'rb') as photo:
+                bot.send_photo(SUPER_ADMIN_ID, photo, caption=caption, reply_markup=markup, parse_mode="HTML")
+
+        return jsonify({"success": True, "message": "የክፍያ ማረጋገጫው ለአድሚን በስኬት ተልኳል! አድሚኑ እንደተቀበለው ደብተሩ ይዘመናል።"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -200,7 +259,7 @@ def register_member():
 
         cursor.execute("SELECT COUNT(*) FROM members")
         count = cursor.fetchone()[0]
-        ref_no = f"SAV-{(count + 1):03d}" # የቁጠባ ደብተር ቁጥር
+        ref_no = f"SAV-{(count + 1):03d}"
 
         nat_id_path, trade_lic_path, photo_path = "", "", ""
 
@@ -246,7 +305,12 @@ def register_member():
                 f"<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n"
                 f"<b>ስልክ:</b> {req.get('phone_number')}"
             )
-            bot.send_message(SUPER_ADMIN_ID, msg_text, parse_mode="HTML")
+            markup = types.InlineKeyboardMarkup()
+            markup.add(
+                types.InlineKeyboardButton("✅ Approve", callback_data=f"approve_member:{new_id}"),
+                types.InlineKeyboardButton("❌ Cancel", callback_data=f"cancel_member:{new_id}")
+            )
+            bot.send_message(SUPER_ADMIN_ID, msg_text, reply_markup=markup, parse_mode="HTML")
 
         return jsonify({"success": True, "message": "ምዝገባዎ በስኬት ተልኳል! አድሚኑ ሲያጸድቀው ደብተሮችዎ ይከፈታሉ።"}), 200
     except Exception as e:
@@ -278,22 +342,38 @@ def update_status():
 def update_financials():
     try:
         data = request.get_json(silent=True) or {}
+        member_id = data.get('member_id')
+        
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE members 
-            SET paid_amount = ?, approved_loan = ?, paid_loan = ?, loan_series_no = ?
-            WHERE id = ?
-        ''', (
-            float(data.get('paid_amount', 0)), 
-            float(data.get('approved_loan', 0)), 
-            float(data.get('paid_loan', 0)),
-            data.get('loan_series_no', ''),
-            data.get('member_id')
-        ))
+
+        # Deduction or Update
+        deduct_savings = float(data.get('deduct_savings', 0))
+        deduct_loan = float(data.get('deduct_loan', 0))
+
+        if deduct_savings > 0 or deduct_loan > 0:
+            cursor.execute('''
+                UPDATE members 
+                SET paid_amount = MAX(0, paid_amount - ?),
+                    paid_loan = paid_loan + ?
+                WHERE id = ?
+            ''', (deduct_savings, deduct_loan, member_id))
+        else:
+            cursor.execute('''
+                UPDATE members 
+                SET paid_amount = ?, approved_loan = ?, paid_loan = ?, loan_series_no = ?
+                WHERE id = ?
+            ''', (
+                float(data.get('paid_amount', 0)), 
+                float(data.get('approved_loan', 0)), 
+                float(data.get('paid_loan', 0)),
+                data.get('loan_series_no', ''),
+                member_id
+            ))
+
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": "የደብተር እና የፋይናንስ መረጃው በስኬት ተዘምኗል!"}), 200
+        return jsonify({"status": "success", "message": "የአባሉ ደብተር በስኬት ተዘምኗል!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
