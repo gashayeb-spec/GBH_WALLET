@@ -89,6 +89,28 @@ def init_db():
         )
     ''')
 
+    # 4. NEW: Messages Table (ለአድሚንና አባል የግል መልእክት ልውውጥ)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ref_no TEXT,
+            sender TEXT, -- 'admin' or 'member'
+            message_text TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # 5. NEW: Announcements Table (ለበዓላትና አጠቃላይ ማስታወቂያዎች)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS announcements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            content TEXT,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Default Bank Account (ነባሪ የባንክ ሂሳብ)
     cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
     if not cursor.fetchone():
@@ -401,7 +423,7 @@ def get_admin_members():
     return jsonify({"status": "success", "members": members}), 200
 
 # ---------------------------------------------------------
-# NEW: ደረሰኞችን በቀንና በዓይነት (ቁጠባ vs ብድር) አውጥቶ ማሳያ
+# ደረሰኞችን በቀንና በዓይነት (ቁጠባ vs ብድር) አውጥቶ ማሳያ
 # ---------------------------------------------------------
 @app.route('/api/admin/receipts', methods=['GET'])
 def get_admin_receipts():
@@ -436,7 +458,7 @@ def get_admin_receipts():
     return jsonify({"status": "success", "receipts": receipts}), 200
 
 # ---------------------------------------------------------
-# NEW: ደረሰኝ ከአድሚን ፓናል Approve/Reject ማድረጊያ
+# ደረሰኝ ከአድሚን ፓናል Approve/Reject ማድረጊያ
 # ---------------------------------------------------------
 @app.route('/api/admin/receipt/action', methods=['POST'])
 def process_receipt_action():
@@ -478,7 +500,7 @@ def process_receipt_action():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# NEW: አጠቃላይ የአድሚን ዳሽቦርድ ስታቲስቲክስ
+# አጠቃላይ የአድሚን ዳሽቦርድ ስታቲስቲክስ
 # ---------------------------------------------------------
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
@@ -570,6 +592,145 @@ def update_financials():
         return jsonify({"status": "success", "message": "የአባሉ ደብተር በስኬት ተዘምኗል!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# =========================================================
+# NEW 1: ለአድሚንና አባል ቀጥታ የመልእክት ልውውጥ (CHAT API)
+# =========================================================
+@app.route('/api/messages/send', methods=['POST'])
+def send_message():
+    try:
+        data = request.get_json(silent=True) or {}
+        ref_no = sanitize_input(data.get('ref_no'))
+        sender = sanitize_input(data.get('sender')) # 'admin' or 'member'
+        msg_text = sanitize_input(data.get('message_text'))
+
+        if not ref_no or not msg_text:
+            return jsonify({"status": "error", "message": "ያልተሟላ መረጃ!"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO messages (ref_no, sender, message_text)
+            VALUES (?, ?, ?)
+        ''', (ref_no, sender, msg_text))
+        conn.commit()
+
+        # አድሚኑ ለተጠቃሚው መልእክት ሲልክ በቴሌግራም ቦት ኖቲፊኬሽን እንዲደርሰው ማድረግ
+        if sender == 'admin' and bot:
+            cursor.execute("SELECT telegram_id, first_name FROM members WHERE ref_no = ?", (ref_no,))
+            mem = cursor.fetchone()
+            if mem and mem['telegram_id']:
+                try:
+                    bot.send_message(
+                        mem['telegram_id'], 
+                        f"📩 <b>አዲስ መልእክት ከአድሚን!</b>\n\n{msg_text}\n\n👉 ለመመለስ ሚኒ አፑን ይክፈቱ።", 
+                        parse_mode="HTML"
+                    )
+                except Exception as t_err:
+                    print("Telegram notification error:", t_err)
+
+        conn.close()
+        return jsonify({"status": "success", "message": "መልእክቱ ተልኳል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/messages/get', methods=['GET'])
+def get_messages():
+    try:
+        ref_no = request.args.get('ref_no')
+        if not ref_no:
+            return jsonify({"status": "error", "message": "Ref No አልተጠቀሰም!"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM messages WHERE ref_no = ? ORDER BY id ASC", (ref_no,))
+        messages = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"status": "success", "messages": messages}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# =========================================================
+# NEW 2: የተበዳሪዎች ክፍያ ሁኔታ መከታተያ (BORROWERS STATUS API)
+# =========================================================
+@app.route('/api/admin/borrowers/status', methods=['GET'])
+def get_borrowers_status():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # ብድር የተፈቀደላቸውን አባላት ማውጣት
+        cursor.execute("SELECT * FROM members WHERE approved_loan > 0 ORDER BY id DESC")
+        borrowers = [dict(row) for row in cursor.fetchall()]
+        
+        categorized = []
+        for b in borrowers:
+            approved = float(b.get('approved_loan', 0))
+            paid = float(b.get('paid_loan', 0))
+            remaining = approved - paid
+            
+            # ክፍያ ደረጃን መወሰን
+            if remaining <= 0:
+                health_status = "fully_paid" # ሙሉ በሙሉ የከፈለ
+                status_label = "✅ ብድሩን ሙሉ በሙሉ የጨረሰ"
+            elif paid > 0:
+                health_status = "good" # በአግባቡ እየከፈለ ያለ
+                status_label = "🟢 ክፍያ በአግባቡ እየከፈለ ያለ"
+            else:
+                health_status = "pending_start" # ገና ክፍያ ያልጀመረ / ሊዘገይ የሚችል
+                status_label = "⚠️ ክፍያ ያልጀመረ / የዘገየ"
+
+            b_info = dict(b)
+            b_info['remaining_loan'] = remaining
+            b_info['health_status'] = health_status
+            b_info['status_label'] = status_label
+            categorized.append(b_info)
+
+        conn.close()
+        return jsonify({"status": "success", "borrowers": categorized}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# =========================================================
+# NEW 3: አጠቃላይ የበዓላት እና የማስታወቂያ ማሰራጫ (ANNOUNCEMENT API)
+# =========================================================
+@app.route('/api/admin/announcement', methods=['POST'])
+def create_announcement():
+    try:
+        data = request.get_json(silent=True) or {}
+        title = sanitize_input(data.get('title'))
+        content = sanitize_input(data.get('content'))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # የቀደሙትን አክቲቭ ማስታወቂያዎች disable ማድረግ
+        cursor.execute("UPDATE announcements SET status = 'disabled'")
+        
+        cursor.execute("INSERT INTO announcements (title, content, status) VALUES (?, ?, 'active')", (title, content))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ተሰራጭቷል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/announcements', methods=['GET'])
+def get_active_announcement():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM announcements WHERE status = 'active' ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return jsonify({"status": "success", "announcement": dict(row)}), 200
+        return jsonify({"status": "success", "announcement": None}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
