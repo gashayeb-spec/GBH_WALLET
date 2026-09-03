@@ -53,6 +53,40 @@
         .status-banner { text-align: center; padding: 20px; border-radius: 10px; font-weight: bold; }
         .pending { background: rgba(245, 158, 11, 0.12); color: var(--gold); border: 1px solid var(--gold); }
         .hidden { display: none !important; }
+
+        /* አዲስ፡ የበዓል ማስታወቂያ እና የግል ሜሴጆች Styling */
+        .announcement-card {
+            background: linear-gradient(135deg, #1e1b4b, #311b92);
+            border: 1px solid #6366f1;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+        }
+        .announcement-title { color: #a5b4fc; font-weight: bold; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .announcement-text { font-size: 0.9rem; line-height: 1.5; color: #e0e7ff; }
+
+        .personal-msg-paid {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--success);
+            color: #a7f3d0;
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 0.88rem;
+            line-height: 1.4;
+        }
+
+        .personal-msg-unpaid {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--danger);
+            color: #fca5a5;
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 0.88rem;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -62,6 +96,28 @@
     <a id="adminLinkBtn" href="/admin" class="admin-nav-btn hidden">
         <i class="fas fa-user-shield"></i> ወደ አድሚን ፓናል ሂድ (Admin Dashboard)
     </a>
+
+    <!-- 1. አጠቃላይ ማስታወቂያዎች (የበዓል ማስታወቂያና ሌሎች) -->
+    <div id="announcementBox" class="announcement-card hidden">
+        <div class="announcement-title">
+            <i class="fas fa-bullhorn" style="color: #f59e0b;"></i>
+            <span id="announcementHeader">የአድሚን ማስታወቂያ</span>
+        </div>
+        <div id="announcementContent" class="announcement-text">
+            <!-- ማስታወቂያዎች እዚህ በDynamic ሁኔታ ይገባሉ -->
+        </div>
+    </div>
+
+    <!-- 2. የግል ክፍያ ማሳወቂያ ቦክሶች (ከፈሉ / አልከፈሉም) -->
+    <div id="personalPaidMsgBox" class="personal-msg-paid hidden">
+        <i class="fas fa-check-circle" style="color: var(--success); font-size: 1.1rem; margin-right: 5px;"></i>
+        <span id="personalPaidText"></span>
+    </div>
+
+    <div id="personalUnpaidMsgBox" class="personal-msg-unpaid hidden">
+        <i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 1.1rem; margin-right: 5px;"></i>
+        <span id="personalUnpaidText"></span>
+    </div>
 
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
@@ -225,6 +281,7 @@
     window.addEventListener('DOMContentLoaded', () => {
         checkMemberStatus();
         loadBankAccount();
+        loadNotificationsAndAnnouncements();
     });
 
     async function loadBankAccount() {
@@ -237,6 +294,34 @@
             document.getElementById('loanBankText').innerText = bankText;
         } catch (e) {
             console.error("Bank account load error:", e);
+        }
+    }
+
+    /* አዲስ፡ የበዓል ማስታወቂያዎችን እና የግል ክፍያ ማሳወቂያዎችን የሚጭን Function */
+    async function loadNotificationsAndAnnouncements() {
+        try {
+            const res = await fetch(`/api/member/notifications?telegram_id=${telegramId}`);
+            const data = await res.json();
+
+            // 1. አጠቃላይ/የበዓል ማስታወቂያ ካለ
+            if (data.announcement && data.announcement.text) {
+                document.getElementById('announcementHeader').innerText = data.announcement.title || 'የአድሚን ማስታወቂያ';
+                document.getElementById('announcementContent').innerText = data.announcement.text;
+                document.getElementById('announcementBox').classList.remove('hidden');
+            }
+
+            // 2. የግል ክፍያ ማሳወቂያ (ከፈሉ ወይም አልከፈሉም)
+            if (data.personal_msg) {
+                if (data.personal_msg.status === 'paid') {
+                    document.getElementById('personalPaidText').innerText = data.personal_msg.text || "ወቅታዊ ክፍያዎን ስለፈጸሙ እናመሰግናለን!";
+                    document.getElementById('personalPaidMsgBox').classList.remove('hidden');
+                } else if (data.personal_msg.status === 'unpaid') {
+                    document.getElementById('personalUnpaidText').innerText = data.personal_msg.text || "ማሳሰቢያ፡ ያልተከፈለ ክፍያ/ዕዳ አለብዎት። እባክዎን በወቅቱ ይክፈሉ።";
+                    document.getElementById('personalUnpaidMsgBox').classList.remove('hidden');
+                }
+            }
+        } catch (e) {
+            console.error("Notification load error:", e);
         }
     }
 
