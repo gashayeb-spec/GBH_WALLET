@@ -18,11 +18,28 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .header h2 { color: var(--gold); font-size: 1.3rem; }
         
-        .top-controls { display: flex; gap: 10px; width: 100%; max-width: 500px; }
-        .search-box { flex: 1; padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        /* Dashboard Analytics Section */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .stat-card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+        .stat-card h4 { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
+        .stat-card .value { font-size: 1.2rem; font-weight: bold; color: var(--gold); }
+        .stat-card .value.success { color: var(--success); }
+
+        /* Bank Account Section */
+        .bank-section { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .bank-section input { flex: 1; padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; min-width: 250px; }
+
+        /* Tabs Control */
+        .tab-controls { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
+        .tab-btn { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .tab-btn.active { background: var(--gold); color: #000; }
+
+        .top-controls { display: flex; gap: 10px; width: 100%; max-width: 600px; }
+        .search-box, .date-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .search-box { flex: 1; }
         .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
         
-        .table-responsive { overflow-x: auto; background: var(--card); border-radius: 8px; border: 1px solid var(--border); }
+        .table-responsive { overflow-x: auto; background: var(--card); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1050px; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
         th { background: #1e293b; color: var(--gold); white-space: nowrap; }
@@ -58,34 +75,115 @@
 <div class="container">
     <div class="header">
         <h2><i class="fas fa-users-cog"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h2>
-        <div class="top-controls">
-            <input type="text" id="searchInput" class="search-box" placeholder="በስም ወይም በስልክ ፈልግ..." onkeyup="filterMembers()">
-            <button class="btn-refresh" onclick="loadMembers()"><i class="fas fa-sync"></i> አድስ</button>
+    </div>
+
+    <!-- Analytics Dashboard Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h4>ጠቅላላ አባላት</h4>
+            <div class="value" id="statTotalMembers">0</div>
+        </div>
+        <div class="stat-card">
+            <h4>Pending አባላት</h4>
+            <div class="value" id="statPendingMembers">0</div>
+        </div>
+        <div class="stat-card">
+            <h4>የዛሬ ገቢ (Daily)</h4>
+            <div class="value success" id="statDailyIncome">0 ብር</div>
+        </div>
+        <div class="stat-card">
+            <h4>የሳምንት ገቢ (Weekly)</h4>
+            <div class="value success" id="statWeeklyIncome">0 ብር</div>
+        </div>
+        <div class="stat-card">
+            <h4>የወር ገቢ (Monthly)</h4>
+            <div class="value success" id="statMonthlyIncome">0 ብር</div>
+        </div>
+        <div class="stat-card">
+            <h4>የዓመት ገቢ (Yearly)</h4>
+            <div class="value success" id="statYearlyIncome">0 ብር</div>
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table>
-            <thead>
-                <tr>
-                    <th>ቀን</th>
-                    <th>የቁጠባ No</th>
-                    <th>የብድር ሴሪ</th>
-                    <th>ሙሉ ስም</th>
-                    <th>ስልክ / TIN</th>
-                    <th>የሰውየው ዶክመንቶች</th>
-                    <th>ቁጠባ (ETB)</th>
-                    <th>የተፈቀደ ብድር</th>
-                    <th>የተከፈለ ብድር</th>
-                    <th>ሁኔታ</th>
-                    <th>እርምጃዎች (Actions)</th>
-                </tr>
-            </thead>
-            <tbody id="membersTableBody">
-                <tr><td colspan="11" style="text-align: center;">መረጃዎች በመጫን ላይ...</td></tr>
-            </tbody>
-        </table>
+    <!-- Bank Account Setting Section -->
+    <div class="bank-section">
+        <label style="font-weight: bold; color: var(--gold);"><i class="fas fa-university"></i> የባንክ ሂሳብ መቼት (Set Bank Account):</label>
+        <input type="text" id="bankAccountInput" placeholder="1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)">
+        <button class="btn-action btn-approve" style="padding: 9px 15px;" onclick="saveBankAccount()"><i class="fas fa-save"></i> አስቀምጥ</button>
     </div>
+
+    <!-- Main Navigation Tabs -->
+    <div class="tab-controls">
+        <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> የአባላት መዝገብ</button>
+        <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> የቁጠባ ሪሲቶች</button>
+        <button class="tab-btn" id="tabLoanBtn" onclick="switchTab('loan')"><i class="fas fa-hand-holding-usd"></i> የብድር ተመላሽ ሪሲቶች</button>
+    </div>
+
+    <!-- TAB 1: MEMBERS TABLE -->
+    <div id="membersTabSection">
+        <div class="header">
+            <div class="top-controls">
+                <input type="text" id="searchInput" class="search-box" placeholder="በስም ወይም በስልክ ፈልግ..." onkeyup="filterMembers()">
+                <button class="btn-refresh" onclick="loadMembers()"><i class="fas fa-sync"></i> አድስ</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ቀን</th>
+                        <th>የቁጠባ No</th>
+                        <th>የብድር ሴሪ</th>
+                        <th>ሙሉ ስም</th>
+                        <th>ስልክ / TIN</th>
+                        <th>የሰውየው ዶክመንቶች</th>
+                        <th>ቁጠባ (ETB)</th>
+                        <th>የተፈቀደ ብድር</th>
+                        <th>የተከፈለ ብድር</th>
+                        <th>ሁኔታ</th>
+                        <th>እርምጃዎች (Actions)</th>
+                    </tr>
+                </thead>
+                <tbody id="membersTableBody">
+                    <tr><td colspan="11" style="text-align: center;">መረጃዎች በመጫን ላይ...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 2 & 3: RECEIPTS TABLE (Savings / Loan Returns) -->
+    <div id="receiptsTabSection" class="hidden">
+        <div class="header">
+            <h3 id="receiptSectionTitle" style="color: var(--gold);">የሪሲቶች መዝገብ</h3>
+            <div class="top-controls">
+                <label style="align-self: center; font-size: 0.85rem;">ቀን መምረጫ፦ </label>
+                <input type="date" id="receiptDateFilter" class="date-box" onchange="loadReceipts()">
+                <button class="btn-refresh" onclick="resetReceiptDate()"><i class="fas fa-undo"></i> ሁሉንም አሳይ</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>የተላከበት ቀን</th>
+                        <th>የቁጠባ No</th>
+                        <th>የአባል ስም</th>
+                        <th>ስልክ</th>
+                        <th>የክፍያ መጠን</th>
+                        <th>ደረሰኝ (Screenshot)</th>
+                        <th>ሁኔታ</th>
+                        <th>እርምጃዎች (Actions)</th>
+                    </tr>
+                </thead>
+                <tbody id="receiptsTableBody">
+                    <tr><td colspan="8" style="text-align: center;">ደረሰኞች በመጫን ላይ...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <!-- Modal for Deducting Amount Directly -->
@@ -143,9 +241,82 @@
 
 <script>
     let allMembersData = [];
+    let currentTab = 'members'; // 'members', 'savings', 'loan'
 
-    window.addEventListener('DOMContentLoaded', loadMembers);
+    window.addEventListener('DOMContentLoaded', () => {
+        loadAnalytics();
+        loadBankAccount();
+        loadMembers();
+    });
 
+    // 1. Dashboard Analytics Load
+    async function loadAnalytics() {
+        try {
+            const res = await fetch('/api/admin/analytics');
+            const data = await res.json();
+            if (data.status === "success" && data.analytics) {
+                const a = data.analytics;
+                document.getElementById('statTotalMembers').innerText = a.total_members;
+                document.getElementById('statPendingMembers').innerText = a.pending_members;
+                document.getElementById('statDailyIncome').innerText = a.daily_income.toLocaleString() + ' ብር';
+                document.getElementById('statWeeklyIncome').innerText = a.weekly_income.toLocaleString() + ' ብር';
+                document.getElementById('statMonthlyIncome').innerText = a.monthly_income.toLocaleString() + ' ብር';
+                document.getElementById('statYearlyIncome').innerText = a.yearly_income.toLocaleString() + ' ብር';
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    // 2. Bank Account Setting Load & Save
+    async function loadBankAccount() {
+        try {
+            const res = await fetch('/api/settings/bank');
+            const data = await res.json();
+            if (data.bank_account) {
+                document.getElementById('bankAccountInput').value = data.bank_account;
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    async function saveBankAccount() {
+        const bankInfo = document.getElementById('bankAccountInput').value;
+        try {
+            const res = await fetch('/api/admin/settings/bank', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bank_account: bankInfo })
+            });
+            const data = await res.json();
+            alert(data.message);
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+    }
+
+    // 3. Tab Switching Logic
+    function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById('tabMembersBtn').classList.remove('active');
+        document.getElementById('tabSavingsBtn').classList.remove('active');
+        document.getElementById('tabLoanBtn').classList.remove('active');
+
+        if (tab === 'members') {
+            document.getElementById('tabMembersBtn').classList.add('active');
+            document.getElementById('membersTabSection').classList.remove('hidden');
+            document.getElementById('receiptsTabSection').classList.add('hidden');
+            loadMembers();
+        } else {
+            if (tab === 'savings') {
+                document.getElementById('tabSavingsBtn').classList.add('active');
+                document.getElementById('receiptSectionTitle').innerText = "💰 የቁጠባ ገቢ ደረሰኞች መዝገብ";
+            } else {
+                document.getElementById('tabLoanBtn').classList.add('active');
+                document.getElementById('receiptSectionTitle').innerText = "💳 የብድር ተመላሽ ደረሰኞች መዝገብ";
+            }
+            document.getElementById('membersTabSection').classList.add('hidden');
+            document.getElementById('receiptsTabSection').classList.remove('hidden');
+            loadReceipts();
+        }
+    }
+
+    // 4. Load Members
     async function loadMembers() {
         try {
             const res = await fetch('/api/admin/members');
@@ -154,9 +325,7 @@
                 allMembersData = data.members;
                 renderTable(allMembersData);
             }
-        } catch (e) {
-            console.error(e);
-        }
+        } catch (e) { console.error(e); }
     }
 
     function renderTable(members) {
@@ -196,6 +365,69 @@
         });
     }
 
+    // 5. Load Receipts (By Type and Selected Date Filter)
+    async function loadReceipts() {
+        const dateVal = document.getElementById('receiptDateFilter').value;
+        const url = `/api/admin/receipts?type=${currentTab}&date=${dateVal}`;
+
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            const tbody = document.getElementById('receiptsTableBody');
+            tbody.innerHTML = '';
+
+            if (data.status === "success" && data.receipts && data.receipts.length > 0) {
+                data.receipts.forEach(r => {
+                    const tr = document.createElement('tr');
+                    let badgeClass = r.status === 'approved' ? 'badge-approved' : (r.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
+                    const dateStr = r.created_at ? r.created_at.replace('T', ' ').split('.')[0] : '-';
+
+                    let actionsHtml = '-';
+                    if (r.status === 'pending') {
+                        actionsHtml = `
+                            <button class="btn-action btn-approve" onclick="actionReceipt(${r.id}, 'approve')"><i class="fas fa-check"></i> አጽድቅ</button>
+                            <button class="btn-action btn-reject" onclick="actionReceipt(${r.id}, 'reject')"><i class="fas fa-times"></i> ሰርዝ</button>
+                        `;
+                    }
+
+                    tr.innerHTML = `
+                        <td style="font-size: 0.75rem;">${dateStr}</td>
+                        <td><b>${r.ref_no}</b></td>
+                        <td><b>${r.first_name} ${r.father_name}</b></td>
+                        <td>${r.phone_number}</td>
+                        <td style="color: var(--success); font-weight: bold;">${(r.amount || 0).toLocaleString()} ብር</td>
+                        <td><a class="doc-link" href="/${r.receipt_path}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
+                        <td><span class="badge ${badgeClass}">${r.status}</span></td>
+                        <td>${actionsHtml}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">በዚህ ቀን የተላከ ደረሰኝ አልተገኘም።</td></tr>';
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function resetReceiptDate() {
+        document.getElementById('receiptDateFilter').value = '';
+        loadReceipts();
+    }
+
+    async function actionReceipt(receiptId, action) {
+        try {
+            const res = await fetch('/api/admin/receipt/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receipt_id: receiptId, action: action })
+            });
+            const data = await res.json();
+            alert(data.message);
+            loadReceipts();
+            loadAnalytics();
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+    }
+
+    // Modal Functions (Preserved)
     function openDeductModal(id, name) {
         document.getElementById('deductMemberId').value = id;
         document.getElementById('deductMemberName').innerText = `አባል፦ ${name}`;
@@ -223,9 +455,8 @@
             alert(data.message);
             closeDeductModal();
             loadMembers();
-        } catch (e) {
-            alert("ስህተት ተከሰቷል!");
-        }
+            loadAnalytics();
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     function openModal(id, seriesNo, paid, approved, paidLoan) {
@@ -261,9 +492,8 @@
             alert(data.message);
             closeModal();
             loadMembers();
-        } catch (e) {
-            alert("ስህተት ተከሰቷል!");
-        }
+            loadAnalytics();
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     async function updateStatus(id, status) {
@@ -276,9 +506,8 @@
             const data = await res.json();
             alert(data.message);
             loadMembers();
-        } catch (e) {
-            alert("ስህተት ተከሰቷል!");
-        }
+            loadAnalytics();
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     function filterMembers() {
