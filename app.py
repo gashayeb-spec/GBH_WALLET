@@ -16,26 +16,45 @@ app = Flask(__name__)
 CORS(app)
 
 # ---------------------------------------------------------
-# Configurations
+# Configurations & Environment Paths
 # ---------------------------------------------------------
-UPLOAD_FOLDER = os.path.join('static', 'uploads')
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Security: Fallbacks provided safely via environment
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8416599811:AAGJEB4bu2fM1r76NnhfCEEo5ciFBJzh3i8").strip()
 SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 
-DB_NAME = "database.db"
+DB_NAME = os.path.join(DATA_DIR, "database.db")
 
 bot = telebot.TeleBot(BOT_TOKEN) if BOT_TOKEN else None
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def format_file_url(path):
+    if not path:
+        return ""
+    # Convert local file path to browser accessible path
+    return "/" + path.replace("\\", "/").lstrip("/")
+
+def sanitize_input(text):
+    if text is None: return ""
+    return html.escape(str(text).strip())
+
 # ---------------------------------------------------------
-# Database Setup & Migrations
+# Database Setup & Thread-Safe Connection
 # ---------------------------------------------------------
 def get_db_connection():
-    conn = sqlite3.connect(DB_NAME, timeout=10)
+    conn = sqlite3.connect(DB_NAME, timeout=30)
     conn.row_factory = sqlite3.Row
+    # Enable WAL mode to prevent 'database is locked' errors under multi-thread usage
+    conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
 def init_db():
@@ -66,7 +85,7 @@ def init_db():
         )
     ''')
 
-    # 2. Receipts Table (ለቁጠባና ብድር ተመላሽ ደረሰኞች መዝገብ)
+    # 2. Receipts Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS receipts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +100,7 @@ def init_db():
         )
     ''')
 
-    # 3. Settings Table (ለባንክ ሂሳብ ቁጥሮች መረጃ ማስቀመጫ)
+    # 3. Settings Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -89,18 +108,18 @@ def init_db():
         )
     ''')
 
-    # 4. NEW: Messages Table (ለአድሚንና አባል የግል መልእክት ልውውጥ)
+    # 4. Messages Table (አድሚንና አባል የግል መልእክት)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ref_no TEXT,
-            sender TEXT, -- 'admin' or 'member'
+            sender TEXT,
             message_text TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
-    # 5. NEW: Announcements Table (ለበዓላትና አጠቃላይ ማስታወቂያዎች)
+    # 5. Announcements Table (ማስታወቂያዎች)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS announcements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,7 +130,7 @@ def init_db():
         )
     ''')
 
-    # Default Bank Account (ነባሪ የባንክ ሂሳብ)
+    # Default Bank Account
     cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
     if not cursor.fetchone():
         cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
@@ -122,12 +141,8 @@ def init_db():
 
 init_db()
 
-def sanitize_input(text):
-    if text is None: return ""
-    return html.escape(str(text).strip())
-
 # ---------------------------------------------------------
-# TELEGRAM BOT & INLINE ACTION HANDLERS
+# TELEGRAM BOT HANDLERS
 # ---------------------------------------------------------
 if bot:
     @bot.message_handler(commands=['start', 'admin'])
@@ -154,7 +169,6 @@ if bot:
         except Exception as e:
             print(f"Start command error: {e}")
 
-    # አድሚኑ ከቴሌግራም ቀጥታ Approve/Cancel ሲያደርግ የሚሰራ
     @bot.callback_query_handler(func=lambda call: True)
     def callback_inline(call):
         try:
@@ -188,7 +202,7 @@ if bot:
                     if action == "approve_pay" and receipt['status'] == 'pending':
                         if receipt['pay_type'] == "savings":
                             cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
-                        else: # loan
+                        else:
                             cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
                         
                         cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
@@ -218,7 +232,7 @@ if bot:
     threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
-# Web Routes
+# Web Page Routes
 # ---------------------------------------------------------
 @app.route('/')
 def home():
@@ -240,14 +254,17 @@ def get_member_status():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM members WHERE telegram_id = ?", (telegram_id,))
-    member = cursor.fetchone()
+    row = cursor.fetchone()
     conn.close()
 
-    if member:
-        return jsonify({"exists": True, "member": dict(member), "admin_id": SUPER_ADMIN_ID})
+    if row:
+        member = dict(row)
+        member['national_id_path'] = format_file_url(member.get('national_id_path'))
+        member['trade_license_path'] = format_file_url(member.get('trade_license_path'))
+        member['photo_path'] = format_file_url(member.get('photo_path'))
+        return jsonify({"exists": True, "member": member, "admin_id": SUPER_ADMIN_ID})
     return jsonify({"exists": False, "admin_id": SUPER_ADMIN_ID})
 
-# ባንክ አካውንት መረጃ ለተጠቃሚ ማቅረቢያ
 @app.route('/api/settings/bank', methods=['GET'])
 def get_bank_account():
     conn = get_db_connection()
@@ -258,7 +275,6 @@ def get_bank_account():
     bank_info = row['value'] if row else "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)"
     return jsonify({"bank_account": bank_info})
 
-# አድሚን የባንክ አካውንት ቁጥር መቀየሪያ
 @app.route('/api/admin/settings/bank', methods=['POST'])
 def set_bank_account():
     try:
@@ -280,7 +296,7 @@ def submit_payment():
         req = request.form
         files = request.files
 
-        pay_type = req.get('type') # 'savings' or 'loan'
+        pay_type = req.get('type')
         amount = float(req.get('amount', 0))
         ref_no = req.get('ref_no')
 
@@ -293,16 +309,19 @@ def submit_payment():
             conn.close()
             return jsonify({"success": False, "message": "አባሉ አልተገኘም!"}), 404
 
-        if 'receipt' not in files:
+        if 'receipt' not in files or files['receipt'].filename == '':
             conn.close()
             return jsonify({"success": False, "message": "እባክዎን የባንክ ደረሰኝ ስክሪንሾት ያያይዙ!"}), 400
 
         receipt_file = files['receipt']
+        if not allowed_file(receipt_file.filename):
+            conn.close()
+            return jsonify({"success": False, "message": "የተሳሳተ የፋይል ዓይነት! (png, jpg, jpeg, pdf ብቻ)"}), 400
+
         filename = secure_filename(f"pay_{pay_type}_{ref_no}_{receipt_file.filename}")
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         receipt_file.save(save_path)
 
-        # በደረሰኞች ሰንጠረዥ (receipts table) መዝግቦ ማስቀመጥ
         cursor.execute('''
             INSERT INTO receipts (member_id, ref_no, pay_type, amount, receipt_path, status)
             VALUES (?, ?, ?, ?, ?, 'pending')
@@ -312,7 +331,6 @@ def submit_payment():
         conn.commit()
         conn.close()
 
-        # ለቴሌግራም አድሚን ፈጣን Approve/Cancel በተን መላክ
         if bot and SUPER_ADMIN_ID:
             type_str = "💰 የቁጠባ ገቢ" if pay_type == "savings" else "💳 የብድር ክፍያ ተመላሽ"
             caption = (
@@ -362,21 +380,24 @@ def register_member():
 
         if 'national_id' in files and files['national_id'].filename != '':
             f = files['national_id']
-            filename = secure_filename(f"{ref_no}_nid_{f.filename}")
-            nat_id_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            f.save(nat_id_path)
+            if allowed_file(f.filename):
+                filename = secure_filename(f"{ref_no}_nid_{f.filename}")
+                nat_id_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                f.save(nat_id_path)
 
         if 'user_photo' in files and files['user_photo'].filename != '':
             f = files['user_photo']
-            filename = secure_filename(f"{ref_no}_photo_{f.filename}")
-            photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            f.save(photo_path)
+            if allowed_file(f.filename):
+                filename = secure_filename(f"{ref_no}_photo_{f.filename}")
+                photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                f.save(photo_path)
 
         if 'trade_license' in files and files['trade_license'].filename != '':
             f = files['trade_license']
-            filename = secure_filename(f"{ref_no}_trade_{f.filename}")
-            trade_lic_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            f.save(trade_lic_path)
+            if allowed_file(f.filename):
+                filename = secure_filename(f"{ref_no}_trade_{f.filename}")
+                trade_lic_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                f.save(trade_lic_path)
 
         cursor.execute('''
             INSERT INTO members (
@@ -418,17 +439,20 @@ def get_admin_members():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM members ORDER BY id DESC")
-    members = [dict(row) for row in cursor.fetchall()]
+    members = []
+    for row in cursor.fetchall():
+        m = dict(row)
+        m['national_id_path'] = format_file_url(m.get('national_id_path'))
+        m['trade_license_path'] = format_file_url(m.get('trade_license_path'))
+        m['photo_path'] = format_file_url(m.get('photo_path'))
+        members.append(m)
     conn.close()
     return jsonify({"status": "success", "members": members}), 200
 
-# ---------------------------------------------------------
-# ደረሰኞችን በቀንና በዓይነት (ቁጠባ vs ብድር) አውጥቶ ማሳያ
-# ---------------------------------------------------------
 @app.route('/api/admin/receipts', methods=['GET'])
 def get_admin_receipts():
-    pay_type = request.args.get('type') # 'savings' or 'loan'
-    date_str = request.args.get('date') # e.g. '2026-03-30'
+    pay_type = request.args.get('type')
+    date_str = request.args.get('date')
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -452,20 +476,21 @@ def get_admin_receipts():
     query += " ORDER BY r.id DESC"
 
     cursor.execute(query, params)
-    receipts = [dict(row) for row in cursor.fetchall()]
+    receipts = []
+    for row in cursor.fetchall():
+        rc = dict(row)
+        rc['receipt_path'] = format_file_url(rc.get('receipt_path'))
+        receipts.append(rc)
     conn.close()
 
     return jsonify({"status": "success", "receipts": receipts}), 200
 
-# ---------------------------------------------------------
-# ደረሰኝ ከአድሚን ፓናል Approve/Reject ማድረጊያ
-# ---------------------------------------------------------
 @app.route('/api/admin/receipt/action', methods=['POST'])
 def process_receipt_action():
     try:
         data = request.get_json(silent=True) or {}
         receipt_id = data.get('receipt_id')
-        action = data.get('action') # 'approve' or 'reject'
+        action = data.get('action')
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -484,7 +509,7 @@ def process_receipt_action():
         if action == 'approve':
             if receipt['pay_type'] == 'savings':
                 cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
-            else: # loan return
+            else:
                 cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
             
             cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
@@ -499,22 +524,17 @@ def process_receipt_action():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# አጠቃላይ የአድሚን ዳሽቦርድ ስታቲስቲክስ
-# ---------------------------------------------------------
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # የሰው ብዛት
     cursor.execute("SELECT COUNT(*) FROM members")
     total_members = cursor.fetchone()[0]
 
     cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
     pending_members = cursor.fetchone()[0]
 
-    # የገቢ ስታቲስቲክስ (በቀን፣ በሳምንት፣ በወር፣ በዓመት)
     cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) = DATE('now')")
     daily_income = cursor.fetchone()[0]
 
@@ -563,7 +583,6 @@ def update_financials():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Deduction or Update
         deduct_savings = float(data.get('deduct_savings', 0))
         deduct_loan = float(data.get('deduct_loan', 0))
 
@@ -593,15 +612,15 @@ def update_financials():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# =========================================================
-# NEW 1: ለአድሚንና አባል ቀጥታ የመልእክት ልውውጥ (CHAT API)
-# =========================================================
+# ---------------------------------------------------------
+# CHAT API
+# ---------------------------------------------------------
 @app.route('/api/messages/send', methods=['POST'])
 def send_message():
     try:
         data = request.get_json(silent=True) or {}
         ref_no = sanitize_input(data.get('ref_no'))
-        sender = sanitize_input(data.get('sender')) # 'admin' or 'member'
+        sender = sanitize_input(data.get('sender'))
         msg_text = sanitize_input(data.get('message_text'))
 
         if not ref_no or not msg_text:
@@ -615,7 +634,6 @@ def send_message():
         ''', (ref_no, sender, msg_text))
         conn.commit()
 
-        # አድሚኑ ለተጠቃሚው መልእክት ሲልክ በቴሌግራም ቦት ኖቲፊኬሽን እንዲደርሰው ማድረግ
         if sender == 'admin' and bot:
             cursor.execute("SELECT telegram_id, first_name FROM members WHERE ref_no = ?", (ref_no,))
             mem = cursor.fetchone()
@@ -651,16 +669,14 @@ def get_messages():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# =========================================================
-# NEW 2: የተበዳሪዎች ክፍያ ሁኔታ መከታተያ (BORROWERS STATUS API)
-# =========================================================
+# ---------------------------------------------------------
+# BORROWERS STATUS API
+# ---------------------------------------------------------
 @app.route('/api/admin/borrowers/status', methods=['GET'])
 def get_borrowers_status():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # ብድር የተፈቀደላቸውን አባላት ማውጣት
         cursor.execute("SELECT * FROM members WHERE approved_loan > 0 ORDER BY id DESC")
         borrowers = [dict(row) for row in cursor.fetchall()]
         
@@ -670,15 +686,14 @@ def get_borrowers_status():
             paid = float(b.get('paid_loan', 0))
             remaining = approved - paid
             
-            # ክፍያ ደረጃን መወሰን
             if remaining <= 0:
-                health_status = "fully_paid" # ሙሉ በሙሉ የከፈለ
+                health_status = "fully_paid"
                 status_label = "✅ ብድሩን ሙሉ በሙሉ የጨረሰ"
             elif paid > 0:
-                health_status = "good" # በአግባቡ እየከፈለ ያለ
+                health_status = "good"
                 status_label = "🟢 ክፍያ በአግባቡ እየከፈለ ያለ"
             else:
-                health_status = "pending_start" # ገና ክፍያ ያልጀመረ / ሊዘገይ የሚችል
+                health_status = "pending_start"
                 status_label = "⚠️ ክፍያ ያልጀመረ / የዘገየ"
 
             b_info = dict(b)
@@ -692,9 +707,9 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# =========================================================
-# NEW 3: አጠቃላይ የበዓላት እና የማስታወቂያ ማሰራጫ (ANNOUNCEMENT API)
-# =========================================================
+# ---------------------------------------------------------
+# ANNOUNCEMENTS API (ተስተካክሎ ለ index.html የቀረበ)
+# ---------------------------------------------------------
 @app.route('/api/admin/announcement', methods=['POST'])
 def create_announcement():
     try:
@@ -702,12 +717,13 @@ def create_announcement():
         title = sanitize_input(data.get('title'))
         content = sanitize_input(data.get('content'))
 
+        if not title or not content:
+            return jsonify({"status": "error", "message": "ርዕስ እና መረጃው ባዶ መሆን የለበትም!"}), 400
+
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # የቀደሙትን አክቲቭ ማስታወቂያዎች disable ማድረግ
         cursor.execute("UPDATE announcements SET status = 'disabled'")
-        
         cursor.execute("INSERT INTO announcements (title, content, status) VALUES (?, ?, 'active')", (title, content))
         conn.commit()
         conn.close()
@@ -716,20 +732,20 @@ def create_announcement():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ለ index.html ማስታወቂያዎችን የሚያቀርቡ ሁለቱም ኤፒአዮች (ለተጣጣመ ተደራሽነት)
 @app.route('/api/announcements', methods=['GET'])
-def get_active_announcement():
+@app.route('/api/get_announcements', methods=['GET'])
+def get_active_announcements():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM announcements WHERE status = 'active' ORDER BY id DESC LIMIT 1")
-        row = cursor.fetchone()
+        cursor.execute("SELECT * FROM announcements ORDER BY id DESC LIMIT 5")
+        rows = [dict(r) for r in cursor.fetchall()]
         conn.close()
 
-        if row:
-            return jsonify({"status": "success", "announcement": dict(row)}), 200
-        return jsonify({"status": "success", "announcement": None}), 200
+        return jsonify({"status": "success", "success": True, "announcements": rows}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "success": False, "message": str(e)}), 500
 
 
 if __name__ == '__main__':
