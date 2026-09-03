@@ -23,7 +23,6 @@ UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Security: Stripped dangerous hardcoded fallbacks
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
@@ -119,6 +118,17 @@ def init_db():
             title TEXT,
             content TEXT,
             status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # ለንኡስ አድሚኖች መሾሚያ አዲስ የዳታቤዝ ሰንጠረዥ (Admins / Roles)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            telegram_id TEXT UNIQUE,
+            full_name TEXT,
+            role_sector TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -226,7 +236,6 @@ if bot:
             except Exception as e:
                 time.sleep(5)
 
-    # Run polling only in the main process thread execution
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
         threading.Thread(target=run_bot_polling, daemon=True).start()
 
@@ -251,14 +260,22 @@ def get_member_status():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM members WHERE telegram_id = ?", (telegram_id,))
     row = cursor.fetchone()
-    conn.close()
 
     if row:
         member = dict(row)
         member['national_id_path'] = format_file_url(member.get('national_id_path'))
         member['trade_license_path'] = format_file_url(member.get('trade_license_path'))
         member['photo_path'] = format_file_url(member.get('photo_path'))
+        
+        # የብድር ክፍያ ደረሰኝ ገና ያልጸደቀበት (Pending) መኖር አለመኖሩን ማረጋገጫ (በብድር ደብተር ላይ ብቻ ማሳወቂያ ለማሳየት)
+        cursor.execute("SELECT COUNT(*) FROM receipts WHERE member_id = ? AND pay_type = 'loan' AND status = 'pending'", (member['id'],))
+        pending_loan_receipts = cursor.fetchone()[0]
+        member['has_pending_loan_receipt'] = True if pending_loan_receipts > 0 else False
+
+        conn.close()
         return jsonify({"exists": True, "member": member, "admin_id": SUPER_ADMIN_ID})
+    
+    conn.close()
     return jsonify({"exists": False, "admin_id": SUPER_ADMIN_ID})
 
 @app.route('/api/settings/bank', methods=['GET'])
@@ -704,15 +721,45 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/api/admin/announcement', methods=['POST'])
-def create_announcement():
+# ---------------------------------------------------------
+# ማስታወቂያ እና ንኡስ አድሚን መሾሚያ የተስተካከሉ ኤፒአዮች (APIs)
+# ---------------------------------------------------------
+
+@app.route('/api/admin/roles/assign', methods=['POST'])
+def assign_sub_admin_role():
+    """ንኡስ አድሚን ሲሾም የሚፈጠረውን Error የሚያስተካክል ኤፒአይ"""
     try:
         data = request.get_json(silent=True) or {}
-        title = sanitize_input(data.get('title'))
-        content = sanitize_input(data.get('content'))
+        telegram_id = sanitize_input(data.get('telegram_id'))
+        full_name = sanitize_input(data.get('full_name'))
+        role_sector = sanitize_input(data.get('role_sector'))
+
+        if not telegram_id or not full_name:
+            return jsonify({"status": "error", "message": "እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO admins (telegram_id, full_name, role_sector)
+            VALUES (?, ?, ?)
+        ''', (telegram_id, full_name, role_sector))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success", "message": f"{full_name} በስኬት ንኡስ አድሚን ሆነው ተሾመዋል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/admin/announcement', methods=['POST'])
+def create_announcement():
+    """ማስታወቂያ በሚላክበት ጊዜ Title እና Body ባለመኖሩ የሚፈጠረውን ችግር የሚያስተካክል"""
+    try:
+        data = request.get_json(silent=True) or {}
+        title = data.get('title', '').strip()
+        content = data.get('content', '').strip() or data.get('message', '').strip()
 
         if not title or not content:
-            return jsonify({"status": "error", "message": "ርዕስ እና መረጃው ባዶ መሆን የለበትም!"}), 400
+            return jsonify({"status": "error", "message": "እባክዎን የማስታወቂያውን ርዕስ (Title) እና ዝርዝር መልእክት ያስገቡ!"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -720,9 +767,26 @@ def create_announcement():
         cursor.execute("UPDATE announcements SET status = 'disabled'")
         cursor.execute("INSERT INTO announcements (title, content, status) VALUES (?, ?, 'active')", (title, content))
         conn.commit()
+
+        # ለአባላት በቴሌግራም ቦት በኩል ብሮድካስት ማድረግ
+        if bot:
+            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
+            members = cursor.fetchall()
+            broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
+            
+            def send_broadcast():
+                for m in members:
+                    try:
+                        bot.send_message(m['telegram_id'], broadcast_msg, parse_mode="HTML")
+                        time.sleep(0.05)
+                    except Exception:
+                        pass
+
+            threading.Thread(target=send_broadcast, daemon=True).start()
+
         conn.close()
 
-        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ተሰራጭቷል!"}), 200
+        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ለሁሉም አባላት ተሰራጭቷል!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -732,7 +796,7 @@ def get_active_announcements():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM announcements ORDER BY id DESC LIMIT 5")
+        cursor.execute("SELECT * FROM announcements WHERE status = 'active' ORDER BY id DESC LIMIT 5")
         rows = [dict(r) for r in cursor.fetchall()]
         conn.close()
 
