@@ -279,7 +279,7 @@
 
     // የTab መቀየሪያ
     function switchTab(tab) {
-        if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); // ስልክ መንቀጥቀጥ
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 
         const savingsTab = document.getElementById('savingsTabContent');
         const loanTab = document.getElementById('loanTabContent');
@@ -385,7 +385,7 @@
                         const rem = (data.member.approved_loan || 0) - (data.member.paid_loan || 0);
                         document.getElementById('remainingLoanDisplay').innerText = `${Number(rem).toLocaleString()} ETB`;
                     } else {
-                        document.getElementById('loanDetailsBox').classList.add('hidden');
+                        document.getElementById('loanDetailsBox').classList.hidden = false;
                         document.getElementById('noLoanMsg').classList.remove('hidden');
                     }
                 }
