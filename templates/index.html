@@ -24,7 +24,6 @@
             padding: 10px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-bottom: 15px;
         }
 
-        /* TAB STYLES */
         .tab-container { display: flex; gap: 10px; margin-bottom: 15px; }
         .tab-btn { flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border); color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; text-align: center; }
         .tab-btn.active-savings { background: #065f46; border-color: var(--success); }
@@ -58,12 +57,10 @@
 
 <div class="container">
 
-    <!-- ADMIN LINK -->
     <a id="adminLinkBtn" href="/admin" class="admin-nav-btn hidden">
         <i class="fas fa-user-shield"></i> ወደ አድሚን ፓናል ሂድ (Admin Dashboard)
     </a>
 
-    <!-- PENDING STATUS -->
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
@@ -74,11 +71,9 @@
         </div>
     </div>
 
-    <!-- MAIN DASHBOARD FOR APPROVED MEMBERS -->
     <div id="passbookSection" class="hidden">
         <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 15px;"></h3>
 
-        <!-- TAB BUTTONS -->
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
                 <i class="fas fa-piggy-bank"></i> የቁጠባ ደብተር
@@ -88,7 +83,7 @@
             </button>
         </div>
 
-        <!-- 1. የቁጠባ ደብተር SECTION -->
+        <!-- 1. የቁጠባ ደብተር -->
         <div id="savingsTabContent" class="passbook-card" style="border-color: var(--success);">
             <div style="color: var(--success); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
                 <span><i class="fas fa-book"></i> የቁጠባ ደብተር</span>
@@ -100,7 +95,6 @@
                 <span class="balance-amount" id="savingsBalanceDisplay" style="color: var(--success);">0.00 ETB</span>
             </div>
 
-            <!-- የባንክ ሂሳብ መረጃ -->
             <div class="bank-info">
                 <strong style="color: var(--gold);"><i class="fas fa-university"></i> የቁጠባ ገቢ ማድረጊያ የባንክ ሂሳቦች፦</strong>
                 <p>• ንግድ ባንክ (CBE): <b>1000123456789</b></p>
@@ -108,7 +102,6 @@
                 <p>• Telebirr: <b>0911223344</b></p>
             </div>
 
-            <!-- የቁጠባ ክፍያ መላኪያ ፎርም -->
             <form id="savingsForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'savings')">
                 <div class="input-group">
                     <label>የተቆጠበው ብር መጠን (ETB)</label>
@@ -124,7 +117,7 @@
             </form>
         </div>
 
-        <!-- 2. የብድር ደብተር SECTION -->
+        <!-- 2. የብድር ደብተር -->
         <div id="loanTabContent" class="passbook-card hidden" style="border-color: var(--gold);">
             <div style="color: var(--gold); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
                 <span><i class="fas fa-file-invoice-dollar"></i> የብድር ደብተር</span>
@@ -149,14 +142,12 @@
                     <span class="balance-amount" style="color: var(--danger);" id="remainingLoanDisplay">0.00 ETB</span>
                 </div>
 
-                <!-- የብድር መክፈያ የባንክ ሂሳብ -->
                 <div class="bank-info" style="border-left-color: var(--danger);">
                     <strong style="color: var(--danger);"><i class="fas fa-university"></i> የብድር መክፈያ የባንክ ሂሳቦች፦</strong>
                     <p>• ንግድ ባንክ (CBE): <b>1000999888777</b></p>
                     <p>• Telebirr: <b>0911223344</b></p>
                 </div>
 
-                <!-- የብድር ክፍያ መላኪያ ፎርም -->
                 <form id="loanForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'loan')">
                     <div class="input-group">
                         <label>የተከፈለው ብድር መጠን (ETB)</label>
@@ -204,7 +195,6 @@
     let tg = window.Telegram ? window.Telegram.WebApp : null;
     let telegramId = "";
     let userRefNo = "";
-    let userSeriesNo = "";
 
     if (tg) {
         tg.ready();
@@ -247,7 +237,6 @@
             if (data.exists) {
                 document.getElementById('registerSection').classList.add('hidden');
                 userRefNo = data.member.ref_no;
-                userSeriesNo = data.member.loan_series_no || '';
                 
                 if (data.member.status === 'pending') {
                     document.getElementById('pendingSection').classList.remove('hidden');
@@ -258,9 +247,8 @@
                     document.getElementById('savingsRefNo').innerText = `ደብተር No: ${data.member.ref_no}`;
                     document.getElementById('savingsBalanceDisplay').innerText = `${(data.member.paid_amount || 0).toLocaleString()} ETB`;
                     
-                    // Loan Details
-                    if (data.member.approved_loan > 0 || userSeriesNo !== '') {
-                        document.getElementById('loanSeriesNo').innerText = `ሴሪ፡ ${userSeriesNo || 'LN-001'}`;
+                    if (data.member.approved_loan > 0 || data.member.loan_series_no) {
+                        document.getElementById('loanSeriesNo').innerText = `ሴሪ፡ ${data.member.loan_series_no || 'LN-001'}`;
                         document.getElementById('approvedLoanDisplay').innerText = `${(data.member.approved_loan || 0).toLocaleString()} ETB`;
                         document.getElementById('paidLoanDisplay').innerText = `${(data.member.paid_loan || 0).toLocaleString()} ETB`;
                         
@@ -288,7 +276,6 @@
         formData.append('receipt', receipt);
         formData.append('telegram_id', telegramId);
         formData.append('ref_no', userRefNo);
-        formData.append('series_no', userSeriesNo);
 
         try {
             const res = await fetch('/api/payment/submit', { method: 'POST', body: formData });
