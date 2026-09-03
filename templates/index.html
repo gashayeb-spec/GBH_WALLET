@@ -119,6 +119,22 @@
         }
         .status-paid { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
         .status-unpaid { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+
+        /* Modal / Forgot Password Box Style */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000;
+            padding: 15px;
+        }
+        .modal-box {
+            background: var(--card); border: 1px solid var(--gold); border-radius: 12px;
+            width: 100%; max-width: 400px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .link-btn {
+            color: var(--gold); text-decoration: underline; background: none; border: none;
+            cursor: pointer; font-size: 0.85rem; margin-top: 10px; display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -276,7 +292,47 @@
             <div class="input-group"><label id="lblTin">TIN ቁጥር (ካለዎት)</label><input type="text" id="tinNumber" placeholder="አማራጭ / Optional"></div>
             <div class="input-group"><label id="lblUserPhoto">የራስ ፎቶግራፍ</label><input type="file" id="userPhoto" accept="image/*" required></div>
             <button type="submit" class="btn-submit" id="submitBtn">መረጃውን ለአድሚን ላክ</button>
+            <div style="text-align: center; margin-top: 10px;">
+                <button type="button" class="link-btn" onclick="openResetModal()"><i class="fas fa-key"></i> <span id="txtForgotPwdLink">ፓስወርድ ረስተዋል? (OTP ብድር/መቀየሪያ)</span></button>
+            </div>
         </form>
+    </div>
+
+    <!-- 🔑 OTP እና Password Reset Modal Form -->
+    <div id="resetPasswordModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h3 style="color: var(--gold); text-align: center; margin-bottom: 12px;">
+                <i class="fas fa-key"></i> <span id="txtResetTitle">ፓስወርድን በOTP መቀየሪያ</span>
+            </h3>
+
+            <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: 12px;" id="txtOtpDesc">
+                የ OTP ኮድ በቦቱ በኩል እንዲላክልዎ ከታች ያለውን ቁልፍ ይጫኑ።
+            </p>
+
+            <button type="button" id="btnReqOtp" onclick="requestOTP()" class="btn-submit" style="background: var(--blue); color: #fff; margin-bottom: 15px;">
+                <i class="fas fa-paper-plane"></i> <span id="txtBtnReqOtp">የ6 ዲጂት OTP ኮድ በቴሌግራም ላክ</span>
+            </button>
+
+            <div class="input-group">
+                <label id="lblOtp">የተላከውን OTP ያስገቡ</label>
+                <input type="text" id="otpInput" placeholder="123456" maxlength="6">
+            </div>
+
+            <div class="input-group">
+                <label id="lblNewPwd">አዲስ ፓስወርድ (New Password)</label>
+                <input type="password" id="newPasswordInput" placeholder="••••••••">
+            </div>
+
+            <button type="button" id="btnResetPwd" onclick="resetPassword()" class="btn-submit" style="background: var(--success); color: #fff;">
+                <i class="fas fa-check-circle"></i> <span id="txtBtnResetPwd">ፓስወርድ አዝምንም (Reset Password)</span>
+            </button>
+
+            <div style="text-align: center; margin-top: 12px;">
+                <button type="button" class="link-btn" style="color: var(--danger);" onclick="closeResetModal()">
+                    <span id="txtCloseModal">ወደ መግቢያ ገጽ ተመለስ</span>
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -287,6 +343,14 @@
     let telegramId = "";
     let userRefNo = "";
     let globalMemberData = null;
+
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            telegramId = tg.initDataUnsafe.user.id.toString();
+        }
+    }
 
     const translations = {
         am: {
@@ -327,7 +391,15 @@
             loanPaidBadge: "<i class='fas fa-check-circle'></i> የብድር ክፍያ፡ ሙሉ በሙሉ ተከፍሏል",
             loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)",
             seriesText: "ሴሪ፡ ",
-            passbookNoText: "ደብተር No: "
+            passbookNoText: "ደብተር No: ",
+            forgotPwdLink: "ፓስወርድ ረስተዋል? (OTP ብድር/መቀየሪያ)",
+            resetTitle: "ፓስወርድን በOTP መቀየሪያ",
+            otpDesc: "የ OTP ኮድ በቦቱ በኩል እንዲላክልዎ ከታች ያለውን ቁልፍ ይጫኑ።",
+            btnReqOtp: "የ6 ዲጂት OTP ኮድ በቴሌግራም ላክ",
+            lblOtp: "የተላከውን OTP ያስገቡ",
+            lblNewPwd: "አዲስ ፓስወርድ (New Password)",
+            btnResetPwd: "ፓስወርድ አዝምንም (Reset Password)",
+            closeModal: "ወደ መግቢያ ገጽ ተመለስ"
         },
         en: {
             langBtn: "አማርኛ",
@@ -367,7 +439,15 @@
             loanPaidBadge: "<i class='fas fa-check-circle'></i> Loan Status: Fully Paid",
             loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> Loan Status: Unpaid (Has Balance)",
             seriesText: "Series: ",
-            passbookNoText: "Passbook No: "
+            passbookNoText: "Passbook No: ",
+            forgotPwdLink: "Forgot Password? (Reset via OTP)",
+            resetTitle: "Change Password via OTP",
+            otpDesc: "Click below to send a 6-digit OTP code to your Telegram.",
+            btnReqOtp: "Send 6-Digit OTP Code via Telegram",
+            lblOtp: "Enter Received OTP",
+            lblNewPwd: "New Password",
+            btnResetPwd: "Reset Password",
+            closeModal: "Back to Login / Main Page"
         }
     };
 
@@ -413,16 +493,107 @@
         document.getElementById('lblUserPhoto').innerText = t.lblUserPhoto;
         document.getElementById('submitBtn').innerText = t.btnRegSubmit;
 
+        // Modal Labels
+        document.getElementById('txtForgotPwdLink').innerText = t.forgotPwdLink;
+        document.getElementById('txtResetTitle').innerText = t.resetTitle;
+        document.getElementById('txtOtpDesc').innerText = t.otpDesc;
+        document.getElementById('txtBtnReqOtp').innerText = t.btnReqOtp;
+        document.getElementById('lblOtp').innerText = t.lblOtp;
+        document.getElementById('lblNewPwd').innerText = t.lblNewPwd;
+        document.getElementById('txtBtnResetPwd').innerText = t.btnResetPwd;
+        document.getElementById('txtCloseModal').innerText = t.closeModal;
+
         if (globalMemberData) {
             renderMemberDetails(globalMemberData);
         }
     }
 
-    if (tg) {
-        tg.ready();
-        tg.expand();
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            telegramId = tg.initDataUnsafe.user.id.toString();
+    function openResetModal() {
+        document.getElementById('resetPasswordModal').classList.remove('hidden');
+    }
+
+    function closeResetModal() {
+        document.getElementById('resetPasswordModal').classList.add('hidden');
+    }
+
+    /* 🔑 1. OTP የመጠየቂያ FUNCTION (FIXED) */
+    async function requestOTP() {
+        if (!telegramId) {
+            alert(currentLang === 'am' ? "የቴሌግራም መለያዎ (Telegram ID) አልተገኘም! እባክዎን አፑን በቴሌግራም በኩል ይክፈቱት።" : "Telegram ID not found! Please launch the app inside Telegram.");
+            return;
+        }
+
+        const btn = document.getElementById('btnReqOtp');
+        btn.disabled = true;
+        btn.innerText = currentLang === 'am' ? "OTP በመላክ ላይ..." : "Sending OTP...";
+
+        try {
+            const response = await fetch('/api/auth/request-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ telegram_id: telegramId })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && (data.status === "success" || data.success)) {
+                alert("✅ " + (data.message || (currentLang === 'am' ? "የ 6 ዲጂት OTP ኮድ በቴሌግራም መልክት ተልኮልዎታል!" : "OTP code sent to your Telegram!")));
+            } else {
+                alert("⚠️ " + (data.message || "OTP Request Error!"));
+            }
+        } catch (error) {
+            console.error("OTP Request Error:", error);
+            alert(currentLang === 'am' ? "🌐 ከሰርቨር ጋር መገናኘት አልተቻለም!" : "Server connection failed!");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = translations[currentLang].btnReqOtp;
+        }
+    }
+
+    /* 🔑 2. ፓስወርድ የመቀየሪያ FUNCTION (FIXED) */
+    async function resetPassword() {
+        const otpInput = document.getElementById('otpInput').value.trim();
+        const newPasswordInput = document.getElementById('newPasswordInput').value.trim();
+
+        if (!telegramId) {
+            alert(currentLang === 'am' ? "የቴሌግራም መለያ አልተገኘም!" : "Telegram ID missing!");
+            return;
+        }
+
+        if (!otpInput || !newPasswordInput) {
+            alert(currentLang === 'am' ? "እባክዎን OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please enter OTP and New Password!");
+            return;
+        }
+
+        const btn = document.getElementById('btnResetPwd');
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegram_id: telegramId,
+                    otp: otpInput,
+                    new_password: newPasswordInput
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && (data.status === "success" || data.success)) {
+                alert("✅ " + (data.message || (currentLang === 'am' ? "ፓስወርድዎ በተሳካ ሁኔታ ተቀይሯል!" : "Password reset successfully!")));
+                closeResetModal();
+                document.getElementById('otpInput').value = '';
+                document.getElementById('newPasswordInput').value = '';
+            } else {
+                alert("❌ " + (data.message || "Password Reset Error!"));
+            }
+        } catch (error) {
+            console.error("Password Reset Error:", error);
+            alert(currentLang === 'am' ? "🌐 ከሰርቨር ጋር መገናኘት አልተቻለም!" : "Server connection failed!");
+        } finally {
+            btn.disabled = false;
         }
     }
 
