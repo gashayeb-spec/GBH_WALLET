@@ -23,9 +23,9 @@ UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Security: Fallbacks provided safely via environment
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8416599811:AAGJEB4bu2fM1r76NnhfCEEo5ciFBJzh3i8").strip()
-SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
+# Security: Stripped dangerous hardcoded fallbacks
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
+SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 
 DB_NAME = os.path.join(DATA_DIR, "database.db")
@@ -40,7 +40,6 @@ def allowed_file(filename):
 def format_file_url(path):
     if not path:
         return ""
-    # Convert local file path to browser accessible path
     return "/" + path.replace("\\", "/").lstrip("/")
 
 def sanitize_input(text):
@@ -53,7 +52,6 @@ def sanitize_input(text):
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME, timeout=30)
     conn.row_factory = sqlite3.Row
-    # Enable WAL mode to prevent 'database is locked' errors under multi-thread usage
     conn.execute("PRAGMA journal_mode=WAL;")
     return conn
 
@@ -61,7 +59,6 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. Members Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,7 +82,6 @@ def init_db():
         )
     ''')
 
-    # 2. Receipts Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS receipts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,7 +96,6 @@ def init_db():
         )
     ''')
 
-    # 3. Settings Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -108,7 +103,6 @@ def init_db():
         )
     ''')
 
-    # 4. Messages Table (አድሚንና አባል የግል መልእክት)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,7 +113,6 @@ def init_db():
         )
     ''')
 
-    # 5. Announcements Table (ማስታወቂያዎች)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS announcements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,7 +123,6 @@ def init_db():
         )
     ''')
 
-    # Default Bank Account
     cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
     if not cursor.fetchone():
         cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
@@ -198,25 +190,30 @@ if bot:
                 cursor.execute("SELECT * FROM receipts WHERE id = ?", (receipt_id,))
                 receipt = cursor.fetchone()
 
-                if receipt:
-                    if action == "approve_pay" and receipt['status'] == 'pending':
-                        if receipt['pay_type'] == "savings":
-                            cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
-                        else:
-                            cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                if receipt and receipt['status'] == 'pending':
+                    try:
+                        conn.execute("BEGIN TRANSACTION")
+                        if action == "approve_pay":
+                            if receipt['pay_type'] == "savings":
+                                cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                            else:
+                                cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                            
+                            cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
+                            conn.commit()
+                            bot.answer_callback_query(call.id, "✅ ክፍያው ተቀባይነት አግኝቶ ደብተሩ ተዘምኗል!")
+                            bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                                     caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ✅ ክፍያው ጸድቋል (ደብተሩ ተዘምኗል)", parse_mode="HTML")
                         
-                        cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
-                        conn.commit()
-                        bot.answer_callback_query(call.id, "✅ ክፍያው ተቀባይነት አግኝቶ ደብተሩ ተዘምኗል!")
-                        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                                 caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ✅ ክፍያው ጸድቋል (ደብተሩ ተዘምኗል)", parse_mode="HTML")
-                    
-                    elif action == "cancel_pay" and receipt['status'] == 'pending':
-                        cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
-                        conn.commit()
-                        bot.answer_callback_query(call.id, "❌ ክፍያው ውድቅ ተደርጓል!")
-                        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                                 caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ❌ ክፍያው ውድቅ ተደርጓል", parse_mode="HTML")
+                        elif action == "cancel_pay":
+                            cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
+                            conn.commit()
+                            bot.answer_callback_query(call.id, "❌ ክፍያው ውድቅ ተደርጓል!")
+                            bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                                     caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ❌ ክፍያው ውድቅ ተደርጓል", parse_mode="HTML")
+                    except Exception as tx_err:
+                        conn.rollback()
+                        print(f"Transaction failed: {tx_err}")
                 conn.close()
         except Exception as e:
             print(f"Callback error: {e}")
@@ -229,10 +226,12 @@ if bot:
             except Exception as e:
                 time.sleep(5)
 
-    threading.Thread(target=run_bot_polling, daemon=True).start()
+    # Run polling only in the main process thread execution
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+        threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
-# Web Page Routes
+# Web Page Routes & API Endpoints
 # ---------------------------------------------------------
 @app.route('/')
 def home():
@@ -242,9 +241,6 @@ def home():
 def admin_page():
     return render_template('admin.html')
 
-# ---------------------------------------------------------
-# API Endpoints
-# ---------------------------------------------------------
 @app.route('/api/member/status', methods=['GET'])
 def get_member_status():
     telegram_id = request.args.get('telegram_id')
@@ -506,19 +502,26 @@ def process_receipt_action():
             conn.close()
             return jsonify({"status": "error", "message": "ይህ ደረሰኝ ቀደም ብሎ ውሳኔ አግኝቷል!"}), 400
 
-        if action == 'approve':
-            if receipt['pay_type'] == 'savings':
-                cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+        try:
+            conn.execute("BEGIN TRANSACTION")
+            if action == 'approve':
+                if receipt['pay_type'] == 'savings':
+                    cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                else:
+                    cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                
+                cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
+                msg = "ክፍያው በስኬት ጸድቋል፤ የደብተር ሂሳቡ ተዘምኗል!"
             else:
-                cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
-            
-            cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
-            msg = "ክፍያው በስኬት ጸድቋል፤ የደብተር ሂሳቡ ተዘምኗል!"
-        else:
-            cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
-            msg = "ክፍያው ውድቅ ተደርጓል!"
+                cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
+                msg = "ክፍያው ውድቅ ተደርጓል!"
 
-        conn.commit()
+            conn.commit()
+        except Exception as tx_err:
+            conn.rollback()
+            conn.close()
+            return jsonify({"status": "error", "message": f"የሂሳብ ዝማኔው አልተሳካም: {str(tx_err)}"}), 500
+
         conn.close()
         return jsonify({"status": "success", "message": msg}), 200
     except Exception as e:
@@ -612,9 +615,6 @@ def update_financials():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# CHAT API
-# ---------------------------------------------------------
 @app.route('/api/messages/send', methods=['POST'])
 def send_message():
     try:
@@ -669,9 +669,6 @@ def get_messages():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# BORROWERS STATUS API
-# ---------------------------------------------------------
 @app.route('/api/admin/borrowers/status', methods=['GET'])
 def get_borrowers_status():
     try:
@@ -707,9 +704,6 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# ANNOUNCEMENTS API (ተስተካክሎ ለ index.html የቀረበ)
-# ---------------------------------------------------------
 @app.route('/api/admin/announcement', methods=['POST'])
 def create_announcement():
     try:
@@ -732,7 +726,6 @@ def create_announcement():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ለ index.html ማስታወቂያዎችን የሚያቀርቡ ሁለቱም ኤፒአዮች (ለተጣጣመ ተደራሽነት)
 @app.route('/api/announcements', methods=['GET'])
 @app.route('/api/get_announcements', methods=['GET'])
 def get_active_announcements():
@@ -746,7 +739,6 @@ def get_active_announcements():
         return jsonify({"status": "success", "success": True, "announcements": rows}), 200
     except Exception as e:
         return jsonify({"status": "error", "success": False, "message": str(e)}), 500
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
