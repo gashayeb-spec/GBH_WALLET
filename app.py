@@ -5,6 +5,7 @@ import threading
 import time
 import hmac
 import hashlib
+import random
 from urllib.parse import parse_qsl
 import telebot
 from telebot import types
@@ -913,6 +914,76 @@ def get_active_announcements():
         return jsonify({"status": "success", "success": True, "announcements": rows}), 200
     except Exception as e:
         return jsonify({"status": "error", "success": False, "message": str(e)}), 500
+
+# ---------------------------------------------------------
+# OTP Request & Password Reset APIs (አዲስ የተጨመሩ)
+# ---------------------------------------------------------
+
+@app.route('/api/auth/request-otp', methods=['POST'])
+def request_otp():
+    try:
+        data = request.get_json(silent=True) or {}
+        telegram_id = sanitize_input(data.get('telegram_id'))
+
+        if not telegram_id:
+            return jsonify({"status": "error", "message": "የቴሌግራም ID አልተገኘም!"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM members WHERE telegram_id = ?", (telegram_id,))
+        member = cursor.fetchone()
+
+        if not member:
+            conn.close()
+            return jsonify({"status": "error", "message": "አባሉ አልተገኘም!"}), 404
+
+        # የ 6 ዲጂት OTP ማመንጨት እና በ temporary field (tin_number) ላይ መያዝ
+        otp_code = str(random.randint(100000, 999999))
+        cursor.execute("UPDATE members SET tin_number = ? WHERE id = ?", (otp_code, member['id']))
+        conn.commit()
+        conn.close()
+
+        # ቦቱ OTP ኮዱን ለተጠቃሚው በቴሌግራም ይልካል
+        if bot and member['telegram_id']:
+            bot.send_message(
+                member['telegram_id'], 
+                f"🔑 <b>የይለፍ ቃል መቀየሪያ OTP ኮድዎ:</b> <code>{otp_code}</code>", 
+                parse_mode="HTML"
+            )
+
+        return jsonify({"status": "success", "message": "OTP ተልኳል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def reset_password():
+    try:
+        data = request.get_json(silent=True) or {}
+        telegram_id = sanitize_input(data.get('telegram_id'))
+        otp_entered = sanitize_input(data.get('otp'))
+        new_password = sanitize_input(data.get('new_password'))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # የተላከውን OTP ከዳታቤዙ ጋር ማነጻጸር/ማንበብ
+        cursor.execute("SELECT * FROM members WHERE telegram_id = ? AND tin_number = ?", (telegram_id, otp_entered))
+        member = cursor.fetchone()
+
+        if not member:
+            conn.close()
+            return jsonify({"status": "error", "message": "የተሳሳተ OTP ኮድ!"}), 400
+
+        # OTP ከተረጋገጠ በኋላ አዲሱን ፓስወርድ መዝግቦ OTPውን ማፅዳት
+        cursor.execute("UPDATE members SET loan_series_no = ?, tin_number = '' WHERE id = ?", (new_password, member['id']))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success", "message": "ፓስወርድዎ በስኬት ተቀይሯል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
