@@ -3,99 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ተራመድ ሳኮ - አድሚን ፓናል</title>
+    <title>አድሚን ፓናል - ተራመድ ሳኮ</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
             --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
             --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
-            --success: #10b981; --danger: #ef4444; --primary: #3b82f6;
+            --success: #10b981; --danger: #ef4444; --blue: #3b82f6;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 20px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 15px; }
         .container { max-width: 1200px; margin: 0 auto; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .header h1 { color: var(--gold); font-size: 1.5rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .header h2 { color: var(--gold); font-size: 1.3rem; }
         
-        .table-responsive { overflow-x: auto; background: var(--card); border-radius: 10px; border: 1px solid var(--border); }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
-        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); }
-        th { background: rgba(0,0,0,0.3); color: var(--gold); }
+        .top-controls { display: flex; gap: 10px; width: 100%; max-width: 500px; }
+        .search-box { flex: 1; padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
         
-        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
-        .badge-pending { background: rgba(245, 158, 11, 0.2); color: var(--gold); border: 1px solid var(--gold); }
-        .badge-approved { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
-        .badge-rejected { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+        .table-responsive { overflow-x: auto; background: var(--card); border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1000px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #1e293b; color: var(--gold); white-space: nowrap; }
+        tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; display: inline-block; }
+        .badge-pending { background: rgba(245, 158, 11, 0.2); color: var(--gold); }
+        .badge-approved { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge-rejected { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        .doc-link { color: var(--blue); text-decoration: none; margin-right: 5px; font-size: 0.8rem; }
+        .doc-link:hover { text-decoration: underline; }
+
+        .btn-action { padding: 5px 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 3px; font-size: 0.75rem; }
+        .btn-edit { background: var(--blue); color: white; }
+        .btn-approve { background: var(--success); color: white; }
+        .btn-reject { background: var(--danger); color: white; }
         
-        .btn-action { padding: 6px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.8rem; margin-right: 4px; }
-        .btn-approve { background: var(--success); color: #fff; }
-        .btn-reject { background: var(--danger); color: #fff; }
-        .btn-edit { background: var(--primary); color: #fff; }
-        
-        /* Modal Style */
-        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; }
-        .modal-content { background: var(--card); padding: 20px; border-radius: 10px; width: 350px; border: 1px solid var(--gold); }
-        .modal-content h3 { color: var(--gold); margin-bottom: 15px; }
-        .modal-content label { font-size: 0.8rem; color: var(--text-muted); display: block; margin-top: 10px; }
-        .modal-content input { width: 100%; padding: 8px; margin-top: 4px; background: #0f172a; border: 1px solid var(--border); color: #fff; border-radius: 6px; }
-        .modal-btns { display: flex; justify-content: space-between; margin-top: 15px; }
+        /* Modal Popup */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal-content { background: var(--card); padding: 22px; border-radius: 12px; width: 95%; max-width: 450px; border: 1px solid var(--gold); }
+        .modal-content h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+        .input-group input { width: 100%; padding: 8px 10px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .modal-btns { display: flex; justify-content: space-between; margin-top: 18px; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-user-shield"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h1>
-        <button onclick="loadMembers()" class="btn-action btn-edit"><i class="fas fa-sync"></i> አድስ (Refresh)</button>
+        <h2><i class="fas fa-users-cog"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h2>
+        <div class="top-controls">
+            <input type="text" id="searchInput" class="search-box" placeholder="በስም ወይም በስልክ ፈልግ..." onkeyup="filterMembers()">
+            <button class="btn-refresh" onclick="loadMembers()"><i class="fas fa-sync"></i> አድስ</button>
+        </div>
     </div>
 
     <div class="table-responsive">
         <table>
             <thead>
                 <tr>
-                    <th>Ref No</th>
+                    <th>የተመዘገበበት ቀን</th>
+                    <th>የቁጠባ No</th>
+                    <th>የብድር ሴሪ</th>
                     <th>ሙሉ ስም</th>
-                    <th>ስልክ / ሀገር</th>
-                    <th>TIN</th>
-                    <th>ሰነዶች</th>
-                    <th>ቁጠባ</th>
+                    <th>ስልክ</th>
+                    <th>ሀገር / TIN</th>
+                    <th>የተላኩ ሰነዶች</th>
+                    <th>ቁጠባ (ETB)</th>
                     <th>የተፈቀደ ብድር</th>
+                    <th>የተከፈለ ብድር</th>
                     <th>ሁኔታ</th>
-                    <th>እርምጃ (Actions)</th>
+                    <th>እርምጃዎች</th>
                 </tr>
             </thead>
-            <tbody id="memberAdminTable">
-                <!-- Data will load here dynamically -->
+            <tbody id="membersTableBody">
+                <tr><td colspan="12" style="text-align: center;">መረጃዎች በመጫን ላይ...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Financial Edit Modal -->
-<div id="editModal" class="modal">
+<!-- Modal for Financial & Series Edit -->
+<div id="editModal" class="modal hidden">
     <div class="modal-content">
-        <h3><i class="fas fa-edit"></i> ሂሳብ ማስተካከያ</h3>
+        <h3><i class="fas fa-edit"></i> የደብተር እና ሂሳብ ማስተካከያ</h3>
         <input type="hidden" id="editMemberId">
         
-        <label>የተቆጠበ ቁጠባ መጠን (ETB)</label>
-        <input type="number" id="editSavings">
-        
-        <label>የተፈቀደ ብድር (ETB)</label>
-        <input type="number" id="editApprovedLoan">
-        
-        <label>የተከፈለ ብድር (ETB)</label>
-        <input type="number" id="editPaidLoan">
-        
+        <div class="input-group">
+            <label>የብድር ሴሪ ቁጥር (Loan Series No)</label>
+            <input type="text" id="editLoanSeriesNo" placeholder="ምሳሌ: LN-001-A">
+        </div>
+        <div class="input-group">
+            <label>የቁጠባ መጠን (ETB)</label>
+            <input type="number" step="any" id="editPaidAmount">
+        </div>
+        <div class="input-group">
+            <label>የተፈቀደ ብድር መጠን (ETB)</label>
+            <input type="number" step="any" id="editApprovedLoan">
+        </div>
+        <div class="input-group">
+            <label>የተከፈለ ብድር ተመላሽ (ETB)</label>
+            <input type="number" step="any" id="editPaidLoan">
+        </div>
+
         <div class="modal-btns">
-            <button onclick="saveFinancials()" class="btn-action btn-approve">አስቀምጥ</button>
-            <button onclick="closeModal()" class="btn-action btn-reject">ዝጋ</button>
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveFinancials()"><i class="fas fa-save"></i> አስቀምጥ</button>
+            <button class="btn-action btn-reject" style="padding: 8px 15px;" onclick="closeModal()">ዝጋ</button>
         </div>
     </div>
 </div>
 
 <script>
-    let membersData = [];
+    let allMembersData = [];
 
     window.addEventListener('DOMContentLoaded', loadMembers);
 
@@ -103,108 +127,130 @@
         try {
             const res = await fetch('/api/admin/members');
             const data = await res.json();
-            if (data.status === 'success') {
-                membersData = data.members;
-                renderTables();
+            
+            if (data.status === "success" && data.members) {
+                allMembersData = data.members;
+                renderTable(allMembersData);
             }
         } catch (e) {
-            console.error("Failed to load members", e);
+            console.error(e);
+            document.getElementById('membersTableBody').innerHTML = '<tr><td colspan="12" style="text-align: center; color: var(--danger);">መረጃውን መጫን አልተቻለም!</td></tr>';
         }
     }
 
-    function renderTables() {
-        const tbody = document.getElementById('memberAdminTable');
+    function renderTable(members) {
+        const tbody = document.getElementById('membersTableBody');
         tbody.innerHTML = '';
 
-        membersData.forEach(m => {
-            const approved = m.approved_loan || 0;
-            const paidLoan = m.paid_loan || 0;
-            const savings = m.paid_amount || 0;
+        if (members.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align: center;">ምንም ተመዝጋቢ አልተገኘም!</td></tr>';
+            return;
+        }
 
+        members.forEach(m => {
             const tr = document.createElement('tr');
+            
+            // የደብተር ሰነዶች ሊንክ
+            let docsHtml = '';
+            if (m.national_id_path) docsHtml += `<a class="doc-link" href="/${m.national_id_path}" target="_blank"><i class="fas fa-id-card"></i> መታወቂያ</a><br>`;
+            if (m.photo_path) docsHtml += `<a class="doc-link" href="/${m.photo_path}" target="_blank"><i class="fas fa-image"></i> ፎቶ</a><br>`;
+            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="/${m.trade_license_path}" target="_blank"><i class="fas fa-file-contract"></i> ንግድ ፈቃድ</a>`;
+            if (!docsHtml) docsHtml = '-';
+
+            // Status Badge
+            let badgeClass = 'badge-pending';
+            if (m.status === 'approved') badgeClass = 'badge-approved';
+            if (m.status === 'rejected') badgeClass = 'badge-rejected';
+
+            // የቀን ፎርማት
+            const createdDate = m.created_at ? m.created_at.split('.')[0] : '-';
+
             tr.innerHTML = `
-                <td><b>${m.ref_no || '-'}</b></td>
-                <td>${m.first_name} ${m.father_name} ${m.grand_name}</td>
-                <td>${m.phone_number}<br><small style="color:var(--text-muted);">${m.country || 'ኢትዮጵያ'}</small></td>
-                <td>${m.tin_number || '-'}</td>
+                <td style="font-size: 0.75rem; color: var(--text-muted);">${createdDate}</td>
+                <td><b>${m.ref_no}</b></td>
+                <td style="color: var(--gold); font-weight: bold;">${m.loan_series_no || '-'}</td>
+                <td><b>${m.first_name} ${m.father_name} ${m.grand_name || ''}</b></td>
+                <td>${m.phone_number}</td>
+                <td style="font-size: 0.75rem;">${m.country || 'ኢትዮጵያ'}<br>TIN: ${m.tin_number || '-'}</td>
+                <td>${docsHtml}</td>
+                <td style="color: var(--success); font-weight: bold;">${(m.paid_amount || 0).toLocaleString()} ብር</td>
+                <td style="color: var(--gold); font-weight: bold;">${(m.approved_loan || 0).toLocaleString()} ብር</td>
+                <td style="color: #60a5fa; font-weight: bold;">${(m.paid_loan || 0).toLocaleString()} ብር</td>
+                <td><span class="badge ${badgeClass}">${m.status}</span></td>
                 <td>
-                    ${m.national_id_path ? `<a href="/${m.national_id_path}" target="_blank" style="color:var(--gold); font-size:0.8rem;">[መታወቂያ]</a> ` : ''}
-                    ${m.photo_path ? `<a href="/${m.photo_path}" target="_blank" style="color:var(--success); font-size:0.8rem;">[ፎቶ]</a> ` : ''}
-                    ${m.trade_license_path ? `<a href="/${m.trade_license_path}" target="_blank" style="color:var(--primary); font-size:0.8rem;">[ንግድ ፈቃድ]</a>` : ''}
-                </td>
-                <td style="color: var(--success); font-weight:bold;">${savings.toLocaleString()} ብር</td>
-                <td style="color: var(--gold); font-weight:bold;">${approved.toLocaleString()} ብር</td>
-                <td>
-                    ${m.status === 'pending' ? `<span class="badge badge-pending">Pending</span>` : ''}
-                    ${m.status === 'approved' ? `<span class="badge badge-approved">Approved</span>` : ''}
-                    ${m.status === 'rejected' ? `<span class="badge badge-rejected">Rejected</span>` : ''}
-                </td>
-                <td>
-                    ${m.status !== 'approved' ? `<button class="btn-action btn-approve" onclick="updateMemberStatus('${m.id}', 'approved')">አጽድቅ</button>` : ''}
-                    <button class="btn-action btn-edit" onclick="openEditModal(${m.id})">አስተካክል</button>
-                    ${m.status !== 'rejected' ? `<button class="btn-action btn-reject" onclick="updateMemberStatus('${m.id}', 'rejected')">Reject</button>` : ''}
+                    <button class="btn-action btn-edit" onclick="openModal(${m.id}, '${m.loan_series_no || ''}', ${m.paid_amount || 0}, ${m.approved_loan || 0}, ${m.paid_loan || 0})"><i class="fas fa-edit"></i></button>
+                    <button class="btn-action btn-approve" onclick="updateStatus(${m.id}, 'approved')"><i class="fas fa-check"></i></button>
+                    <button class="btn-action btn-reject" onclick="updateStatus(${m.id}, 'rejected')"><i class="fas fa-times"></i></button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     }
 
-    async function updateMemberStatus(id, status) {
-        if (!confirm(`እርግጠኛ ነዎት የአባሉን ሁኔታ ወደ ${status} መቀየር ይፈልጋሉ?`)) return;
-
-        try {
-            const res = await fetch('/api/admin/update_status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'json' },
-                body: JSON.stringify({ member_id: id, status: status })
-            });
-            const data = await res.json();
-            alert(data.message);
-            loadMembers();
-        } catch (e) {
-            alert("ሁኔታውን መቀየር አልተቻለም!");
-        }
+    function filterMembers() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allMembersData.filter(m => 
+            (m.first_name && m.first_name.toLowerCase().includes(query)) ||
+            (m.father_name && m.father_name.toLowerCase().includes(query)) ||
+            (m.phone_number && m.phone_number.includes(query)) ||
+            (m.ref_no && m.ref_no.toLowerCase().includes(query))
+        );
+        renderTable(filtered);
     }
 
-    function openEditModal(id) {
-        const m = membersData.find(item => item.id === id);
-        if (!m) return;
-
-        document.getElementById('editMemberId').value = m.id;
-        document.getElementById('editSavings').value = m.paid_amount || 0;
-        document.getElementById('editApprovedLoan').value = m.approved_loan || 0;
-        document.getElementById('editPaidLoan').value = m.paid_loan || 0;
-
-        document.getElementById('editModal').style.display = 'flex';
+    function openModal(id, seriesNo, paid, approved, paidLoan) {
+        document.getElementById('editMemberId').value = id;
+        document.getElementById('editLoanSeriesNo').value = seriesNo;
+        document.getElementById('editPaidAmount').value = paid;
+        document.getElementById('editApprovedLoan').value = approved;
+        document.getElementById('editPaidLoan').value = paidLoan;
+        document.getElementById('editModal').classList.remove('hidden');
     }
 
     function closeModal() {
-        document.getElementById('editModal').style.display = 'none';
+        document.getElementById('editModal').classList.add('hidden');
     }
 
     async function saveFinancials() {
         const id = document.getElementById('editMemberId').value;
-        const savings = document.getElementById('editSavings').value;
-        const approved = document.getElementById('editApprovedLoan').value;
-        const paid = document.getElementById('editPaidLoan').value;
+        const seriesNo = document.getElementById('editLoanSeriesNo').value;
+        const paid_amount = document.getElementById('editPaidAmount').value;
+        const approved_loan = document.getElementById('editApprovedLoan').value;
+        const paid_loan = document.getElementById('editPaidLoan').value;
 
         try {
             const res = await fetch('/api/admin/update_financials', {
                 method: 'POST',
-                headers: { 'Content-Type': 'json' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     member_id: id,
-                    paid_amount: savings,
-                    approved_loan: approved,
-                    paid_loan: paid
+                    loan_series_no: seriesNo,
+                    paid_amount: paid_amount,
+                    approved_loan: approved_loan,
+                    paid_loan: paid_loan
                 })
             });
             const data = await res.json();
-            alert(data.message);
+            alert(data.message || "መረጃው በስኬት ተዘምኗል!");
             closeModal();
             loadMembers();
         } catch (e) {
-            alert("ማስተካከል አልተቻለም!");
+            alert("ስህተት ተከሰቷል!");
+        }
+    }
+
+    async function updateStatus(id, status) {
+        try {
+            const res = await fetch('/api/admin/update_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: id, status: status })
+            });
+            const data = await res.json();
+            alert(data.message || "ሁኔታው ተቀይሯል!");
+            loadMembers();
+        } catch (e) {
+            alert("ስህተት ተከሰቷል!");
         }
     }
 </script>
