@@ -16,24 +16,22 @@ app = Flask(__name__)
 CORS(app)
 
 # ---------------------------------------------------------
-# Configurations & File Upload Setup
+# Configurations
 # ---------------------------------------------------------
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# የቦት ቶክን እና የዌብሳይት አድራሻ
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8416599811:AAGJEB4bu2fM1r76NnhfCEEo5ciFBJzh3i8").strip()
 SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 
 DB_NAME = "database.db"
 
-# Telegram Bot Initializer
 bot = telebot.TeleBot(BOT_TOKEN) if BOT_TOKEN else None
 
 # ---------------------------------------------------------
-# Database Helpers & Initialization
+# Database Setup
 # ---------------------------------------------------------
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -43,7 +41,6 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,14 +73,13 @@ def sanitize_input(text):
     return html.escape(str(text).strip())
 
 # ---------------------------------------------------------
-# TELEGRAM BOT HANDLERS & POLLING
+# TELEGRAM BOT HANDLERS & CALLBACKS
 # ---------------------------------------------------------
 if bot:
     @bot.message_handler(commands=['start'])
     def send_welcome(message):
         try:
             markup = types.InlineKeyboardMarkup()
-            # Mini App Button
             web_app_info = types.WebAppInfo(url=WEB_APP_URL)
             web_btn = types.InlineKeyboardButton(text="📱 ምዝገባ / የኔ ደብተር ክፈት", web_app=web_app_info)
             markup.add(web_btn)
@@ -97,18 +93,57 @@ if bot:
         except Exception as e:
             print(f"Start command error: {e}")
 
+    # አድሚኑ ቁልፎቹን (Approve, Reject, Block) ሲጫን የሚሰራ መቆጣጠሪያ
+    @bot.callback_query_handler(func=lambda call: True)
+    def handle_admin_action(call):
+        try:
+            data = call.data.split("_")
+            action = data[0]
+            member_id = data[1] if len(data) > 1 else None
+
+            if not member_id and action != "adminpanel":
+                bot.answer_callback_query(call.id, "ስህተት፦ የተጠቃሚ መረጃ አልተገኘም!")
+                return
+
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            if action == "approve":
+                cursor.execute("UPDATE members SET status = 'approved' WHERE id = ?", (member_id,))
+                conn.commit()
+                bot.answer_callback_query(call.id, "✅ አባሉ በስኬት ጸድቋል!")
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                      text=call.message.text + "\n\n<b>status: ✅ APPROVED (ጽድቋል)</b>", parse_mode="HTML")
+
+            elif action == "reject":
+                cursor.execute("UPDATE members SET status = 'rejected' WHERE id = ?", (member_id,))
+                conn.commit()
+                bot.answer_callback_query(call.id, "❌ ምዝገባው ተሰርዟል!")
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                      text=call.message.text + "\n\n<b>status: ❌ REJECTED (ተሰርዟል)</b>", parse_mode="HTML")
+
+            elif action == "block":
+                cursor.execute("UPDATE members SET status = 'blocked' WHERE id = ?", (member_id,))
+                conn.commit()
+                bot.answer_callback_query(call.id, "🚫 ተጠቃሚው ተአግዷል!")
+                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                      text=call.message.text + "\n\n<b>status: 🚫 BLOCKED (ታግዷል)</b>", parse_mode="HTML")
+
+            conn.close()
+        except Exception as e:
+            print(f"Callback error: {e}")
+            bot.answer_callback_query(call.id, "ስህተት ተከሰቷል!")
+
     def run_bot_polling():
         while True:
             try:
-                # ዌብሁክን ማጽዳትና በግድ ፖሊንግ ማስጀመር
                 bot.remove_webhook()
-                print(">>> Telegram Bot Polling Active <<<")
+                print(">>> Bot Polling Active <<<")
                 bot.infinity_polling(timeout=20, long_polling_timeout=10, skip_pending=True)
             except Exception as e:
-                print(f"Bot Polling error, retrying in 5s: {e}")
+                print(f"Bot Polling error: {e}")
                 time.sleep(5)
 
-    # ቦቱን ከበስተጀርባ በ Thread ማስነሳት
     threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
@@ -199,16 +234,40 @@ def register_member():
             telegram_id
         ))
 
+        new_member_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
-        # ለአድሚኑ ማስታወቂያ በቴሌግራም መላክ
+        # ለአድሚኑ የቴሌግራም መልእክት ከነ ACTION BUTTONS መላክ
         if bot and SUPER_ADMIN_ID:
             try:
-                msg = f"🆕 <b>አዲስ የአባልነት ምዝገባ!</b>\n\n<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n<b>መታወቂያ:</b> {ref_no}\n<b>ስልክ:</b> {req.get('phone_number')}"
-                bot.send_message(SUPER_ADMIN_ID, msg, parse_mode="HTML")
+                msg_text = (
+                    f"🆕 <b>አዲስ የአባልነት ምዝገባ ተልኳል!</b>\n\n"
+                    f"<b>መታወቂያ ቁጥር:</b> <code>{ref_no}</code>\n"
+                    f"<b>ሙሉ ስም:</b> {req.get('first_name')} {req.get('father_name')} {req.get('grand_name')}\n"
+                    f"<b>ሀገር:</b> {req.get('country')}\n"
+                    f"<b>ስልክ:</b> {req.get('phone_number')}\n"
+                    f"<b>TIN ቁጥር:</b> {req.get('tin_number') or 'የለውም'}\n"
+                    f"<b>Telegram ID:</b> <code>{telegram_id}</code>"
+                )
+
+                # Inline Buttons ማዘጋጀት
+                markup = types.InlineKeyboardMarkup(row_width=2)
+                btn_approve = types.InlineKeyboardButton("✅ Approve", callback_data=f"approve_{new_member_id}")
+                btn_reject = types.InlineKeyboardButton("❌ Reject (Cancel)", callback_data=f"reject_{new_member_id}")
+                btn_block = types.InlineKeyboardButton("🚫 Block", callback_data=f"block_{new_member_id}")
+                
+                # Admin Panel Web App Button
+                admin_web_info = types.WebAppInfo(url=f"{WEB_APP_URL}/admin")
+                btn_admin_panel = types.InlineKeyboardButton("⚙️ Open Admin Panel", web_app=admin_web_info)
+
+                markup.add(btn_approve, btn_reject)
+                markup.add(btn_block)
+                markup.add(btn_admin_panel)
+
+                bot.send_message(SUPER_ADMIN_ID, msg_text, reply_markup=markup, parse_mode="HTML")
             except Exception as bot_err:
-                print(f"Telegram admin notification failed: {bot_err}")
+                print(f"Telegram admin notification error: {bot_err}")
 
         return jsonify({"success": True, "message": "ምዝገባዎ በስኬት ተልኳል! ለአድሚን ተመርቷል።"}), 200
     except Exception as e:
@@ -234,7 +293,7 @@ def update_status():
     cursor.execute("UPDATE members SET status = ? WHERE id = ?", (status, member_id))
     conn.commit()
     conn.close()
-    return jsonify({"status": "success", "message": "የአባሉ ሁኔታ ተቀይሯል!"}), 200
+    return jsonify({"status": "success", "message": "ሁኔታው ተቀይሯል!"}), 200
 
 @app.route('/api/admin/update_financials', methods=['POST'])
 def update_financials():
