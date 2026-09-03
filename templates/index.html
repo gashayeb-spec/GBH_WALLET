@@ -54,7 +54,7 @@
         .pending { background: rgba(245, 158, 11, 0.12); color: var(--gold); border: 1px solid var(--gold); }
         .hidden { display: none !important; }
 
-        /* አዲስ፡ የበዓል ማስታወቂያ እና የግል ሜሴጆች Styling */
+        /* የበዓል/አጠቃላይ ማስታወቂያ Styling */
         .announcement-card {
             background: linear-gradient(135deg, #1e1b4b, #311b92);
             border: 1px solid #6366f1;
@@ -66,27 +66,30 @@
         .announcement-title { color: #a5b4fc; font-weight: bold; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
         .announcement-text { font-size: 0.9rem; line-height: 1.5; color: #e0e7ff; }
 
-        .personal-msg-paid {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid var(--success);
-            color: #a7f3d0;
-            padding: 12px 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            font-size: 0.88rem;
-            line-height: 1.4;
+        /* የክፍያ ሁኔታ ባጆች (Status Badges) */
+        .payment-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 12px;
         }
+        .status-paid { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
+        .status-unpaid { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
 
-        .personal-msg-unpaid {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid var(--danger);
-            color: #fca5a5;
-            padding: 12px 15px;
+        /* የአድሚን የግል መልእክት Styling */
+        .personal-msg-card {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--blue);
             border-radius: 10px;
+            padding: 12px 15px;
             margin-bottom: 15px;
-            font-size: 0.88rem;
-            line-height: 1.4;
         }
+        .personal-msg-header { color: var(--blue); font-weight: bold; font-size: 0.88rem; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+        .personal-msg-body { font-size: 0.88rem; color: #dbeafe; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -97,28 +100,24 @@
         <i class="fas fa-user-shield"></i> ወደ አድሚን ፓናል ሂድ (Admin Dashboard)
     </a>
 
-    <!-- 1. አጠቃላይ ማስታወቂያዎች (የበዓል ማስታወቂያና ሌሎች) -->
+    <!-- 1. አጠቃላይ/የበዓል ማስታወቂያዎች (ማስታወቂያ ካለ ብቻ የሚታይ) -->
     <div id="announcementBox" class="announcement-card hidden">
         <div class="announcement-title">
             <i class="fas fa-bullhorn" style="color: #f59e0b;"></i>
             <span id="announcementHeader">የአድሚን ማስታወቂያ</span>
         </div>
-        <div id="announcementContent" class="announcement-text">
-            <!-- ማስታወቂያዎች እዚህ በDynamic ሁኔታ ይገባሉ -->
+        <div id="announcementContent" class="announcement-text"></div>
+    </div>
+
+    <!-- 2. የአድሚን የግል መልእክት (ለአባሉ በግል የተላከ መልእክት ካለ) -->
+    <div id="personalDirectMsgBox" class="personal-msg-card hidden">
+        <div class="personal-msg-header">
+            <i class="fas fa-envelope-open-text"></i> ከአድሚን የተላከ የግል መልእክት
         </div>
+        <div id="personalDirectMsgText" class="personal-msg-body"></div>
     </div>
 
-    <!-- 2. የግል ክፍያ ማሳወቂያ ቦክሶች (ከፈሉ / አልከፈሉም) -->
-    <div id="personalPaidMsgBox" class="personal-msg-paid hidden">
-        <i class="fas fa-check-circle" style="color: var(--success); font-size: 1.1rem; margin-right: 5px;"></i>
-        <span id="personalPaidText"></span>
-    </div>
-
-    <div id="personalUnpaidMsgBox" class="personal-msg-unpaid hidden">
-        <i class="fas fa-exclamation-circle" style="color: var(--danger); font-size: 1.1rem; margin-right: 5px;"></i>
-        <span id="personalUnpaidText"></span>
-    </div>
-
+    <!-- 3. የምዝገባ ማጣሪያ ገጽ (Pending) -->
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
@@ -129,8 +128,14 @@
         </div>
     </div>
 
+    <!-- 4. ዋናው የደብተር ገጽ (Passbook Section) -->
     <div id="passbookSection" class="hidden">
-        <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 15px;"></h3>
+        <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 10px;"></h3>
+
+        <!-- የክፍያ ሁኔታ ባጅ (ከፍሏል / አልከፈለም) -->
+        <div style="text-align: center;">
+            <div id="paymentStatusBadge" class="payment-status-badge hidden"></div>
+        </div>
 
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
@@ -220,7 +225,7 @@
         </div>
     </div>
 
-    <!-- REGISTRATION FORM -->
+    <!-- 5. የአባልነት ምዝገባ ቅጽ (ያልተመዘገበ ከሆነ ብቻ የሚታይ) -->
     <div id="registerSection" class="card">
         <h2><i class="fas fa-id-card"></i> የአባልነት ምዝገባ ቅጽ</h2>
         <form id="registrationForm" enctype="multipart/form-data">
@@ -297,7 +302,7 @@
         }
     }
 
-    /* አዲስ፡ የበዓል ማስታወቂያዎችን እና የግል ክፍያ ማሳወቂያዎችን የሚጭን Function */
+    /* የበዓል ማስታወቂያዎችን እና የአድሚን የግል መልእክቶችን የሚጭን Function */
     async function loadNotificationsAndAnnouncements() {
         try {
             const res = await fetch(`/api/member/notifications?telegram_id=${telegramId}`);
@@ -310,21 +315,17 @@
                 document.getElementById('announcementBox').classList.remove('hidden');
             }
 
-            // 2. የግል ክፍያ ማሳወቂያ (ከፈሉ ወይም አልከፈሉም)
-            if (data.personal_msg) {
-                if (data.personal_msg.status === 'paid') {
-                    document.getElementById('personalPaidText').innerText = data.personal_msg.text || "ወቅታዊ ክፍያዎን ስለፈጸሙ እናመሰግናለን!";
-                    document.getElementById('personalPaidMsgBox').classList.remove('hidden');
-                } else if (data.personal_msg.status === 'unpaid') {
-                    document.getElementById('personalUnpaidText').innerText = data.personal_msg.text || "ማሳሰቢያ፡ ያልተከፈለ ክፍያ/ዕዳ አለብዎት። እባክዎን በወቅቱ ይክፈሉ።";
-                    document.getElementById('personalUnpaidMsgBox').classList.remove('hidden');
-                }
+            // 2. ለአባሉ በግል የተላከ መልእክት ካለ
+            if (data.direct_message) {
+                document.getElementById('personalDirectMsgText').innerText = data.direct_message;
+                document.getElementById('personalDirectMsgBox').classList.remove('hidden');
             }
         } catch (e) {
             console.error("Notification load error:", e);
         }
     }
 
+    /* የአባሉን ሁኔታ እና የክፍያ ባጅ የሚፈትሽ Function */
     async function checkMemberStatus() {
         if (!telegramId) {
             console.warn("Telegram ID አልተገኘም። Local browser test ላይ ሊሆኑ ይችላሉ።");
@@ -334,6 +335,7 @@
             const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
             const data = await res.json();
 
+            // አድሚን ከሆነ የዳሽቦርድ ሊንክ ማሳየት
             if (telegramId && data.admin_id && telegramId === data.admin_id.toString()) {
                 document.getElementById('adminLinkBtn').classList.remove('hidden');
             }
@@ -352,6 +354,18 @@
                     document.getElementById('savingsRefNo').innerText = `ደብተር No: ${userRefNo}`;
                     document.getElementById('savingsBalanceDisplay').innerText = `${(data.member.paid_amount || 0).toLocaleString()} ETB`;
                     
+                    // የክፍያ ሁኔታ ባጅ ማሳያ (ከፍሏል / አልከፈለም)
+                    const badge = document.getElementById('paymentStatusBadge');
+                    if (data.member.is_paid) {
+                        badge.className = "payment-status-badge status-paid";
+                        badge.innerHTML = `<i class="fas fa-check-circle"></i> ክፍያ፡ ተከፍሏል`;
+                    } else {
+                        badge.className = "payment-status-badge status-unpaid";
+                        badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> ክፍያ፡ አልተከፈለም (እዳ አለበት)`;
+                    }
+                    badge.classList.remove('hidden');
+
+                    // የብድር መረጃ ማሳያ
                     if (data.member.approved_loan > 0 || data.member.loan_series_no) {
                         document.getElementById('loanDetailsBox').classList.remove('hidden');
                         document.getElementById('noLoanMsg').classList.add('hidden');
