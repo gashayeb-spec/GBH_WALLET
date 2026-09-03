@@ -25,6 +25,33 @@
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
         }
 
+        /* 📢 ከአድሚን የሚላክ ማስታወቂያ (ከደብተሩ አናት ላይ የሚቀመጥ) */
+        .announcement-card {
+            background: linear-gradient(135deg, #1e1b4b, #311b92);
+            border: 2px solid var(--gold);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.25);
+        }
+        .announcement-title { 
+            color: var(--gold); 
+            font-weight: bold; 
+            font-size: 1.1rem; 
+            margin-bottom: 10px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+            padding-bottom: 8px;
+        }
+        .announcement-text { 
+            font-size: 0.95rem; 
+            line-height: 1.6; 
+            color: #f1f5f9; 
+            white-space: pre-line;
+        }
+
         .tab-container { display: flex; gap: 10px; margin-bottom: 15px; }
         .tab-btn { flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border); color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; }
         .tab-btn.active-savings { background: #065f46; border-color: var(--success); }
@@ -57,19 +84,7 @@
         .pending { background: rgba(245, 158, 11, 0.12); color: var(--gold); border: 1px solid var(--gold); }
         .hidden { display: none !important; }
 
-        /* የበዓል/አጠቃላይ ማስታወቂያ Styling */
-        .announcement-card {
-            background: linear-gradient(135deg, #1e1b4b, #311b92);
-            border: 1px solid #6366f1;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
-        }
-        .announcement-title { color: #a5b4fc; font-weight: bold; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-        .announcement-text { font-size: 0.9rem; line-height: 1.5; color: #e0e7ff; }
-
-        /* የክፍያ ሁኔታ ባጆች (Status Badges) */
+        /* የክፍያ ሁኔታ ባጅ (በብድር ደብተር ላይ ብቻ የሚታይ) */
         .payment-status-badge {
             display: inline-flex;
             align-items: center;
@@ -78,35 +93,11 @@
             border-radius: 20px;
             font-size: 0.85rem;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-top: 10px;
+            margin-bottom: 5px;
         }
         .status-paid { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
         .status-unpaid { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
-
-        /* የአድሚን የግል መልእክት Styling */
-        .personal-msg-card {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid var(--blue);
-            border-radius: 10px;
-            padding: 12px 15px;
-            margin-bottom: 15px;
-        }
-        .personal-msg-header { color: var(--blue); font-weight: bold; font-size: 0.88rem; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
-        .personal-msg-body { font-size: 0.88rem; color: #dbeafe; line-height: 1.4; }
-
-        /* የብድር ደረሰኝ ማረጋገጫ መጠባበቂያ ባነር */
-        .pending-alert-banner {
-            background: rgba(245, 158, 11, 0.15);
-            border: 1px dashed var(--gold);
-            color: var(--gold);
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
     </style>
 </head>
 <body>
@@ -118,24 +109,7 @@
         <i class="fas fa-user-shield"></i> ወደ አድሚን ፓናል ሂድ (Admin Dashboard)
     </a>
 
-    <!-- 1. አጠቃላይ/የበዓል ማስታወቂያዎች -->
-    <div id="announcementBox" class="announcement-card hidden">
-        <div class="announcement-title">
-            <i class="fas fa-bullhorn" style="color: #f59e0b;"></i>
-            <span id="announcementHeader">የአድሚን ማስታወቂያ</span>
-        </div>
-        <div id="announcementContent" class="announcement-text"></div>
-    </div>
-
-    <!-- 2. የአድሚን የግል መልእክት -->
-    <div id="personalDirectMsgBox" class="personal-msg-card hidden">
-        <div class="personal-msg-header">
-            <i class="fas fa-envelope-open-text"></i> ከአድሚን የተላከ የግል መልእክት
-        </div>
-        <div id="personalDirectMsgText" class="personal-msg-body"></div>
-    </div>
-
-    <!-- 3. የምዝገባ ማጣሪያ ገጽ (Pending) -->
+    <!-- የምዝገባ ማጣሪያ ገጽ (Pending) -->
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
@@ -146,15 +120,21 @@
         </div>
     </div>
 
-    <!-- 4. ዋናው የደብተር ገጽ (Passbook Section) -->
+    <!-- ዋናው የደብተር ገጽ (Passbook Section) -->
     <div id="passbookSection" class="hidden">
-        <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 10px;"></h3>
-
-        <!-- የክፍያ ሁኔታ ባጅ (ከፍሏል / አልከፈለም) -->
-        <div style="text-align: center;">
-            <div id="paymentStatusBadge" class="payment-status-badge hidden"></div>
+        
+        <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ (ከደብተሩ አናት ላይ በግልጽ የሚታይ) -->
+        <div id="announcementBox" class="announcement-card hidden">
+            <div class="announcement-title">
+                <i class="fas fa-bullhorn fa-lg"></i>
+                <span id="announcementHeader">የአድሚን ማስታወቂያ</span>
+            </div>
+            <div id="announcementContent" class="announcement-text"></div>
         </div>
 
+        <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 12px;"></h3>
+
+        <!-- ደብተሮች (የቁጠባና የብድር ታቦች) -->
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
                 <i class="fas fa-piggy-bank"></i> የቁጠባ ደብተር
@@ -164,7 +144,7 @@
             </button>
         </div>
 
-        <!-- 4.1 የቁጠባ ደብተር -->
+        <!-- 1. የቁጠባ ደብተር -->
         <div id="savingsTabContent" class="passbook-card" style="border-color: var(--success);">
             <div style="color: var(--success); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
                 <span><i class="fas fa-book"></i> የቁጠባ ደብተር</span>
@@ -196,20 +176,11 @@
             </form>
         </div>
 
-        <!-- 4.2 የብድር ደብተር -->
+        <!-- 2. የብድር ደብተር -->
         <div id="loanTabContent" class="passbook-card hidden" style="border-color: var(--gold);">
             <div style="color: var(--gold); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between; margin-bottom: 10px;">
                 <span><i class="fas fa-file-invoice-dollar"></i> የብድር ደብተር</span>
                 <span id="loanSeriesNo" style="font-size: 0.85rem; color: var(--gold);">ሴሪ፡ አልተመዘገበም</span>
-            </div>
-
-            <!-- በብድር ደብተሩ ላይ ብቻ የሚታይ የክፍያ ደረሰኝ ማረጋገጫ ማስታወሻ -->
-            <div id="loanPendingAlert" class="pending-alert-banner hidden">
-                <i class="fas fa-hourglass-half fa-lg"></i>
-                <div>
-                    <strong>የላኩት የብድር ክፍያ በማረጋገጥ ላይ ነው!</strong><br>
-                    <span>አድሚኑ ደረሰኝዎን ተቀብሎ ሲያጸድቀው የብድር ዕዳዎ ይዘመናል።</span>
-                </div>
             </div>
 
             <div id="noLoanMsg" class="hidden" style="text-align: center; padding: 20px; color: var(--text-muted);">
@@ -217,6 +188,11 @@
             </div>
 
             <div id="loanDetailsBox">
+                <!-- የክፍያ ሁኔታ (አልተከፈለም / ተከፍሏል) ባጅ በብድር ደብተር ላይ ብቻ -->
+                <div>
+                    <div id="paymentStatusBadge" class="payment-status-badge hidden"></div>
+                </div>
+
                 <div class="balance-box">
                     <span>የተፈቀደ የብድር መጠን፦</span>
                     <span class="balance-amount" id="approvedLoanDisplay" style="color: var(--gold);">0.00 ETB</span>
@@ -252,7 +228,7 @@
         </div>
     </div>
 
-    <!-- 5. የአባልነት ምዝገባ ቅጽ -->
+    <!-- የአባልነት ምዝገባ ቅጽ -->
     <div id="registerSection" class="card">
         <h2><i class="fas fa-id-card"></i> የአባልነት ምዝገባ ቅጽ</h2>
         <form id="registrationForm" enctype="multipart/form-data">
@@ -322,7 +298,7 @@
     window.addEventListener('DOMContentLoaded', () => {
         checkMemberStatus();
         loadBankAccount();
-        loadNotificationsAndAnnouncements();
+        loadAnnouncement();
     });
 
     async function loadBankAccount() {
@@ -338,23 +314,21 @@
         }
     }
 
-    async function loadNotificationsAndAnnouncements() {
+    async function loadAnnouncement() {
         try {
-            const res = await fetch(`/api/member/notifications?telegram_id=${telegramId}`);
+            const res = await fetch('/api/announcement');
             const data = await res.json();
 
-            if (data.announcement && (data.announcement.text || data.announcement.content)) {
-                document.getElementById('announcementHeader').innerText = data.announcement.title || 'የአድሚን ማስታወቂያ';
-                document.getElementById('announcementContent').innerText = data.announcement.text || data.announcement.content;
+            if (data && (data.text || data.content || data.message)) {
+                const headerText = data.title || '📢 ከአድሚን የተላከ ማስታወቂያ';
+                const bodyText = data.text || data.content || data.message;
+
+                document.getElementById('announcementHeader').innerText = headerText;
+                document.getElementById('announcementContent').innerText = bodyText;
                 document.getElementById('announcementBox').classList.remove('hidden');
             }
-
-            if (data.direct_message) {
-                document.getElementById('personalDirectMsgText').innerText = data.direct_message;
-                document.getElementById('personalDirectMsgBox').classList.remove('hidden');
-            }
         } catch (e) {
-            console.error("Notification load error:", e);
+            console.error("Announcement load error:", e);
         }
     }
 
@@ -381,21 +355,16 @@
                     document.getElementById('savingsRefNo').innerText = `ደብተር No: ${userRefNo}`;
                     document.getElementById('savingsBalanceDisplay').innerText = `${Number(data.member.paid_amount || 0).toLocaleString()} ETB`;
 
+                    // የክፍያ ሁኔታ ባጅ በብድር ደብተር ላይ ብቻ ማሳየት
                     const badge = document.getElementById('paymentStatusBadge');
                     if (data.member.is_paid) {
                         badge.className = "payment-status-badge status-paid";
-                        badge.innerHTML = `<i class="fas fa-check-circle"></i> ክፍያ፡ ተከፍሏል`;
+                        badge.innerHTML = `<i class="fas fa-check-circle"></i> የብድር ክፍያ፡ ተከፍሏል`;
                     } else {
                         badge.className = "payment-status-badge status-unpaid";
-                        badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> ክፍያ፡ አልተከፈለም (እዳ አለበት)`;
+                        badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)`;
                     }
                     badge.classList.remove('hidden');
-
-                    if (data.member.has_pending_loan_receipt) {
-                        document.getElementById('loanPendingAlert').classList.remove('hidden');
-                    } else {
-                        document.getElementById('loanPendingAlert').classList.add('hidden');
-                    }
 
                     if (data.member.approved_loan > 0 || data.member.loan_series_no) {
                         document.getElementById('loanDetailsBox').classList.remove('hidden');
