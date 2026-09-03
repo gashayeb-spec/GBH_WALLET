@@ -29,8 +29,8 @@
         .tab-btn.active-savings { background: #065f46; border-color: var(--success); }
         .tab-btn.active-loan { background: #854d0e; border-color: var(--gold); }
 
-        .bank-info { background: #0f172a; padding: 10px; border-radius: 8px; border-left: 3px solid var(--gold); font-size: 0.85rem; margin-top: 10px; }
-        .bank-info p { margin-bottom: 4px; }
+        .bank-info { background: #0f172a; padding: 12px; border-radius: 8px; border-left: 4px solid var(--gold); font-size: 0.85rem; margin-top: 10px; word-break: break-word; }
+        .bank-info p { margin-bottom: 4px; line-height: 1.4; }
 
         .input-group { margin-bottom: 12px; margin-top: 10px; }
         .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
@@ -42,7 +42,9 @@
         .btn-submit {
             width: 100%; padding: 11px; background: var(--gold); border: none;
             border-radius: 8px; color: #0f172a; font-weight: bold; cursor: pointer; margin-top: 8px;
+            transition: opacity 0.2s;
         }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
         
         .passbook-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
         .balance-box { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 8px; }
@@ -96,22 +98,20 @@
             </div>
 
             <div class="bank-info">
-                <strong style="color: var(--gold);"><i class="fas fa-university"></i> የቁጠባ ገቢ ማድረጊያ የባንክ ሂሳቦች፦</strong>
-                <p>• ንግድ ባንክ (CBE): <b>1000123456789</b></p>
-                <p>• አቢሲንያ ባንክ: <b>987654321</b></p>
-                <p>• Telebirr: <b>0911223344</b></p>
+                <strong style="color: var(--gold);"><i class="fas fa-university"></i> የቁጠባ ገቢ ማድረጊያ የባንክ ሂሳብ፦</strong>
+                <p id="savingsBankText" style="margin-top: 5px;">መረጃው በመጫን ላይ...</p>
             </div>
 
             <form id="savingsForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'savings')">
                 <div class="input-group">
                     <label>የተቆጠበው ብር መጠን (ETB)</label>
-                    <input type="number" id="savingsAmount" required placeholder="ምሳሌ: 1000">
+                    <input type="number" id="savingsAmount" required placeholder="ምሳሌ: 1000" step="any">
                 </div>
                 <div class="input-group">
                     <label>የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
                     <input type="file" id="savingsReceipt" accept="image/*" required>
                 </div>
-                <button type="submit" class="btn-submit" style="background: var(--success); color: white;">
+                <button type="submit" id="savingsSubmitBtn" class="btn-submit" style="background: var(--success); color: white;">
                     <i class="fas fa-paper-plane"></i> የቁጠባ ደረሰኝ ለአድሚን ላክ
                 </button>
             </form>
@@ -143,21 +143,20 @@
                 </div>
 
                 <div class="bank-info" style="border-left-color: var(--danger);">
-                    <strong style="color: var(--danger);"><i class="fas fa-university"></i> የብድር መክፈያ የባንክ ሂሳቦች፦</strong>
-                    <p>• ንግድ ባንክ (CBE): <b>1000999888777</b></p>
-                    <p>• Telebirr: <b>0911223344</b></p>
+                    <strong style="color: var(--danger);"><i class="fas fa-university"></i> የብድር መክፈያ የባንክ ሂሳብ፦</strong>
+                    <p id="loanBankText" style="margin-top: 5px;">መረጃው በመጫን ላይ...</p>
                 </div>
 
                 <form id="loanForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'loan')">
                     <div class="input-group">
                         <label>የተከፈለው ብድር መጠን (ETB)</label>
-                        <input type="number" id="loanAmount" required placeholder="ምሳሌ: 500">
+                        <input type="number" id="loanAmount" required placeholder="ምሳሌ: 500" step="any">
                     </div>
                     <div class="input-group">
                         <label>የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
                         <input type="file" id="loanReceipt" accept="image/*" required>
                     </div>
-                    <button type="submit" class="btn-submit">
+                    <button type="submit" id="loanSubmitBtn" class="btn-submit">
                         <i class="fas fa-paper-plane"></i> የብድር ደረሰኝ ለአድሚን ላክ
                     </button>
                 </form>
@@ -223,31 +222,55 @@
         }
     }
 
-    window.addEventListener('DOMContentLoaded', checkMemberStatus);
+    window.addEventListener('DOMContentLoaded', () => {
+        checkMemberStatus();
+        loadBankAccount();
+    });
+
+    async function loadBankAccount() {
+        try {
+            const res = await fetch('/api/settings/bank');
+            const data = await res.json();
+            const bankText = data.bank_account || "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ተራመድ ሳኮ)";
+            
+            document.getElementById('savingsBankText').innerText = bankText;
+            document.getElementById('loanBankText').innerText = bankText;
+        } catch (e) {
+            console.error("Bank account load error:", e);
+        }
+    }
 
     async function checkMemberStatus() {
+        if (!telegramId) {
+            console.warn("Telegram ID አልተገኘም። Local browser test ላይ ሊሆኑ ይችላሉ።");
+        }
+
         try {
             const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
             const data = await res.json();
 
-            if (telegramId && telegramId === data.admin_id) {
+            if (telegramId && data.admin_id && telegramId === data.admin_id.toString()) {
                 document.getElementById('adminLinkBtn').classList.remove('hidden');
             }
 
-            if (data.exists) {
+            if (data.exists && data.member) {
                 document.getElementById('registerSection').classList.add('hidden');
-                userRefNo = data.member.ref_no;
+                userRefNo = data.member.ref_no || '';
                 
                 if (data.member.status === 'pending') {
                     document.getElementById('pendingSection').classList.remove('hidden');
                 } else if (data.member.status === 'approved') {
                     document.getElementById('passbookSection').classList.remove('hidden');
                     
-                    document.getElementById('memberNameDisplay').innerText = `👤 ${data.member.first_name} ${data.member.father_name}`;
-                    document.getElementById('savingsRefNo').innerText = `ደብተር No: ${data.member.ref_no}`;
+                    const fullName = `${data.member.first_name || ''} ${data.member.father_name || ''}`.trim();
+                    document.getElementById('memberNameDisplay').innerText = `👤 ${fullName}`;
+                    document.getElementById('savingsRefNo').innerText = `ደብተር No: ${userRefNo}`;
                     document.getElementById('savingsBalanceDisplay').innerText = `${(data.member.paid_amount || 0).toLocaleString()} ETB`;
                     
                     if (data.member.approved_loan > 0 || data.member.loan_series_no) {
+                        document.getElementById('loanDetailsBox').classList.remove('hidden');
+                        document.getElementById('noLoanMsg').classList.add('hidden');
+
                         document.getElementById('loanSeriesNo').innerText = `ሴሪ፡ ${data.member.loan_series_no || 'LN-001'}`;
                         document.getElementById('approvedLoanDisplay').innerText = `${(data.member.approved_loan || 0).toLocaleString()} ETB`;
                         document.getElementById('paidLoanDisplay').innerText = `${(data.member.paid_loan || 0).toLocaleString()} ETB`;
@@ -261,29 +284,44 @@
                 }
             }
         } catch (e) {
-            console.error(e);
+            console.error("Status check error:", e);
         }
     }
 
     async function handlePaymentSubmit(event, type) {
         event.preventDefault();
+        const submitBtn = document.getElementById(type === 'savings' ? 'savingsSubmitBtn' : 'loanSubmitBtn');
         const amount = document.getElementById(type === 'savings' ? 'savingsAmount' : 'loanAmount').value;
-        const receipt = document.getElementById(type === 'savings' ? 'savingsReceipt' : 'loanReceipt').files[0];
+        const receiptInput = document.getElementById(type === 'savings' ? 'savingsReceipt' : 'loanReceipt');
+
+        if (!receiptInput.files[0]) {
+            alert("እባክዎን የደረሰኝ ፎቶ ያያይዙ!");
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "መረጃው በመላክ ላይ...";
 
         const formData = new FormData();
         formData.append('type', type);
         formData.append('amount', amount);
-        formData.append('receipt', receipt);
+        formData.append('receipt', receiptInput.files[0]);
         formData.append('telegram_id', telegramId);
         formData.append('ref_no', userRefNo);
 
         try {
             const res = await fetch('/api/payment/submit', { method: 'POST', body: formData });
             const result = await res.json();
-            alert(result.message);
-            if(result.success) location.reload();
+            alert(result.message || "ክፍያው በተሳካ ሁኔታ ተልኳል!");
+            if (result.success) location.reload();
+            else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> የ${type === 'savings' ? 'ቁጠባ' : 'ብድር'} ደረሰኝ ለአድሚን ላክ`;
+            }
         } catch(e) {
-            alert("ስህተት ተከሰቷል!");
+            alert("ስህተት ተከሰቷል! እባክዎ ደግመው ይሞክሩ።");
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> የ${type === 'savings' ? 'ቁጠባ' : 'ብድር'} ደረሰኝ ለአድሚን ላክ`;
         }
     }
 
@@ -291,6 +329,7 @@
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
+        btn.innerText = "መረጃው በመላክ ላይ...";
 
         const formData = new FormData();
         formData.append('first_name', document.getElementById('firstName').value);
@@ -300,20 +339,27 @@
         formData.append('phone_number', document.getElementById('phoneNumber').value);
         formData.append('tin_number', document.getElementById('tinNumber').value);
         formData.append('telegram_id', telegramId);
+        
         formData.append('national_id', document.getElementById('nationalId').files[0]);
         formData.append('user_photo', document.getElementById('userPhoto').files[0]);
+        
         const tradeLic = document.getElementById('tradeLicense').files[0];
         if (tradeLic) formData.append('trade_license', tradeLic);
 
         try {
             const res = await fetch('/api/register', { method: 'POST', body: formData });
             const result = await res.json();
-            alert(result.message);
-            if(result.success) checkMemberStatus();
-            else btn.disabled = false;
+            alert(result.message || "ምዝገባው በተሳካ ሁኔታ ተልኳል!");
+            if (result.success) {
+                checkMemberStatus();
+            } else {
+                btn.disabled = false;
+                btn.innerText = "መረጃውን ለአድሚን ላክ";
+            }
         } catch (err) {
-            alert("መረጃውን መላክ አልተቻለም!");
+            alert("መረጃውን መላክ አልተቻለም! እባክዎ ደግመው ይሞክሩ።");
             btn.disabled = false;
+            btn.innerText = "መረጃውን ለአድሚን ላክ";
         }
     });
 </script>
