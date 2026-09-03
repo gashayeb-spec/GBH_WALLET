@@ -9,11 +9,11 @@
         :root {
             --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
             --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
-            --success: #10b981; --danger: #ef4444; --blue: #3b82f6;
+            --success: #10b981; --danger: #ef4444; --blue: #3b82f6; --purple: #8b5cf6;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 15px; }
-        .container { max-width: 1250px; margin: 0 auto; }
+        .container { max-width: 1300px; margin: 0 auto; }
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .header h2 { color: var(--gold); font-size: 1.3rem; }
@@ -35,13 +35,13 @@
         .tab-btn.active { background: var(--gold); color: #000; }
 
         .top-controls { display: flex; gap: 10px; width: 100%; max-width: 600px; }
-        .search-box, .date-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .search-box, .date-box, .select-box, .textarea-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
         .search-box { flex: 1; }
         .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
         .btn-refresh:hover { background: #475569; }
         
         .table-responsive { overflow-x: auto; background: var(--card); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1050px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1100px; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
         th { background: #1e293b; color: var(--gold); white-space: nowrap; }
         tr:hover { background: rgba(255, 255, 255, 0.02); }
@@ -54,21 +54,27 @@
         .doc-link { color: var(--blue); text-decoration: none; font-size: 0.8rem; margin-right: 5px; }
         .doc-link:hover { text-decoration: underline; }
 
-        .btn-action { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 3px; font-size: 0.75rem; }
+        .btn-action { padding: 6px 9px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 2px; font-size: 0.75rem; }
         .btn-edit { background: var(--blue); color: white; }
         .btn-deduct { background: var(--gold); color: #000; }
         .btn-approve { background: var(--success); color: white; }
-        .btn-reject { background: var(--danger); color: white; }
+        .btn-reject { background: #f97316; color: white; }
+        .btn-delete { background: var(--danger); color: white; }
+        .btn-message { background: var(--purple); color: white; }
         
         /* Modal Popup */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
-        .modal-content { background: var(--card); padding: 22px; border-radius: 12px; width: 95%; max-width: 450px; border: 1px solid var(--gold); }
+        .modal-content { background: var(--card); padding: 22px; border-radius: 12px; width: 95%; max-width: 480px; border: 1px solid var(--gold); }
         .modal-content h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
         .input-group { margin-bottom: 12px; }
         .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
-        .input-group input { width: 100%; padding: 8px 10px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 8px 10px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
         .modal-btns { display: flex; justify-content: space-between; margin-top: 18px; }
         .hidden { display: none !important; }
+
+        /* Announcement Section */
+        .broadcast-card { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
+        .broadcast-card h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
     </style>
 </head>
 <body>
@@ -118,6 +124,7 @@
         <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> የአባላት መዝገብ</button>
         <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> የቁጠባ ሪሲቶች</button>
         <button class="tab-btn" id="tabLoanBtn" onclick="switchTab('loan')"><i class="fas fa-hand-holding-usd"></i> የብድር ተመላሽ ሪሲቶች</button>
+        <button class="tab-btn" id="tabBroadcastBtn" onclick="switchTab('broadcast')"><i class="fas fa-bullhorn"></i> ማስታወቂያና መልእክት መላኪያ</button>
     </div>
 
     <!-- TAB 1: MEMBERS TABLE -->
@@ -185,6 +192,36 @@
         </div>
     </div>
 
+    <!-- TAB 4: BROADCAST / ANNOUNCEMENT CENTER -->
+    <div id="broadcastTabSection" class="hidden">
+        <div class="broadcast-card">
+            <h3><i class="fas fa-paper-plane"></i> አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል</h3>
+            
+            <div class="input-group">
+                <label>የመልእክቱ ተቀባዮች (Target Audience)</label>
+                <select id="broadcastTarget" class="select-box" onchange="fillTemplate()">
+                    <option value="all">📢 ለሁሉም አባላት (የበዓላት/የስብሰባ ማስታወቂያ)</option>
+                    <option value="unpaid">⚠️ ላልከፈሉ/እዳ ላለባቸው አባላት (የክፍያ ማስታወሻ)</option>
+                    <option value="paid">✅ ለከፈሉ አባላት (የምስጋና መልእክት)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>የማስታወቂያው ርዕስ / Title</label>
+                <input type="text" id="broadcastTitle" placeholder="ምሳሌ፦ የእንኳን አደረሳችሁ መልእክት / የስብሰባ ጥሪ">
+            </div>
+
+            <div class="input-group">
+                <label>የመልእክቱ ዝርዝር ጽሁፍ / Message Body</label>
+                <textarea id="broadcastBody" rows="5" class="textarea-box" placeholder="የሚልኩትን መልእክት እዚህ ይጻፉ..."></textarea>
+            </div>
+
+            <button class="btn-action btn-approve" style="padding: 10px 20px; font-size: 0.9rem;" onclick="sendBroadcast()">
+                <i class="fas fa-broadcast-tower"></i> መልእክቱን በጅምላ ላክ (Send Broadcast)
+            </button>
+        </div>
+    </div>
+
 </div>
 
 <!-- Modal for Deducting Amount Directly -->
@@ -205,7 +242,7 @@
 
         <div class="modal-btns">
             <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveDeduction()"><i class="fas fa-check"></i> ቀንስና አዘምን</button>
-            <button class="btn-action btn-reject" style="padding: 8px 15px;" onclick="closeDeductModal()">ዝጋ</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeDeductModal()">ዝጋ</button>
         </div>
     </div>
 </div>
@@ -235,14 +272,33 @@
 
         <div class="modal-btns">
             <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveFinancials()"><i class="fas fa-save"></i> አስቀምጥ</button>
-            <button class="btn-action btn-reject" style="padding: 8px 15px;" onclick="closeModal()">ዝጋ</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeModal()">ዝጋ</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Direct Individual Message -->
+<div id="directMsgModal" class="modal hidden">
+    <div class="modal-content">
+        <h3><i class="fas fa-envelope"></i> ለአባል ቀጥታ መልእክት መላኪያ</h3>
+        <input type="hidden" id="directMsgMemberId">
+        <p id="directMsgMemberInfo" style="color: var(--gold); font-weight: bold; margin-bottom: 12px; font-size: 0.9rem;"></p>
+        
+        <div class="input-group">
+            <label>የመልእክቱ ጽሁፍ</label>
+            <textarea id="directMsgText" rows="4" class="textarea-box" placeholder="ለዚህ አባል የሚላከውን መልእክት እዚህ ይጻፉ..."></textarea>
+        </div>
+
+        <div class="modal-btns">
+            <button class="btn-action btn-message" style="padding: 8px 15px;" onclick="sendDirectMessage()"><i class="fas fa-paper-plane"></i> መልእክት ላክ</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeDirectMsgModal()">ዝጋ</button>
         </div>
     </div>
 </div>
 
 <script>
     let allMembersData = [];
-    let currentTab = 'members'; // 'members', 'savings', 'loan'
+    let currentTab = 'members'; // 'members', 'savings', 'loan', 'broadcast'
 
     window.addEventListener('DOMContentLoaded', () => {
         loadAnalytics();
@@ -250,7 +306,6 @@
         loadMembers();
     });
 
-    // Helper Function to escape HTML/JS characters securely
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -261,7 +316,7 @@
             .replace(/'/g, "&#039;");
     }
 
-    // 1. Dashboard Analytics Load
+    // 1. Analytics Load
     async function loadAnalytics() {
         try {
             const res = await fetch('/api/admin/analytics');
@@ -278,7 +333,7 @@
         } catch (e) { console.error("Error loading analytics:", e); }
     }
 
-    // 2. Bank Account Setting Load & Save
+    // 2. Bank Account
     async function loadBankAccount() {
         try {
             const res = await fetch('/api/settings/bank');
@@ -302,18 +357,26 @@
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
-    // 3. Tab Switching Logic
+    // 3. Tab Switching
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('tabMembersBtn').classList.remove('active');
         document.getElementById('tabSavingsBtn').classList.remove('active');
         document.getElementById('tabLoanBtn').classList.remove('active');
+        document.getElementById('tabBroadcastBtn').classList.remove('active');
+
+        document.getElementById('membersTabSection').classList.add('hidden');
+        document.getElementById('receiptsTabSection').classList.add('hidden');
+        document.getElementById('broadcastTabSection').classList.add('hidden');
 
         if (tab === 'members') {
             document.getElementById('tabMembersBtn').classList.add('active');
             document.getElementById('membersTabSection').classList.remove('hidden');
-            document.getElementById('receiptsTabSection').classList.add('hidden');
             loadMembers();
+        } else if (tab === 'broadcast') {
+            document.getElementById('tabBroadcastBtn').classList.add('active');
+            document.getElementById('broadcastTabSection').classList.remove('hidden');
+            fillTemplate();
         } else {
             if (tab === 'savings') {
                 document.getElementById('tabSavingsBtn').classList.add('active');
@@ -322,13 +385,12 @@
                 document.getElementById('tabLoanBtn').classList.add('active');
                 document.getElementById('receiptSectionTitle').innerText = "💳 የብድር ተመላሽ ደረሰኞች መዝገብ";
             }
-            document.getElementById('membersTabSection').classList.add('hidden');
             document.getElementById('receiptsTabSection').classList.remove('hidden');
             loadReceipts();
         }
     }
 
-    // 4. Load Members
+    // 4. Load & Render Members Table
     async function loadMembers() {
         try {
             const res = await fetch('/api/admin/members');
@@ -360,11 +422,13 @@
             let badgeClass = m.status === 'approved' ? 'badge-approved' : (m.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
             const dateStr = m.created_at ? m.created_at.split(' ')[0] : '-';
             const fullName = `${m.first_name || ''} ${m.father_name || ''}`.trim() || 'ስም የለም';
+            const refNo = m.ref_no || '-';
+            const seriesNo = m.loan_series_no || '-';
 
             tr.innerHTML = `
                 <td style="font-size: 0.75rem;">${dateStr}</td>
-                <td><b>${escapeHtml(m.ref_no || '-')}</b></td>
-                <td style="color: var(--gold); font-weight: bold;">${escapeHtml(m.loan_series_no || '-')}</td>
+                <td><b>${escapeHtml(refNo)}</b></td>
+                <td style="color: var(--gold); font-weight: bold;">${escapeHtml(seriesNo)}</td>
                 <td><b>${escapeHtml(fullName)}</b></td>
                 <td style="font-size: 0.75rem;">${escapeHtml(m.phone_number || '-')}<br>TIN: ${escapeHtml(m.tin_number || '-')}</td>
                 <td>${docsHtml || '-'}</td>
@@ -373,25 +437,120 @@
                 <td style="color: #60a5fa; font-weight: bold;">${(m.paid_loan || 0).toLocaleString()} ብር</td>
                 <td><span class="badge ${badgeClass}">${escapeHtml(m.status)}</span></td>
                 <td>
-                    <button class="btn-action btn-deduct" title="ብር ቀንስ/አዘምን" class="btn-deduct-action"><i class="fas fa-minus-circle"></i> ቀንስ</button>
-                    <button class="btn-action btn-edit" title="አስተካክል" class="btn-edit-action"><i class="fas fa-edit"></i></button>
-                    <button class="btn-action btn-approve" title="አጽድቅ" class="btn-approve-action"><i class="fas fa-check"></i></button>
-                    <button class="btn-action btn-reject" title="ሰርዝ" class="btn-reject-action"><i class="fas fa-times"></i></button>
+                    <button class="btn-action btn-message" title="ሜሴጅ ላክ"><i class="fas fa-envelope"></i></button>
+                    <button class="btn-action btn-deduct" title="ብር ቀንስ/አዘምን"><i class="fas fa-minus-circle"></i> ቀንስ</button>
+                    <button class="btn-action btn-edit" title="አስተካክል"><i class="fas fa-edit"></i></button>
+                    <button class="btn-action btn-approve" title="አጽድቅ"><i class="fas fa-check"></i></button>
+                    <button class="btn-action btn-reject" title="የተሰረዘ አድርግ"><i class="fas fa-ban"></i></button>
+                    <button class="btn-action btn-delete" title="ጨርሰህ ሰርዝ"><i class="fas fa-trash-alt"></i></button>
                 </td>
             `;
 
-            // Attach safe event listeners dynamically
-            const buttons = tr.querySelectorAll('.btn-action');
-            buttons[0].onclick = () => openDeductModal(m.id, fullName);
-            buttons[1].onclick = () => openModal(m.id, m.loan_series_no || '', m.paid_amount || 0, m.approved_loan || 0, m.paid_loan || 0);
-            buttons[2].onclick = () => updateStatus(m.id, 'approved');
-            buttons[3].onclick = () => updateStatus(m.id, 'rejected');
+            // Action Button Handlers
+            const btns = tr.querySelectorAll('.btn-action');
+            btns[0].onclick = () => openDirectMsgModal(m.id, fullName, refNo, seriesNo);
+            btns[1].onclick = () => openDeductModal(m.id, fullName);
+            btns[2].onclick = () => openModal(m.id, seriesNo, m.paid_amount || 0, m.approved_loan || 0, m.paid_loan || 0);
+            btns[3].onclick = () => updateStatus(m.id, 'approved');
+            btns[4].onclick = () => updateStatus(m.id, 'rejected');
+            btns[5].onclick = () => deleteMember(m.id, fullName);
 
             tbody.appendChild(tr);
         });
     }
 
-    // 5. Load Receipts (By Type and Selected Date Filter)
+    // 5. Direct Message Logic
+    function openDirectMsgModal(id, name, refNo, seriesNo) {
+        document.getElementById('directMsgMemberId').value = id;
+        document.getElementById('directMsgMemberInfo').innerText = `ተቀባይ፦ ${name} (የቁጠባ No: ${refNo} | ሴሪ: ${seriesNo})`;
+        document.getElementById('directMsgText').value = '';
+        document.getElementById('directMsgModal').classList.remove('hidden');
+    }
+
+    function closeDirectMsgModal() {
+        document.getElementById('directMsgModal').classList.add('hidden');
+    }
+
+    async function sendDirectMessage() {
+        const id = document.getElementById('directMsgMemberId').value;
+        const msg = document.getElementById('directMsgText').value.trim();
+
+        if (!msg) {
+            alert("እባክዎን መልእክቱን ይጻፉ!");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/send_direct_message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: id, message: msg })
+            });
+            const data = await res.json();
+            alert(data.message || "መልእክቱ ለአባሉ በተሳካ ሁኔታ ተላክዋል!");
+            closeDirectMsgModal();
+        } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
+    }
+
+    // 6. Broadcast Announcement System
+    function fillTemplate() {
+        const target = document.getElementById('broadcastTarget').value;
+        const titleInput = document.getElementById('broadcastTitle');
+        const bodyInput = document.getElementById('broadcastBody');
+
+        if (target === 'unpaid') {
+            titleInput.value = "⚠️ የክፍያ ማስታወሻ - ተራመድ ሳኮ";
+            bodyInput.value = "ውድ የአበላችን፣ የወርሃዊ ቁጠባ ወይም የብድር ክፍያዎ ያልተከፈለ መሆኑን እናሳውቃለን። እባክዎን እስከተወሰነው ቀን ድረስ ክፍያውን ፈጽመው ደረሰኙን በአፑ በኩል ይላኩ። አመሰግናለሁ!";
+        } else if (target === 'paid') {
+            titleInput.value = "🎉 የምስጋና መልእክት - ተራመድ ሳኮ";
+            bodyInput.value = "ውድ የአበላችን፣ ወቅታዊ ክፍያዎን ስለፈፀሙ እናመሰግናለን! የቁጠባ ሂሳብዎ በአግባቡ ተዘምኗል።";
+        } else {
+            titleInput.value = "📢 እንኳን ለበዓል አደረሳችሁ / አጠቃላይ ማስታወቂያ";
+            bodyInput.value = "ውድ የተራመድ ሳኮ አባላት፣ እንኳን ለብርሃነ መስቀሉ በዓል በሰላም አደረሳችሁ! መልካም የበዓል ጊዜ እንዲሆንልዎ እንመኛለን።";
+        }
+    }
+
+    async function sendBroadcast() {
+        const target = document.getElementById('broadcastTarget').value;
+        const title = document.getElementById('broadcastTitle').value.trim();
+        const body = document.getElementById('broadcastBody').value.trim();
+
+        if (!title || !body) {
+            alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
+            return;
+        }
+
+        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት (${target}) በጅምላ መላክ ይፈልጋሉ?`)) return;
+
+        try {
+            const res = await fetch('/api/admin/send_broadcast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: target, title: title, message: body })
+            });
+            const data = await res.json();
+            alert(data.message || "ማስታወቂያው ለሁሉም ተላክዋል!");
+        } catch (e) { alert("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!"); }
+    }
+
+    // 7. Delete Member Function
+    async function deleteMember(id, name) {
+        if (!confirm(`⚠️ ማስጠንቀቂያ፦ አባል '${name}' ጨርሶ ከአሰራሩ ይሰረዛል! እርግጠኛ ነዎት?`)) return;
+
+        try {
+            const res = await fetch('/api/admin/delete_member', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: id })
+            });
+            const data = await res.json();
+            alert(data.message || "አባሉ ተሰርዟል!");
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+    }
+
+    // 8. Load Receipts
     async function loadReceipts() {
         const dateVal = document.getElementById('receiptDateFilter').value;
         const url = `/api/admin/receipts?type=${currentTab}&date=${dateVal}`;
@@ -465,7 +624,7 @@
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
-    // Modal Functions
+    // Modal Operations for Financials
     function openDeductModal(id, name) {
         document.getElementById('deductMemberId').value = id;
         document.getElementById('deductMemberName').innerText = `አባል፦ ${name}`;
@@ -535,7 +694,7 @@
     }
 
     async function updateStatus(id, status) {
-        if (!confirm(`እርግጠኛ ነዎት የአባሉን ሁኔታ ወደ '${status}' መቀየር ይፈልጋሉ?`)) return;
+        if (!confirm(`እርግጠኛ ነዎት የአባሉን ሁኔታ መቀየር ይፈልጋሉ?`)) return;
         try {
             const res = await fetch('/api/admin/update_status', {
                 method: 'POST',
