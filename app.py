@@ -31,7 +31,7 @@ DB_NAME = "database.db"
 bot = telebot.TeleBot(BOT_TOKEN) if BOT_TOKEN else None
 
 # ---------------------------------------------------------
-# Database Setup
+# Database Setup & Migrations
 # ---------------------------------------------------------
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME, timeout=10)
@@ -41,6 +41,8 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    # 1. Members Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,6 +65,36 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # 2. Receipts Table (ለቁጠባና ብድር ተመላሽ ደረሰኞች መዝገብ)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS receipts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id INTEGER,
+            ref_no TEXT,
+            pay_type TEXT,
+            amount REAL,
+            receipt_path TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (member_id) REFERENCES members (id)
+        )
+    ''')
+
+    # 3. Settings Table (ለባንክ ሂሳብ ቁጥሮች መረጃ ማስቀመጫ)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+
+    # Default Bank Account (ነባሪ የባንክ ሂሳብ)
+    cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
+    if not cursor.fetchone():
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
+                       ('1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)',))
+
     conn.commit()
     conn.close()
 
@@ -123,27 +155,33 @@ if bot:
                                          caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> {status_txt}", parse_mode="HTML")
             
             elif action in ["approve_pay", "cancel_pay"]:
-                pay_type = data[1]
-                member_id = data[2]
-                amount = float(data[3])
+                receipt_id = data[1]
 
-                if action == "approve_pay":
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    if pay_type == "savings":
-                        cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (amount, member_id))
-                    else: # loan return
-                        cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (amount, member_id))
-                    conn.commit()
-                    conn.close()
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM receipts WHERE id = ?", (receipt_id,))
+                receipt = cursor.fetchone()
+
+                if receipt:
+                    if action == "approve_pay" and receipt['status'] == 'pending':
+                        if receipt['pay_type'] == "savings":
+                            cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                        else: # loan
+                            cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                        
+                        cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
+                        conn.commit()
+                        bot.answer_callback_query(call.id, "✅ ክፍያው ተቀባይነት አግኝቶ ደብተሩ ተዘምኗል!")
+                        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                                 caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ✅ ክፍያው ጸድቋል (ደብተሩ ተዘምኗል)", parse_mode="HTML")
                     
-                    bot.answer_callback_query(call.id, "✅ ክፍያው ተቀባይነት አግኝቶ ደብተሩ ተዘምኗል!")
-                    bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                             caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ✅ ክፍያው ጸድቋል (ደብተሩ ተዘምኗል)", parse_mode="HTML")
-                else:
-                    bot.answer_callback_query(call.id, "❌ ክፍያው ውድቅ ተደርጓል!")
-                    bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                             caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ❌ ክፍያው ውድቅ ተደርጓል", parse_mode="HTML")
+                    elif action == "cancel_pay" and receipt['status'] == 'pending':
+                        cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
+                        conn.commit()
+                        bot.answer_callback_query(call.id, "❌ ክፍያው ውድቅ ተደርጓል!")
+                        bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                                 caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ❌ ክፍያው ውድቅ ተደርጓል", parse_mode="HTML")
+                conn.close()
         except Exception as e:
             print(f"Callback error: {e}")
 
@@ -187,6 +225,33 @@ def get_member_status():
         return jsonify({"exists": True, "member": dict(member), "admin_id": SUPER_ADMIN_ID})
     return jsonify({"exists": False, "admin_id": SUPER_ADMIN_ID})
 
+# ባንክ አካውንት መረጃ ለተጠቃሚ ማቅረቢያ
+@app.route('/api/settings/bank', methods=['GET'])
+def get_bank_account():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
+    row = cursor.fetchone()
+    conn.close()
+    bank_info = row['value'] if row else "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)"
+    return jsonify({"bank_account": bank_info})
+
+# አድሚን የባንክ አካውንት ቁጥር መቀየሪያ
+@app.route('/api/admin/settings/bank', methods=['POST'])
+def set_bank_account():
+    try:
+        data = request.get_json(silent=True) or {}
+        bank_info = data.get('bank_account', '')
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('bank_account', ?)", (bank_info,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": "የባንክ ሂሳብ መረጃው ተዘምኗል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/payment/submit', methods=['POST'])
 def submit_payment():
     try:
@@ -194,26 +259,36 @@ def submit_payment():
         files = request.files
 
         pay_type = req.get('type') # 'savings' or 'loan'
-        amount = req.get('amount')
-        telegram_id = req.get('telegram_id')
+        amount = float(req.get('amount', 0))
         ref_no = req.get('ref_no')
 
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM members WHERE ref_no = ?", (ref_no,))
         member = cursor.fetchone()
-        conn.close()
 
         if not member:
+            conn.close()
             return jsonify({"success": False, "message": "አባሉ አልተገኘም!"}), 404
 
         if 'receipt' not in files:
+            conn.close()
             return jsonify({"success": False, "message": "እባክዎን የባንክ ደረሰኝ ስክሪንሾት ያያይዙ!"}), 400
 
         receipt_file = files['receipt']
         filename = secure_filename(f"pay_{pay_type}_{ref_no}_{receipt_file.filename}")
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         receipt_file.save(save_path)
+
+        # በደረሰኞች ሰንጠረዥ (receipts table) መዝግቦ ማስቀመጥ
+        cursor.execute('''
+            INSERT INTO receipts (member_id, ref_no, pay_type, amount, receipt_path, status)
+            VALUES (?, ?, ?, ?, ?, 'pending')
+        ''', (member['id'], ref_no, pay_type, amount, save_path))
+        
+        receipt_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
 
         # ለቴሌግራም አድሚን ፈጣን Approve/Cancel በተን መላክ
         if bot and SUPER_ADMIN_ID:
@@ -230,8 +305,8 @@ def submit_payment():
             
             markup = types.InlineKeyboardMarkup()
             markup.add(
-                types.InlineKeyboardButton("✅ Approve (አጽድቅ)", callback_data=f"approve_pay:{pay_type}:{member['id']}:{amount}"),
-                types.InlineKeyboardButton("❌ Cancel (ሰርዝ)", callback_data=f"cancel_pay:{pay_type}:{member['id']}:{amount}")
+                types.InlineKeyboardButton("✅ Approve (አጽድቅ)", callback_data=f"approve_pay:{receipt_id}"),
+                types.InlineKeyboardButton("❌ Cancel (ሰርዝ)", callback_data=f"cancel_pay:{receipt_id}")
             )
 
             with open(save_path, 'rb') as photo:
@@ -324,6 +399,125 @@ def get_admin_members():
     members = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return jsonify({"status": "success", "members": members}), 200
+
+# ---------------------------------------------------------
+# NEW: ደረሰኞችን በቀንና በዓይነት (ቁጠባ vs ብድር) አውጥቶ ማሳያ
+# ---------------------------------------------------------
+@app.route('/api/admin/receipts', methods=['GET'])
+def get_admin_receipts():
+    pay_type = request.args.get('type') # 'savings' or 'loan'
+    date_str = request.args.get('date') # e.g. '2026-03-30'
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = '''
+        SELECT r.*, m.first_name, m.father_name, m.phone_number 
+        FROM receipts r
+        JOIN members m ON r.member_id = m.id
+        WHERE 1=1
+    '''
+    params = []
+
+    if pay_type:
+        query += " AND r.pay_type = ?"
+        params.append(pay_type)
+    
+    if date_str:
+        query += " AND DATE(r.created_at) = DATE(?)"
+        params.append(date_str)
+
+    query += " ORDER BY r.id DESC"
+
+    cursor.execute(query, params)
+    receipts = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify({"status": "success", "receipts": receipts}), 200
+
+# ---------------------------------------------------------
+# NEW: ደረሰኝ ከአድሚን ፓናል Approve/Reject ማድረጊያ
+# ---------------------------------------------------------
+@app.route('/api/admin/receipt/action', methods=['POST'])
+def process_receipt_action():
+    try:
+        data = request.get_json(silent=True) or {}
+        receipt_id = data.get('receipt_id')
+        action = data.get('action') # 'approve' or 'reject'
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM receipts WHERE id = ?", (receipt_id,))
+        receipt = cursor.fetchone()
+
+        if not receipt:
+            conn.close()
+            return jsonify({"status": "error", "message": "ደረሰኙ አልተገኘም!"}), 404
+
+        if receipt['status'] != 'pending':
+            conn.close()
+            return jsonify({"status": "error", "message": "ይህ ደረሰኝ ቀደም ብሎ ውሳኔ አግኝቷል!"}), 400
+
+        if action == 'approve':
+            if receipt['pay_type'] == 'savings':
+                cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+            else: # loan return
+                cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+            
+            cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
+            msg = "ክፍያው በስኬት ጸድቋል፤ የደብተር ሂሳቡ ተዘምኗል!"
+        else:
+            cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
+            msg = "ክፍያው ውድቅ ተደርጓል!"
+
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": msg}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ---------------------------------------------------------
+# NEW: አጠቃላይ የአድሚን ዳሽቦርድ ስታቲስቲክስ
+# ---------------------------------------------------------
+@app.route('/api/admin/analytics', methods=['GET'])
+def get_admin_analytics():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # የሰው ብዛት
+    cursor.execute("SELECT COUNT(*) FROM members")
+    total_members = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
+    pending_members = cursor.fetchone()[0]
+
+    # የገቢ ስታቲስቲክስ (በቀን፣ በሳምንት፣ በወር፣ በዓመት)
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) = DATE('now')")
+    daily_income = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', '-7 days')")
+    weekly_income = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of month')")
+    monthly_income = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of year')")
+    yearly_income = cursor.fetchone()[0]
+
+    conn.close()
+
+    return jsonify({
+        "status": "success",
+        "analytics": {
+            "total_members": total_members,
+            "pending_members": pending_members,
+            "daily_income": daily_income,
+            "weekly_income": weekly_income,
+            "monthly_income": monthly_income,
+            "yearly_income": yearly_income
+        }
+    }), 200
 
 @app.route('/api/admin/update_status', methods=['POST'])
 def update_status():
