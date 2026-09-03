@@ -45,6 +45,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ref_no TEXT UNIQUE,
+            loan_series_no TEXT DEFAULT '',
             first_name TEXT,
             father_name TEXT,
             grand_name TEXT,
@@ -58,7 +59,6 @@ def init_db():
             paid_amount REAL DEFAULT 0.0,
             approved_loan REAL DEFAULT 0.0,
             paid_loan REAL DEFAULT 0.0,
-            is_defaulted INTEGER DEFAULT 0,
             telegram_id TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -82,54 +82,23 @@ if bot:
             user_id = str(message.from_user.id)
             markup = types.InlineKeyboardMarkup()
             
-            # ተራ ተጠቃሚ ቁልፍ
             web_app_info = types.WebAppInfo(url=WEB_APP_URL)
-            web_btn = types.InlineKeyboardButton(text="📱 ምዝገባ / የኔ ደብተር ክፈት", web_app=web_app_info)
+            web_btn = types.InlineKeyboardButton(text="📱 ምዝገባ / የኔ ደብተሮች", web_app=web_app_info)
             markup.add(web_btn)
             
-            # አድሚን ከሆነ የአድሚን ፓናል ቁልፍ ይጨመርለታል
             if user_id == SUPER_ADMIN_ID:
                 admin_web_info = types.WebAppInfo(url=f"{WEB_APP_URL}/admin")
-                admin_btn = types.InlineKeyboardButton(text="⚙️ Open Admin Panel", web_app=admin_web_info)
+                admin_btn = types.InlineKeyboardButton(text="⚙️ የአድሚን ፓናል (Admin Panel)", web_app=admin_web_info)
                 markup.add(admin_btn)
             
             welcome_msg = (
                 f"ሰላም {message.from_user.first_name}! 👋\n\n"
-                f"እንኳን ወደ **ተራመድ ሳኮ** በሰላም መጡ።\n"
-                f"አገልግሎት ለማግኘት ከታች ያለውን ቁልፍ ይጫኑ።"
+                f"እንኳን ወደ **ተራመድ የቁጠባና ብድር ህብረት ስራ ማህበር** በሰላም መጡ።\n"
+                f"የቁጠባ እና የብድር አገልግሎት ለማግኘት ከታች ያለውን ቁልፍ ይጫኑ።"
             )
             bot.send_message(message.chat.id, welcome_msg, reply_markup=markup, parse_mode="Markdown")
         except Exception as e:
             print(f"Start command error: {e}")
-
-    @bot.callback_query_handler(func=lambda call: True)
-    def handle_admin_action(call):
-        try:
-            data = call.data.split("_")
-            action = data[0]
-            member_id = data[1] if len(data) > 1 else None
-
-            if not member_id: return
-
-            conn = get_db_connection()
-            cursor = conn.cursor()
-
-            if action == "approve":
-                cursor.execute("UPDATE members SET status = 'approved' WHERE id = ?", (member_id,))
-                conn.commit()
-                bot.answer_callback_query(call.id, "✅ አባሉ በስኬት ጸድቋል!")
-            elif action == "reject":
-                cursor.execute("UPDATE members SET status = 'rejected' WHERE id = ?", (member_id,))
-                conn.commit()
-                bot.answer_callback_query(call.id, "❌ ምዝገባው ተሰርዟል!")
-            elif action == "block":
-                cursor.execute("UPDATE members SET status = 'blocked' WHERE id = ?", (member_id,))
-                conn.commit()
-                bot.answer_callback_query(call.id, "🚫 ተጠቃሚው ተአግዷል!")
-
-            conn.close()
-        except Exception as e:
-            print(f"Callback error: {e}")
 
     def run_bot_polling():
         while True:
@@ -171,9 +140,6 @@ def get_member_status():
         return jsonify({"exists": True, "member": dict(member), "admin_id": SUPER_ADMIN_ID})
     return jsonify({"exists": False, "admin_id": SUPER_ADMIN_ID})
 
-# ---------------------------------------------------------
-# Payment Deposit API (የቁጠባና ብድር ስክሪንሾት መላኪያ)
-# ---------------------------------------------------------
 @app.route('/api/payment/submit', methods=['POST'])
 def submit_payment():
     try:
@@ -184,29 +150,35 @@ def submit_payment():
         amount = req.get('amount')
         telegram_id = req.get('telegram_id')
         ref_no = req.get('ref_no')
+        series_no = req.get('series_no', '')
 
         if 'receipt' not in files:
-            return jsonify({"success": False, "message": "እባክዎን የደረሰኝ ስክሪንሾት ያያይዙ!"}), 400
+            return jsonify({"success": False, "message": "እባክዎን የባንክ ደረሰኝ ስክሪንሾት ያያይዙ!"}), 400
 
         receipt_file = files['receipt']
         filename = secure_filename(f"pay_{pay_type}_{ref_no}_{receipt_file.filename}")
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         receipt_file.save(save_path)
 
-        # ለአድሚኑ በቴሌግራም የደረሰኙን ፎቶ መላክ
         if bot and SUPER_ADMIN_ID:
-            type_str = "💰 የቁጠባ ገቢ" if pay_type == "savings" else "💳 የብድር ክፍያ ተመላሽ"
+            if pay_type == "savings":
+                type_str = "💰 የቁጠባ ገቢ ደረሰኝ"
+                detail_str = f"<b>የቁጠባ ደብተር ቁጥር:</b> {ref_no}"
+            else:
+                type_str = "💳 የብድር ክፍያ ተመላሽ ደረሰኝ"
+                detail_str = f"<b>የቁጠባ ደብተር:</b> {ref_no}\n<b>የብድር ሴሪ ቁጥር:</b> {series_no}"
+
             caption = (
                 f"📥 <b>አዲስ የክፍያ ማረጋገጫ ተልኳል!</b>\n\n"
                 f"<b>ዓይነት:</b> {type_str}\n"
-                f"<b>መታወቂያ:</b> {ref_no}\n"
+                f"{detail_str}\n"
                 f"<b>የተከፈለው መጠን:</b> {amount} ETB\n"
                 f"<b>Telegram ID:</b> {telegram_id}"
             )
             with open(save_path, 'rb') as photo:
                 bot.send_photo(SUPER_ADMIN_ID, photo, caption=caption, parse_mode="HTML")
 
-        return jsonify({"success": True, "message": "የክፍያ ማረጋገጫው በስኬት ተልኳል! አድሚኑ አረጋግጦ ይጨምርልዎታል።"}), 200
+        return jsonify({"success": True, "message": "የክፍያ ማረጋገጫው ለአድሚን በስኬት ተልኳል! አድሚኑ አረጋግጦ ሂሳብዎን ያዘምነዋል።"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -228,7 +200,7 @@ def register_member():
 
         cursor.execute("SELECT COUNT(*) FROM members")
         count = cursor.fetchone()[0]
-        ref_no = f"TS-{(count + 1):03d}"
+        ref_no = f"SAV-{(count + 1):03d}" # የቁጠባ ደብተር ቁጥር
 
         nat_id_path, trade_lic_path, photo_path = "", "", ""
 
@@ -270,18 +242,13 @@ def register_member():
         if bot and SUPER_ADMIN_ID:
             msg_text = (
                 f"🆕 <b>አዲስ የአባልነት ምዝገባ!</b>\n\n"
-                f"<b>Ref No:</b> {ref_no}\n<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n"
+                f"<b>የቁጠባ ደብተር No:</b> {ref_no}\n"
+                f"<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n"
                 f"<b>ስልክ:</b> {req.get('phone_number')}"
             )
-            markup = types.InlineKeyboardMarkup()
-            markup.add(
-                types.InlineKeyboardButton("✅ Approve", callback_data=f"approve_{new_id}"),
-                types.InlineKeyboardButton("❌ Reject", callback_data=f"reject_{new_id}"),
-                types.InlineKeyboardButton("🚫 Block", callback_data=f"block_{new_id}")
-            )
-            bot.send_message(SUPER_ADMIN_ID, msg_text, reply_markup=markup, parse_mode="HTML")
+            bot.send_message(SUPER_ADMIN_ID, msg_text, parse_mode="HTML")
 
-        return jsonify({"success": True, "message": "ምዝገባዎ በስኬት ተልኳል!"}), 200
+        return jsonify({"success": True, "message": "ምዝገባዎ በስኬት ተልኳል! አድሚኑ ሲያጸድቀው ደብተሮችዎ ይከፈታሉ።"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
@@ -296,25 +263,39 @@ def get_admin_members():
 
 @app.route('/api/admin/update_status', methods=['POST'])
 def update_status():
-    data = request.get_json(silent=True) or {}
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE members SET status = ? WHERE id = ?", (data.get('status'), data.get('member_id')))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"}), 200
+    try:
+        data = request.get_json(silent=True) or {}
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (data.get('status'), data.get('member_id')))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": "የአባሉ ሁኔታ በስኬት ተቀይሯል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/admin/update_financials', methods=['POST'])
 def update_financials():
-    data = request.get_json(silent=True) or {}
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE members SET paid_amount = ?, approved_loan = ?, paid_loan = ? WHERE id = ?
-    ''', (data.get('paid_amount', 0), data.get('approved_loan', 0), data.get('paid_loan', 0), data.get('member_id')))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"}), 200
+    try:
+        data = request.get_json(silent=True) or {}
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE members 
+            SET paid_amount = ?, approved_loan = ?, paid_loan = ?, loan_series_no = ?
+            WHERE id = ?
+        ''', (
+            float(data.get('paid_amount', 0)), 
+            float(data.get('approved_loan', 0)), 
+            float(data.get('paid_loan', 0)),
+            data.get('loan_series_no', ''),
+            data.get('member_id')
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": "የደብተር እና የፋይናንስ መረጃው በስኬት ተዘምኗል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
