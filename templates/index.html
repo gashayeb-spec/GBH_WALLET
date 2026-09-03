@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ተራመድ - የቁጠባና የብድር ደብተሮች</title>
+    <title>ተራመድ - የቁጠባና የብድር ደብተሮች / TERAMED - Passbooks</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -16,6 +16,28 @@
         body { background: var(--bg); color: var(--text); padding: 15px; -webkit-tap-highlight-color: transparent; }
         .container { max-width: 500px; margin: 0 auto; }
         
+        /* 🌐 የቋንቋ መቆጣጠሪያ ማዕከል */
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+        .lang-switch-btn {
+            background: var(--card);
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .lang-switch-btn:active { transform: scale(0.95); }
+
         .card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
         .card h2 { color: var(--gold); text-align: center; margin-bottom: 15px; font-size: 1.2rem; }
         
@@ -25,7 +47,7 @@
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
         }
 
-        /* 📢 ከአድሚን የሚላክ ማስታወቂያ (ከአድሚን ቁልፍ በታች የሚቀመጥ) */
+        /* 📢 ከአድሚን የሚላክ ማስታወቂያ */
         .announcement-card {
             background: linear-gradient(135deg, #1e1b4b, #311b92);
             border: 2px solid var(--gold);
@@ -84,7 +106,6 @@
         .pending { background: rgba(245, 158, 11, 0.12); color: var(--gold); border: 1px solid var(--gold); }
         .hidden { display: none !important; }
 
-        /* የክፍያ ሁኔታ ባጅ (በብድር ደብተር ላይ ብቻ የሚታይ) */
         .payment-status-badge {
             display: inline-flex;
             align-items: center;
@@ -104,12 +125,19 @@
 
 <div class="container">
 
+    <!-- 🌐 የቋንቋ መቀየሪያ ቁልፍ -->
+    <div class="top-bar">
+        <button class="lang-switch-btn" onclick="toggleLanguage()">
+            <i class="fas fa-globe"></i> <span id="langBtnText">English</span>
+        </button>
+    </div>
+
     <!-- ወደ አድሚን ዳሽቦርድ መሄጃ -->
     <a id="adminLinkBtn" href="/admin" class="admin-nav-btn hidden">
-        <i class="fas fa-user-shield"></i> ወደ አድሚን ፓናል ሂድ (Admin Dashboard)
+        <i class="fas fa-user-shield"></i> <span id="txtAdminBtn">ወደ አድሚን ፓናል ሂድ (Admin Dashboard)</span>
     </a>
 
-    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ (ከአድሚን ቁልፍ ስር እና ከስሙ በላይ የሚቀመጥበት ቦታ) -->
+    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ -->
     <div id="announcementBox" class="announcement-card hidden">
         <div class="announcement-title">
             <i class="fas fa-bullhorn fa-lg"></i>
@@ -122,8 +150,8 @@
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
-            <h3>ምዝገባዎ በማጣራት ላይ ይገኛል!</h3><br>
-            <p style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">
+            <h3 id="txtPendingTitle">ምዝገባዎ በማጣራት ላይ ይገኛል!</h3><br>
+            <p id="txtPendingDesc" style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">
                 አድሚኑ መረጃዎን አይቶ ሲያጸድቀው የቁጠባ እና የብድር ደብተሮችዎ ይከፈታሉ።
             </p>
         </div>
@@ -137,41 +165,41 @@
         <!-- ደብተሮች (የቁጠባና የብድር ታቦች) -->
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
-                <i class="fas fa-piggy-bank"></i> የቁጠባ ደብተር
+                <i class="fas fa-piggy-bank"></i> <span id="txtSavingsTab">የቁጠባ ደብተር</span>
             </button>
             <button id="btnLoanTab" class="tab-btn" onclick="switchTab('loan')">
-                <i class="fas fa-hand-holding-usd"></i> የብድር ደብተር
+                <i class="fas fa-hand-holding-usd"></i> <span id="txtLoanTab">የብድር ደብተር</span>
             </button>
         </div>
 
         <!-- 1. የቁጠባ ደብተር -->
         <div id="savingsTabContent" class="passbook-card" style="border-color: var(--success);">
             <div style="color: var(--success); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
-                <span><i class="fas fa-book"></i> የቁጠባ ደብተር</span>
+                <span><i class="fas fa-book"></i> <span id="txtSavingsCardTitle">የቁጠባ ደብተር</span></span>
                 <span id="savingsRefNo" style="font-size: 0.9rem; color: #fff;">SAV-000</span>
             </div>
             
             <div class="balance-box">
-                <span>የተቆጠበ ጠቅላላ ቁጠባ፦</span>
+                <span id="txtTotalSavingsLbl">የተቆጠበ ጠቅላላ ቁጠባ፦</span>
                 <span class="balance-amount" id="savingsBalanceDisplay" style="color: var(--success);">0.00 ETB</span>
             </div>
 
             <div class="bank-info">
-                <strong style="color: var(--gold);"><i class="fas fa-university"></i> የቁጠባ ገቢ ማድረጊያ የባንክ ሂሳብ፦</strong>
+                <strong style="color: var(--gold);"><i class="fas fa-university"></i> <span id="txtSavingsBankLbl">የቁጠባ ገቢ ማድረጊያ የባንክ ሂሳብ፦</span></strong>
                 <p id="savingsBankText">መረጃው በመጫን ላይ...</p>
             </div>
 
             <form id="savingsForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'savings')">
                 <div class="input-group">
-                    <label>የተቆጠበው ብር መጠን (ETB)</label>
-                    <input type="number" id="savingsAmount" required placeholder="ምሳሌ: 1000" step="any" min="1">
+                    <label id="txtSavingsAmtLbl">የተቆጠበው ብር መጠን (ETB)</label>
+                    <input type="number" id="savingsAmount" required placeholder="1000" step="any" min="1">
                 </div>
                 <div class="input-group">
-                    <label>የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
+                    <label id="txtSavingsReceiptLbl">የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
                     <input type="file" id="savingsReceipt" accept="image/*" required>
                 </div>
                 <button type="submit" id="savingsSubmitBtn" class="btn-submit" style="background: var(--success); color: white;">
-                    <i class="fas fa-paper-plane"></i> የቁጠባ ደረሰኝ ለአድሚን ላክ
+                    <i class="fas fa-paper-plane"></i> <span id="txtSavingsSubmit">የቁጠባ ደረሰኝ ለአድሚን ላክ</span>
                 </button>
             </form>
         </div>
@@ -179,7 +207,7 @@
         <!-- 2. የብድር ደብተር -->
         <div id="loanTabContent" class="passbook-card hidden" style="border-color: var(--gold);">
             <div style="color: var(--gold); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span><i class="fas fa-file-invoice-dollar"></i> የብድር ደብተር</span>
+                <span><i class="fas fa-file-invoice-dollar"></i> <span id="txtLoanCardTitle">የብድር ደብተር</span></span>
                 <span id="loanSeriesNo" style="font-size: 0.85rem; color: var(--gold);">ሴሪ፡ አልተመዘገበም</span>
             </div>
 
@@ -188,40 +216,39 @@
             </div>
 
             <div id="loanDetailsBox">
-                <!-- የክፍያ ሁኔታ ባጅ -->
                 <div>
                     <div id="paymentStatusBadge" class="payment-status-badge hidden"></div>
                 </div>
 
                 <div class="balance-box">
-                    <span>የተፈቀደ የብድር መጠን፦</span>
+                    <span id="txtApprovedLoanLbl">የተፈቀደ የብድር መጠን፦</span>
                     <span class="balance-amount" id="approvedLoanDisplay" style="color: var(--gold);">0.00 ETB</span>
                 </div>
                 <div class="balance-box">
-                    <span>የተከፈለ ብድር ተመላሽ፦</span>
+                    <span id="txtPaidLoanLbl">የተከፈለ ብድር ተመላሽ፦</span>
                     <span class="balance-amount" style="color: var(--success);" id="paidLoanDisplay">0.00 ETB</span>
                 </div>
                 <div class="balance-box">
-                    <span>ቀሪ የብድር ዕዳ፦</span>
+                    <span id="txtRemainingLoanLbl">ቀሪ የብድር ዕዳ፦</span>
                     <span class="balance-amount" style="color: var(--danger);" id="remainingLoanDisplay">0.00 ETB</span>
                 </div>
 
                 <div class="bank-info" style="border-left-color: var(--danger);">
-                    <strong style="color: var(--danger);"><i class="fas fa-university"></i> የብድር መክፈያ የባንክ ሂሳብ፦</strong>
+                    <strong style="color: var(--danger);"><i class="fas fa-university"></i> <span id="txtLoanBankLbl">የብድር መክፈያ የባንክ ሂሳብ፦</span></strong>
                     <p id="loanBankText">መረጃው በመጫን ላይ...</p>
                 </div>
 
                 <form id="loanForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'loan')">
                     <div class="input-group">
-                        <label>የተከፈለው ብድር መጠን (ETB)</label>
-                        <input type="number" id="loanAmount" required placeholder="ምሳሌ: 500" step="any" min="1">
+                        <label id="txtLoanAmtLbl">የተከፈለው ብድር መጠን (ETB)</label>
+                        <input type="number" id="loanAmount" required placeholder="500" step="any" min="1">
                     </div>
                     <div class="input-group">
-                        <label>የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
+                        <label id="txtLoanReceiptLbl">የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
                         <input type="file" id="loanReceipt" accept="image/*" required>
                     </div>
                     <button type="submit" id="loanSubmitBtn" class="btn-submit">
-                        <i class="fas fa-paper-plane"></i> የብድር ደረሰኝ ለአድሚን ላክ
+                        <i class="fas fa-paper-plane"></i> <span id="txtLoanSubmit">የብድር ደረሰኝ ለአድሚን ላክ</span>
                     </button>
                 </form>
             </div>
@@ -230,24 +257,24 @@
 
     <!-- የአባልነት ምዝገባ ቅጽ -->
     <div id="registerSection" class="card">
-        <h2><i class="fas fa-id-card"></i> የአባልነት ምዝገባ ቅጽ</h2>
+        <h2><i class="fas fa-id-card"></i> <span id="txtRegTitle">የአባልነት ምዝገባ ቅጽ</span></h2>
         <form id="registrationForm" enctype="multipart/form-data">
-            <div class="input-group"><label>የራስ ስም</label><input type="text" id="firstName" required placeholder="ምሳሌ፡ አበበ"></div>
-            <div class="input-group"><label>የአባት ስም</label><input type="text" id="fatherName" required placeholder="ምሳሌ፡ ከበደ"></div>
-            <div class="input-group"><label>የአያት ስም</label><input type="text" id="grandName" required placeholder="ምሳሌ፡ አለሙ"></div>
+            <div class="input-group"><label id="lblFirstName">የራስ ስም</label><input type="text" id="firstName" required placeholder="አበበ / Abebe"></div>
+            <div class="input-group"><label id="lblFatherName">የአባት ስም</label><input type="text" id="fatherName" required placeholder="ከበደ / Kebede"></div>
+            <div class="input-group"><label id="lblGrandName">የአያት ስም</label><input type="text" id="grandName" required placeholder="አለሙ / Alemu"></div>
             <div class="input-group">
-                <label>ሀገር</label>
+                <label id="lblCountry">ሀገር</label>
                 <select id="countrySelect" onchange="updatePhonePrefix()" required>
                     <option value="ኢትዮጵያ" data-prefix="+251 ">ኢትዮጵያ (+251)</option>
                     <option value="አሜሪካ" data-prefix="+1 ">አሜሪካ (+1)</option>
                     <option value="ዱባይ" data-prefix="+971 ">ዱባይ (+971)</option>
                 </select>
             </div>
-            <div class="input-group"><label>ስልክ ቁጥር</label><input type="tel" id="phoneNumber" value="+251 " required></div>
-            <div class="input-group"><label>ብሔራዊ መታወቂያ / Passport</label><input type="file" id="nationalId" accept="image/*" required></div>
-            <div class="input-group"><label>የንግድ ፈቃድ (ካለዎት)</label><input type="file" id="tradeLicense" accept="image/*"></div>
-            <div class="input-group"><label>TIN ቁጥር (ካለዎት)</label><input type="text" id="tinNumber" placeholder="አማራጭ"></div>
-            <div class="input-group"><label>የራስ ፎቶግራፍ</label><input type="file" id="userPhoto" accept="image/*" required></div>
+            <div class="input-group"><label id="lblPhone">ስልክ ቁጥር</label><input type="tel" id="phoneNumber" value="+251 " required></div>
+            <div class="input-group"><label id="lblNationalId">ብሔራዊ መታወቂያ / Passport</label><input type="file" id="nationalId" accept="image/*" required></div>
+            <div class="input-group"><label id="lblTradeLic">የንግድ ፈቃድ (ካለዎት)</label><input type="file" id="tradeLicense" accept="image/*"></div>
+            <div class="input-group"><label id="lblTin">TIN ቁጥር (ካለዎት)</label><input type="text" id="tinNumber" placeholder="አማራጭ / Optional"></div>
+            <div class="input-group"><label id="lblUserPhoto">የራስ ፎቶግራፍ</label><input type="file" id="userPhoto" accept="image/*" required></div>
             <button type="submit" class="btn-submit" id="submitBtn">መረጃውን ለአድሚን ላክ</button>
         </form>
     </div>
@@ -255,9 +282,141 @@
 </div>
 
 <script>
+    let currentLang = 'am'; // Default Amharic
     let tg = window.Telegram ? window.Telegram.WebApp : null;
     let telegramId = "";
     let userRefNo = "";
+    let globalMemberData = null;
+
+    const translations = {
+        am: {
+            langBtn: "English",
+            adminBtn: "ወደ አድሚን ፓናል ሂድ (Admin Dashboard)",
+            announcementHeader: "የአድሚን ማስታወቂያ",
+            pendingTitle: "ምዝገባዎ በማጣራት ላይ ይገኛል!",
+            pendingDesc: "አድሚኑ መረጃዎን አይቶ ሲያጸድቀው የቁጠባ እና የብድር ደብተሮችዎ ይከፈታሉ።",
+            savingsTab: "የቁጠባ ደብተር",
+            loanTab: "የብድር ደብተር",
+            savingsCardTitle: "የቁጠባ ደብተር",
+            totalSavingsLbl: "የተቆጠበ ጠቅላላ ቁጠባ፦",
+            savingsBankLbl: "የቁጠባ ገቢ ማድረጊያ የባንክ ሂሳብ፦",
+            bankLoading: "መረጃው በመጫን ላይ...",
+            savingsAmtLbl: "የተቆጠበው ብር መጠን (ETB)",
+            savingsReceiptLbl: "የባንክ ደረሰኝ / Screenshot ያያይዙ",
+            savingsSubmit: "የቁጠባ ደረሰኝ ለአድሚን ላክ",
+            loanCardTitle: "የብድር ደብተር",
+            noLoan: "ለእርስዎ የተፈቀደ ብድር እስካሁን የለም።",
+            approvedLoanLbl: "የተፈቀደ የብድር መጠን፦",
+            paidLoanLbl: "የተከፈለ ብድር ተመላሽ፦",
+            remainingLoanLbl: "ቀሪ የብድር ዕዳ፦",
+            loanBankLbl: "የብድር መክፈያ የባንክ ሂሳብ፦",
+            loanAmtLbl: "የተከፈለው ብድር መጠን (ETB)",
+            loanReceiptLbl: "የባንክ ደረሰኝ / Screenshot ያያይዙ",
+            loanSubmit: "የብድር ደረሰኝ ለአድሚን ላክ",
+            regTitle: "የአባልነት ምዝገባ ቅጽ",
+            lblFirstName: "የራስ ስም",
+            lblFatherName: "የአባት ስም",
+            lblGrandName: "የአያት ስም",
+            lblCountry: "ሀገር",
+            lblPhone: "ስልክ ቁጥር",
+            lblNationalId: "ብሔራዊ መታወቂያ / Passport",
+            lblTradeLic: "የንግድ ፈቃድ (ካለዎት)",
+            lblTin: "TIN ቁጥር (ካለዎት)",
+            lblUserPhoto: "የራስ ፎቶግራፍ",
+            btnRegSubmit: "መረጃውን ለአድሚን ላክ",
+            loanPaidBadge: "<i class='fas fa-check-circle'></i> የብድር ክፍያ፡ ሙሉ በሙሉ ተከፍሏል",
+            loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)",
+            seriesText: "ሴሪ፡ ",
+            passbookNoText: "ደብተር No: "
+        },
+        en: {
+            langBtn: "አማርኛ",
+            adminBtn: "Go to Admin Dashboard",
+            announcementHeader: "Admin Announcement",
+            pendingTitle: "Your registration is under review!",
+            pendingDesc: "Your savings and loan passbooks will open once the admin reviews and approves your information.",
+            savingsTab: "Savings Book",
+            loanTab: "Loan Book",
+            savingsCardTitle: "Savings Passbook",
+            totalSavingsLbl: "Total Savings Balance:",
+            savingsBankLbl: "Bank Account for Savings Deposit:",
+            bankLoading: "Loading bank details...",
+            savingsAmtLbl: "Saved Amount (ETB)",
+            savingsReceiptLbl: "Attach Bank Receipt / Screenshot",
+            savingsSubmit: "Send Savings Receipt to Admin",
+            loanCardTitle: "Loan Passbook",
+            noLoan: "You have no approved loan at this moment.",
+            approvedLoanLbl: "Approved Loan Amount:",
+            paidLoanLbl: "Paid Loan Refund:",
+            remainingLoanLbl: "Remaining Loan Debt:",
+            loanBankLbl: "Bank Account for Loan Repayment:",
+            loanAmtLbl: "Repaid Loan Amount (ETB)",
+            loanReceiptLbl: "Attach Bank Receipt / Screenshot",
+            loanSubmit: "Send Loan Receipt to Admin",
+            regTitle: "Membership Registration Form",
+            lblFirstName: "First Name",
+            lblFatherName: "Father's Name",
+            lblGrandName: "Grandfather's Name",
+            lblCountry: "Country",
+            lblPhone: "Phone Number",
+            lblNationalId: "National ID / Passport",
+            lblTradeLic: "Trade License (Optional)",
+            lblTin: "TIN Number (Optional)",
+            lblUserPhoto: "Personal Photo",
+            btnRegSubmit: "Submit Information to Admin",
+            loanPaidBadge: "<i class='fas fa-check-circle'></i> Loan Status: Fully Paid",
+            loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> Loan Status: Unpaid (Has Balance)",
+            seriesText: "Series: ",
+            passbookNoText: "Passbook No: "
+        }
+    };
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'am' ? 'en' : 'am';
+        applyLanguage();
+    }
+
+    function applyLanguage() {
+        const t = translations[currentLang];
+        
+        document.getElementById('langBtnText').innerText = t.langBtn;
+        document.getElementById('txtAdminBtn').innerText = t.adminBtn;
+        document.getElementById('announcementHeader').innerText = t.announcementHeader;
+        document.getElementById('txtPendingTitle').innerText = t.pendingTitle;
+        document.getElementById('txtPendingDesc').innerText = t.pendingDesc;
+        document.getElementById('txtSavingsTab').innerText = t.savingsTab;
+        document.getElementById('txtLoanTab').innerText = t.loanTab;
+        document.getElementById('txtSavingsCardTitle').innerText = t.savingsCardTitle;
+        document.getElementById('txtTotalSavingsLbl').innerText = t.totalSavingsLbl;
+        document.getElementById('txtSavingsBankLbl').innerText = t.savingsBankLbl;
+        document.getElementById('txtSavingsAmtLbl').innerText = t.savingsAmtLbl;
+        document.getElementById('txtSavingsReceiptLbl').innerText = t.savingsReceiptLbl;
+        document.getElementById('txtSavingsSubmit').innerText = t.savingsSubmit;
+        document.getElementById('txtLoanCardTitle').innerText = t.loanCardTitle;
+        document.getElementById('noLoanMsg').innerText = t.noLoan;
+        document.getElementById('txtApprovedLoanLbl').innerText = t.approvedLoanLbl;
+        document.getElementById('txtPaidLoanLbl').innerText = t.paidLoanLbl;
+        document.getElementById('txtRemainingLoanLbl').innerText = t.remainingLoanLbl;
+        document.getElementById('txtLoanBankLbl').innerText = t.loanBankLbl;
+        document.getElementById('txtLoanAmtLbl').innerText = t.loanAmtLbl;
+        document.getElementById('txtLoanReceiptLbl').innerText = t.loanReceiptLbl;
+        document.getElementById('txtLoanSubmit').innerText = t.loanSubmit;
+        document.getElementById('txtRegTitle').innerText = t.regTitle;
+        document.getElementById('lblFirstName').innerText = t.lblFirstName;
+        document.getElementById('lblFatherName').innerText = t.lblFatherName;
+        document.getElementById('lblGrandName').innerText = t.lblGrandName;
+        document.getElementById('lblCountry').innerText = t.lblCountry;
+        document.getElementById('lblPhone').innerText = t.lblPhone;
+        document.getElementById('lblNationalId').innerText = t.lblNationalId;
+        document.getElementById('lblTradeLic').innerText = t.lblTradeLic;
+        document.getElementById('lblTin').innerText = t.lblTin;
+        document.getElementById('lblUserPhoto').innerText = t.lblUserPhoto;
+        document.getElementById('submitBtn').innerText = t.btnRegSubmit;
+
+        if (globalMemberData) {
+            renderMemberDetails(globalMemberData);
+        }
+    }
 
     if (tg) {
         tg.ready();
@@ -320,7 +479,7 @@
             const data = await res.json();
 
             if (data && (data.text || data.content || data.message)) {
-                const headerText = data.title || '📢 ከአድሚን የተላከ ማስታወቂያ';
+                const headerText = data.title || translations[currentLang].announcementHeader;
                 const bodyText = data.text || data.content || data.message;
 
                 document.getElementById('announcementHeader').innerText = headerText;
@@ -329,6 +488,44 @@
             }
         } catch (e) {
             console.error("Announcement load error:", e);
+        }
+    }
+
+    function renderMemberDetails(member) {
+        const t = translations[currentLang];
+        userRefNo = member.ref_no || '';
+        const fullName = `${member.first_name || ''} ${member.father_name || ''}`.trim();
+        
+        document.getElementById('memberNameDisplay').innerText = `👤 ${fullName}`;
+        document.getElementById('savingsRefNo').innerText = `${t.passbookNoText}${userRefNo}`;
+        document.getElementById('savingsBalanceDisplay').innerText = `${Number(member.paid_amount || 0).toLocaleString()} ETB`;
+
+        if (member.approved_loan > 0 || member.loan_series_no) {
+            document.getElementById('loanDetailsBox').classList.remove('hidden');
+            document.getElementById('noLoanMsg').classList.add('hidden');
+
+            const approved = Number(member.approved_loan || 0);
+            const paid = Number(member.paid_loan || 0);
+            const rem = Math.max(0, approved - paid);
+
+            document.getElementById('loanSeriesNo').innerText = `${t.seriesText}${member.loan_series_no || 'LN-001'}`;
+            document.getElementById('approvedLoanDisplay').innerText = `${approved.toLocaleString()} ETB`;
+            document.getElementById('paidLoanDisplay').innerText = `${paid.toLocaleString()} ETB`;
+            document.getElementById('remainingLoanDisplay').innerText = `${rem.toLocaleString()} ETB`;
+
+            const badge = document.getElementById('paymentStatusBadge');
+            if (rem <= 0 && approved > 0) {
+                badge.className = "payment-status-badge status-paid";
+                badge.innerHTML = t.loanPaidBadge;
+            } else {
+                badge.className = "payment-status-badge status-unpaid";
+                badge.innerHTML = t.loanUnpaidBadge;
+            }
+            badge.classList.remove('hidden');
+
+        } else {
+            document.getElementById('loanDetailsBox').classList.add('hidden');
+            document.getElementById('noLoanMsg').classList.remove('hidden');
         }
     }
 
@@ -342,46 +539,14 @@
             }
 
             if (data.exists && data.member) {
+                globalMemberData = data.member;
                 document.getElementById('registerSection').classList.add('hidden');
-                userRefNo = data.member.ref_no || '';
                 
                 if (data.member.status === 'pending') {
                     document.getElementById('pendingSection').classList.remove('hidden');
                 } else if (data.member.status === 'approved') {
                     document.getElementById('passbookSection').classList.remove('hidden');
-                    
-                    const fullName = `${data.member.first_name || ''} ${data.member.father_name || ''}`.trim();
-                    document.getElementById('memberNameDisplay').innerText = `👤 ${fullName}`;
-                    document.getElementById('savingsRefNo').innerText = `ደብተር No: ${userRefNo}`;
-                    document.getElementById('savingsBalanceDisplay').innerText = `${Number(data.member.paid_amount || 0).toLocaleString()} ETB`;
-
-                    if (data.member.approved_loan > 0 || data.member.loan_series_no) {
-                        document.getElementById('loanDetailsBox').classList.remove('hidden');
-                        document.getElementById('noLoanMsg').classList.add('hidden');
-
-                        const approved = Number(data.member.approved_loan || 0);
-                        const paid = Number(data.member.paid_loan || 0);
-                        const rem = Math.max(0, approved - paid);
-
-                        document.getElementById('loanSeriesNo').innerText = `ሴሪ፡ ${data.member.loan_series_no || 'LN-001'}`;
-                        document.getElementById('approvedLoanDisplay').innerText = `${approved.toLocaleString()} ETB`;
-                        document.getElementById('paidLoanDisplay').innerText = `${paid.toLocaleString()} ETB`;
-                        document.getElementById('remainingLoanDisplay').innerText = `${rem.toLocaleString()} ETB`;
-
-                        const badge = document.getElementById('paymentStatusBadge');
-                        if (rem <= 0 && approved > 0) {
-                            badge.className = "payment-status-badge status-paid";
-                            badge.innerHTML = `<i class="fas fa-check-circle"></i> የብድር ክፍያ፡ ሙሉ በሙሉ ተከፍሏል`;
-                        } else {
-                            badge.className = "payment-status-badge status-unpaid";
-                            badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)`;
-                        }
-                        badge.classList.remove('hidden');
-
-                    } else {
-                        document.getElementById('loanDetailsBox').classList.add('hidden');
-                        document.getElementById('noLoanMsg').classList.remove('hidden');
-                    }
+                    renderMemberDetails(data.member);
                 }
             }
         } catch (e) {
@@ -391,17 +556,18 @@
 
     async function handlePaymentSubmit(event, type) {
         event.preventDefault();
+        const t = translations[currentLang];
         const submitBtn = document.getElementById(type === 'savings' ? 'savingsSubmitBtn' : 'loanSubmitBtn');
         const amount = document.getElementById(type === 'savings' ? 'savingsAmount' : 'loanAmount').value;
         const receiptInput = document.getElementById(type === 'savings' ? 'savingsReceipt' : 'loanReceipt');
 
         if (!receiptInput.files[0]) {
-            alert("እባክዎን የደረሰኝ ፎቶ ያያይዙ!");
+            alert(currentLang === 'am' ? "እባክዎን የደረሰኝ ፎቶ ያያይዙ!" : "Please attach a receipt photo!");
             return;
         }
 
         submitBtn.disabled = true;
-        submitBtn.innerText = "መረጃው በመላክ ላይ...";
+        submitBtn.innerText = currentLang === 'am' ? "መረጃው በመላክ ላይ..." : "Sending data...";
 
         const formData = new FormData();
         formData.append('type', type);
@@ -416,17 +582,17 @@
             
             if (result.success) {
                 if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-                alert(result.message || "ክፍያው በተሳካ ሁኔታ ተልኳል!");
+                alert(result.message || (currentLang === 'am' ? "ክፍያው በተሳካ ሁኔታ ተልኳል!" : "Payment sent successfully!"));
                 location.reload();
             } else {
-                alert(result.message || "ስህተት ተከሰቷል!");
+                alert(result.message || (currentLang === 'am' ? "ስህተት ተከሰቷል!" : "An error occurred!"));
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> የ${type === 'savings' ? 'ቁጠባ' : 'ብድር'} ደረሰኝ ለአድሚን ላክ`;
+                submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> <span>${type === 'savings' ? t.savingsSubmit : t.loanSubmit}</span>`;
             }
         } catch(e) {
-            alert("ስህተት ተከሰቷል! እባክዎ ደግመው ይሞክሩ።");
+            alert(currentLang === 'am' ? "ስህተት ተከሰቷል! እባክዎ ደግመው ይሞክሩ።" : "Error occurred! Please try again.");
             submitBtn.disabled = false;
-            submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> የ${type === 'savings' ? 'ቁጠባ' : 'ብድር'} ደረሰኝ ለአድሚን ላክ`;
+            submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> <span>${type === 'savings' ? t.savingsSubmit : t.loanSubmit}</span>`;
         }
     }
 
@@ -434,7 +600,7 @@
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
-        btn.innerText = "መረጃው በመላክ ላይ...";
+        btn.innerText = currentLang === 'am' ? "መረጃው በመላክ ላይ..." : "Sending data...";
 
         const formData = new FormData();
         formData.append('first_name', document.getElementById('firstName').value);
@@ -457,17 +623,17 @@
             
             if (result.success) {
                 if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-                alert(result.message || "ምዝገባው በተሳካ ሁኔታ ተልኳል!");
+                alert(result.message || (currentLang === 'am' ? "ምዝገባው በተሳካ ሁኔታ ተልኳል!" : "Registration submitted successfully!"));
                 checkMemberStatus();
             } else {
-                alert(result.message || "ምዝገባው አልተሳካም።");
+                alert(result.message || (currentLang === 'am' ? "ምዝገባው አልተሳካም።" : "Registration failed."));
                 btn.disabled = false;
-                btn.innerText = "መረጃውን ለአድሚን ላክ";
+                btn.innerText = translations[currentLang].btnRegSubmit;
             }
         } catch (err) {
-            alert("መረጃውን መላክ አልተቻለም! እባክዎ ደግመው ይሞክሩ።");
+            alert(currentLang === 'am' ? "መረጃውን መላክ አልተቻለም! እባክዎ ደግመው ይሞክሩ።" : "Could not submit! Please try again.");
             btn.disabled = false;
-            btn.innerText = "መረጃውን ለአድሚን ላክ";
+            btn.innerText = translations[currentLang].btnRegSubmit;
         }
     });
 </script>
