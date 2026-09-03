@@ -188,7 +188,7 @@
             </div>
 
             <div id="loanDetailsBox">
-                <!-- የክፍያ ሁኔታ (አልተከፈለም / ተከፍሏል) ባጅ በብድር ደብተር ላይ ብቻ -->
+                <!-- የክፍያ ሁኔታ ባጅ (በቀሪ ዕዳ ላይ ተመስርቶ አረንጓዴ ወይም ቀይ የሚሆን) -->
                 <div>
                     <div id="paymentStatusBadge" class="payment-status-badge hidden"></div>
                 </div>
@@ -355,27 +355,30 @@
                     document.getElementById('savingsRefNo').innerText = `ደብተር No: ${userRefNo}`;
                     document.getElementById('savingsBalanceDisplay').innerText = `${Number(data.member.paid_amount || 0).toLocaleString()} ETB`;
 
-                    // የክፍያ ሁኔታ ባጅ በብድር ደብተር ላይ ብቻ ማሳየት
-                    const badge = document.getElementById('paymentStatusBadge');
-                    if (data.member.is_paid) {
-                        badge.className = "payment-status-badge status-paid";
-                        badge.innerHTML = `<i class="fas fa-check-circle"></i> የብድር ክፍያ፡ ተከፍሏል`;
-                    } else {
-                        badge.className = "payment-status-badge status-unpaid";
-                        badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)`;
-                    }
-                    badge.classList.remove('hidden');
-
                     if (data.member.approved_loan > 0 || data.member.loan_series_no) {
                         document.getElementById('loanDetailsBox').classList.remove('hidden');
                         document.getElementById('noLoanMsg').classList.add('hidden');
 
+                        const approved = Number(data.member.approved_loan || 0);
+                        const paid = Number(data.member.paid_loan || 0);
+                        const rem = Math.max(0, approved - paid);
+
                         document.getElementById('loanSeriesNo').innerText = `ሴሪ፡ ${data.member.loan_series_no || 'LN-001'}`;
-                        document.getElementById('approvedLoanDisplay').innerText = `${Number(data.member.approved_loan || 0).toLocaleString()} ETB`;
-                        document.getElementById('paidLoanDisplay').innerText = `${Number(data.member.paid_loan || 0).toLocaleString()} ETB`;
-                        
-                        const rem = Math.max(0, (data.member.approved_loan || 0) - (data.member.paid_loan || 0));
-                        document.getElementById('remainingLoanDisplay').innerText = `${Number(rem).toLocaleString()} ETB`;
+                        document.getElementById('approvedLoanDisplay').innerText = `${approved.toLocaleString()} ETB`;
+                        document.getElementById('paidLoanDisplay').innerText = `${paid.toLocaleString()} ETB`;
+                        document.getElementById('remainingLoanDisplay').innerText = `${rem.toLocaleString()} ETB`;
+
+                        // 🎯 የክፍያ ሁኔታ ባጅ - ቀሪ ዕዳው (rem) 0 ሲሆን ወደ አረንጓዴ መቀየር
+                        const badge = document.getElementById('paymentStatusBadge');
+                        if (rem <= 0 && approved > 0) {
+                            badge.className = "payment-status-badge status-paid";
+                            badge.innerHTML = `<i class="fas fa-check-circle"></i> የብድር ክፍያ፡ ሙሉ በሙሉ ተከፍሏል`;
+                        } else {
+                            badge.className = "payment-status-badge status-unpaid";
+                            badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)`;
+                        }
+                        badge.classList.remove('hidden');
+
                     } else {
                         document.getElementById('loanDetailsBox').classList.add('hidden');
                         document.getElementById('noLoanMsg').classList.remove('hidden');
