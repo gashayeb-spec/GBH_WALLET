@@ -3,42 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ተራመድ ሳኮ - አባልነት እና የኔ ደብተር</title>
+    <title>ተራመድ - የቁጠባና የብድር ደብተሮች</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
             --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
-            --success: #10b981; --danger: #ef4444; --primary: #3b82f6;
+            --success: #10b981; --danger: #ef4444; --blue: #3b82f6;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 15px; }
         .container { max-width: 500px; margin: 0 auto; }
         
-        .card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .card h2 { color: var(--gold); text-align: center; margin-bottom: 15px; font-size: 1.3rem; }
+        .card { background: var(--card); border: 1px solid var(--border); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .card h2 { color: var(--gold); text-align: center; margin-bottom: 15px; font-size: 1.2rem; }
         
-        .input-group { margin-bottom: 12px; }
+        .admin-nav-btn {
+            display: block; width: 100%; text-align: center; background: var(--blue); color: white;
+            padding: 10px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-bottom: 15px;
+        }
+
+        /* TAB STYLES */
+        .tab-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border); color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; text-align: center; }
+        .tab-btn.active-savings { background: #065f46; border-color: var(--success); }
+        .tab-btn.active-loan { background: #854d0e; border-color: var(--gold); }
+
+        .bank-info { background: #0f172a; padding: 10px; border-radius: 8px; border-left: 3px solid var(--gold); font-size: 0.85rem; margin-top: 10px; }
+        .bank-info p { margin-bottom: 4px; }
+
+        .input-group { margin-bottom: 12px; margin-top: 10px; }
         .input-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
         .input-group input, .input-group select {
-            width: 100%; padding: 11px; background: #0f172a; border: 1px solid var(--border);
-            border-radius: 8px; color: #fff; outline: none; font-size: 0.95rem;
+            width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--border);
+            border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none;
         }
-        .input-group input:focus, .input-group select:focus { border-color: var(--gold); }
         
         .btn-submit {
-            width: 100%; padding: 12px; background: var(--gold); border: none;
-            border-radius: 8px; color: #0f172a; font-weight: bold; cursor: pointer; font-size: 1rem; margin-top: 10px;
-            transition: 0.2s ease-in-out;
+            width: 100%; padding: 11px; background: var(--gold); border: none;
+            border-radius: 8px; color: #0f172a; font-weight: bold; cursor: pointer; margin-top: 8px;
         }
-        .btn-submit:hover { opacity: 0.9; }
         
-        /* Passbook Dashboard Styles */
-        .passbook-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--gold); border-radius: 12px; padding: 16px; margin-bottom: 15px; }
-        .balance-box { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 8px; }
-        .balance-title { font-size: 0.85rem; color: var(--text-muted); }
-        .balance-amount { font-size: 1.2rem; font-weight: bold; color: var(--gold); }
+        .passbook-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .balance-box { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 8px; }
+        .balance-amount { font-size: 1.1rem; font-weight: bold; }
         
         .status-banner { text-align: center; padding: 20px; border-radius: 10px; font-weight: bold; }
         .pending { background: rgba(245, 158, 11, 0.12); color: var(--gold); border: 1px solid var(--gold); }
@@ -49,171 +58,252 @@
 
 <div class="container">
 
-    <!-- 1. PENDING STATUS DISPLAY -->
+    <!-- ADMIN LINK -->
+    <a id="adminLinkBtn" href="/admin" class="admin-nav-btn hidden">
+        <i class="fas fa-user-shield"></i> ወደ አድሚን ፓናል ሂድ (Admin Dashboard)
+    </a>
+
+    <!-- PENDING STATUS -->
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
-            <h3>ምዝገባዎ በማጣራት ላይ (Pending) ይገኛል!</h3><br>
+            <h3>ምዝገባዎ በማጣራት ላይ ይገኛል!</h3><br>
             <p style="font-size: 0.85rem; font-weight: normal; color: var(--text-muted);">
-                አድሚኑ ያስገቡትን ሰነዶችና መረጃዎች አይቶ ሲያጸድቀው «የኔ ደብተር» አገልግሎት በራስ-ሰር የሚከፈት ይሆናል።
+                አድሚኑ መረጃዎን አይቶ ሲያጸድቀው የቁጠባ እና የብድር ደብተሮችዎ ይከፈታሉ።
             </p>
         </div>
     </div>
 
-    <!-- 2. የኔ ደብተር MODULE (APPROVED MEMBERS) -->
+    <!-- MAIN DASHBOARD FOR APPROVED MEMBERS -->
     <div id="passbookSection" class="hidden">
-        <div class="card">
-            <h2><i class="fas fa-book-open"></i> የኔ ደብተር</h2>
-            <p style="text-align: center; font-size: 0.9rem; color: var(--gold); font-weight: bold; margin-bottom: 15px;" id="memberNameDisplay"></p>
+        <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 15px;"></h3>
+
+        <!-- TAB BUTTONS -->
+        <div class="tab-container">
+            <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
+                <i class="fas fa-piggy-bank"></i> የቁጠባ ደብተር
+            </button>
+            <button id="btnLoanTab" class="tab-btn" onclick="switchTab('loan')">
+                <i class="fas fa-hand-holding-usd"></i> የብድር ደብተር
+            </button>
+        </div>
+
+        <!-- 1. የቁጠባ ደብተር SECTION -->
+        <div id="savingsTabContent" class="passbook-card" style="border-color: var(--success);">
+            <div style="color: var(--success); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
+                <span><i class="fas fa-book"></i> የቁጠባ ደብተር</span>
+                <span id="savingsRefNo" style="font-size: 0.9rem; color: #fff;">SAV-000</span>
+            </div>
             
-            <!-- የቁጠባ ደብተር -->
-            <div class="passbook-card">
-                <div style="color: var(--success); font-weight: bold;"><i class="fas fa-piggy-bank"></i> የቁጠባ ሂሳብ</div>
-                <div class="balance-box">
-                    <span class="balance-title">የተቆጠበ ጠቅላላ ቁጠባ፦</span>
-                    <span class="balance-amount" id="savingsBalanceDisplay" style="color: var(--success);">0.00 ETB</span>
-                </div>
+            <div class="balance-box">
+                <span>የተቆጠበ ጠቅላላ ቁጠባ፦</span>
+                <span class="balance-amount" id="savingsBalanceDisplay" style="color: var(--success);">0.00 ETB</span>
             </div>
 
-            <!-- የብድር ደብተር -->
-            <div class="passbook-card">
-                <div style="color: var(--gold); font-weight: bold;"><i class="fas fa-hand-holding-usd"></i> የብድር ሂሳብ</div>
+            <!-- የባንክ ሂሳብ መረጃ -->
+            <div class="bank-info">
+                <strong style="color: var(--gold);"><i class="fas fa-university"></i> የቁጠባ ገቢ ማድረጊያ የባንክ ሂሳቦች፦</strong>
+                <p>• ንግድ ባንክ (CBE): <b>1000123456789</b></p>
+                <p>• አቢሲንያ ባንክ: <b>987654321</b></p>
+                <p>• Telebirr: <b>0911223344</b></p>
+            </div>
+
+            <!-- የቁጠባ ክፍያ መላኪያ ፎርም -->
+            <form id="savingsForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'savings')">
+                <div class="input-group">
+                    <label>የተቆጠበው ብር መጠን (ETB)</label>
+                    <input type="number" id="savingsAmount" required placeholder="ምሳሌ: 1000">
+                </div>
+                <div class="input-group">
+                    <label>የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
+                    <input type="file" id="savingsReceipt" accept="image/*" required>
+                </div>
+                <button type="submit" class="btn-submit" style="background: var(--success); color: white;">
+                    <i class="fas fa-paper-plane"></i> የቁጠባ ደረሰኝ ለአድሚን ላክ
+                </button>
+            </form>
+        </div>
+
+        <!-- 2. የብድር ደብተር SECTION -->
+        <div id="loanTabContent" class="passbook-card hidden" style="border-color: var(--gold);">
+            <div style="color: var(--gold); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
+                <span><i class="fas fa-file-invoice-dollar"></i> የብድር ደብተር</span>
+                <span id="loanSeriesNo" style="font-size: 0.85rem; color: var(--gold);">ሴሪ፡ አልተመዘገበም</span>
+            </div>
+
+            <div id="noLoanMsg" class="hidden" style="text-align: center; padding: 20px; color: var(--text-muted);">
+                ለእርስዎ የተፈቀደ ብድር እስካሁን የለም።
+            </div>
+
+            <div id="loanDetailsBox">
                 <div class="balance-box">
-                    <span class="balance-title">የተፈቀደ ብድር፦</span>
-                    <span class="balance-amount" id="approvedLoanDisplay">0.00 ETB</span>
+                    <span>የተፈቀደ የብድር መጠን፦</span>
+                    <span class="balance-amount" id="approvedLoanDisplay" style="color: var(--gold);">0.00 ETB</span>
                 </div>
                 <div class="balance-box">
-                    <span class="balance-title">የተከፈለ ብድር፦</span>
+                    <span>የተከፈለ ብድር ተመላሽ፦</span>
                     <span class="balance-amount" style="color: var(--success);" id="paidLoanDisplay">0.00 ETB</span>
                 </div>
                 <div class="balance-box">
-                    <span class="balance-title">ቀሪ የብድር ዕዳ፦</span>
+                    <span>ቀሪ የብድር ዕዳ፦</span>
                     <span class="balance-amount" style="color: var(--danger);" id="remainingLoanDisplay">0.00 ETB</span>
                 </div>
+
+                <!-- የብድር መክፈያ የባንክ ሂሳብ -->
+                <div class="bank-info" style="border-left-color: var(--danger);">
+                    <strong style="color: var(--danger);"><i class="fas fa-university"></i> የብድር መክፈያ የባንክ ሂሳቦች፦</strong>
+                    <p>• ንግድ ባንክ (CBE): <b>1000999888777</b></p>
+                    <p>• Telebirr: <b>0911223344</b></p>
+                </div>
+
+                <!-- የብድር ክፍያ መላኪያ ፎርም -->
+                <form id="loanForm" style="margin-top: 15px;" onsubmit="handlePaymentSubmit(event, 'loan')">
+                    <div class="input-group">
+                        <label>የተከፈለው ብድር መጠን (ETB)</label>
+                        <input type="number" id="loanAmount" required placeholder="ምሳሌ: 500">
+                    </div>
+                    <div class="input-group">
+                        <label>የባንክ ደረሰኝ / Screenshot ያያይዙ</label>
+                        <input type="file" id="loanReceipt" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn-submit">
+                        <i class="fas fa-paper-plane"></i> የብድር ደረሰኝ ለአድሚን ላክ
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 
-    <!-- 3. REGISTRATION FORM MODULE -->
+    <!-- REGISTRATION FORM -->
     <div id="registerSection" class="card">
         <h2><i class="fas fa-id-card"></i> የአባልነት ምዝገባ ቅጽ</h2>
         <form id="registrationForm" enctype="multipart/form-data">
+            <div class="input-group"><label>የራስ ስም</label><input type="text" id="firstName" required></div>
+            <div class="input-group"><label>የአባት ስም</label><input type="text" id="fatherName" required></div>
+            <div class="input-group"><label>የአያት ስም</label><input type="text" id="grandName" required></div>
             <div class="input-group">
-                <label>የራስ ስም</label>
-                <input type="text" id="firstName" required placeholder="ምሳሌ፦ አበበ">
-            </div>
-            <div class="input-group">
-                <label>የአባት ስም</label>
-                <input type="text" id="fatherName" required placeholder="ምሳሌ፦ ከበደ">
-            </div>
-            <div class="input-group">
-                <label>የአያት ስም</label>
-                <input type="text" id="grandName" required placeholder="ምሳሌ፦ ለማ">
-            </div>
-
-            <!-- Auto Country Picker & Dial Code Selector -->
-            <div class="input-group">
-                <label>የሚኖርበት ሀገር</label>
-                <select id="countrySelect" onchange="updateCountryCode()" required>
-                    <option value="ኢትዮጵያ" data-code="+251">ኢትዮጵያ (Ethiopia)</option>
-                    <option value="አሜሪካ" data-code="+1">አሜሪካ (USA)</option>
-                    <option value="ዱባይ" data-code="+971">ዱባይ (UAE)</option>
-                    <option value="ሳውዲ አረቢያ" data-code="+966">ሳውዲ አረቢያ (Saudi Arabia)</option>
-                    <option value="እንግሊዝ" data-code="+44">እንግሊዝ (UK)</option>
-                    <option value="ካናዳ" data-code="+1">ካናዳ (Canada)</option>
-                    <option value="ጀርመን" data-code="+49">ጀርመን (Germany)</option>
+                <label>ሀገር</label>
+                <select id="countrySelect" required>
+                    <option value="ኢትዮጵያ">ኢትዮጵያ (+251)</option>
+                    <option value="አሜሪካ">አሜሪካ (+1)</option>
+                    <option value="ዱባይ">ዱባይ (+971)</option>
                 </select>
             </div>
-
-            <div class="input-group">
-                <label>ስልክ ቁጥር</label>
-                <input type="text" id="phoneNumber" value="+251 " required>
-            </div>
-
-            <div class="input-group">
-                <label>ብሔራዊ መታወቂያ (National ID / Passport)</label>
-                <input type="file" id="nationalId" accept="image/*" required>
-            </div>
-            <div class="input-group">
-                <label>የንግድ ፈቃድ (Trade License - ካለዎት)</label>
-                <input type="file" id="tradeLicense" accept="image/*">
-            </div>
-            <div class="input-group">
-                <label>የንግድ ምዝገባ (TIN Number)</label>
-                <input type="text" id="tinNumber" placeholder="TIN ቁጥር ያስገቡ">
-            </div>
-            <div class="input-group">
-                <label>የራስ ፎቶግራፍ (Photo)</label>
-                <input type="file" id="userPhoto" accept="image/*" required>
-            </div>
-
-            <button type="submit" class="btn-submit" id="submitBtn">
-                <i class="fas fa-paper-plane"></i> መረጃውን ለአድሚን ላክ
-            </button>
+            <div class="input-group"><label>ስልክ ቁጥር</label><input type="text" id="phoneNumber" value="+251 " required></div>
+            <div class="input-group"><label>ብሔራዊ መታወቂያ / Passport</label><input type="file" id="nationalId" accept="image/*" required></div>
+            <div class="input-group"><label>የንግድ ፈቃድ (ካለዎት)</label><input type="file" id="tradeLicense" accept="image/*"></div>
+            <div class="input-group"><label>TIN ቁጥር</label><input type="text" id="tinNumber"></div>
+            <div class="input-group"><label>የራስ ፎቶግራፍ</label><input type="file" id="userPhoto" accept="image/*" required></div>
+            <button type="submit" class="btn-submit" id="submitBtn">መረጃውን ለአድሚን ላክ</button>
         </form>
     </div>
 
 </div>
 
 <script>
-    // ሀገር ሲመረጥ የስልክ ኮዱን አውቶማቲክ መሙያ
-    function updateCountryCode() {
-        const select = document.getElementById('countrySelect');
-        const selectedOption = select.options[select.selectedIndex];
-        const code = selectedOption.getAttribute('data-code');
-        document.getElementById('phoneNumber').value = code + ' ';
-    }
-
-    // Telegram User ID ን ማግኛ
+    let tg = window.Telegram ? window.Telegram.WebApp : null;
     let telegramId = "";
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
-        const initData = window.Telegram.WebApp.initDataUnsafe;
-        if (initData && initData.user) {
-            telegramId = initData.user.id.toString();
+    let userRefNo = "";
+    let userSeriesNo = "";
+
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            telegramId = tg.initDataUnsafe.user.id.toString();
         }
     }
 
-    // ገጹ ሲከፈት የተጠቃሚውን ሁኔታ መፈተሽ
+    function switchTab(tab) {
+        const savingsTab = document.getElementById('savingsTabContent');
+        const loanTab = document.getElementById('loanTabContent');
+        const btnSavings = document.getElementById('btnSavingsTab');
+        const btnLoan = document.getElementById('btnLoanTab');
+
+        if (tab === 'savings') {
+            savingsTab.classList.remove('hidden');
+            loanTab.classList.add('hidden');
+            btnSavings.classList.add('active-savings');
+            btnLoan.classList.remove('active-loan');
+        } else {
+            savingsTab.classList.add('hidden');
+            loanTab.classList.remove('hidden');
+            btnSavings.classList.remove('active-savings');
+            btnLoan.classList.add('active-loan');
+        }
+    }
+
     window.addEventListener('DOMContentLoaded', checkMemberStatus);
 
     async function checkMemberStatus() {
-        if (!telegramId) return;
-
         try {
             const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
             const data = await res.json();
 
+            if (telegramId && telegramId === data.admin_id) {
+                document.getElementById('adminLinkBtn').classList.remove('hidden');
+            }
+
             if (data.exists) {
                 document.getElementById('registerSection').classList.add('hidden');
+                userRefNo = data.member.ref_no;
+                userSeriesNo = data.member.loan_series_no || '';
                 
                 if (data.member.status === 'pending') {
                     document.getElementById('pendingSection').classList.remove('hidden');
                 } else if (data.member.status === 'approved') {
                     document.getElementById('passbookSection').classList.remove('hidden');
                     
-                    // የኔ ደብተር መረጃዎችን ማሳያ
-                    document.getElementById('memberNameDisplay').innerText = `${data.member.first_name} ${data.member.father_name} (${data.member.ref_no})`;
+                    document.getElementById('memberNameDisplay').innerText = `👤 ${data.member.first_name} ${data.member.father_name}`;
+                    document.getElementById('savingsRefNo').innerText = `ደብተር No: ${data.member.ref_no}`;
                     document.getElementById('savingsBalanceDisplay').innerText = `${(data.member.paid_amount || 0).toLocaleString()} ETB`;
-                    document.getElementById('approvedLoanDisplay').innerText = `${(data.member.approved_loan || 0).toLocaleString()} ETB`;
-                    document.getElementById('paidLoanDisplay').innerText = `${(data.member.paid_loan || 0).toLocaleString()} ETB`;
                     
-                    const remaining = (data.member.approved_loan || 0) - (data.member.paid_loan || 0);
-                    document.getElementById('remainingLoanDisplay').innerText = `${remaining.toLocaleString()} ETB`;
+                    // Loan Details
+                    if (data.member.approved_loan > 0 || userSeriesNo !== '') {
+                        document.getElementById('loanSeriesNo').innerText = `ሴሪ፡ ${userSeriesNo || 'LN-001'}`;
+                        document.getElementById('approvedLoanDisplay').innerText = `${(data.member.approved_loan || 0).toLocaleString()} ETB`;
+                        document.getElementById('paidLoanDisplay').innerText = `${(data.member.paid_loan || 0).toLocaleString()} ETB`;
+                        
+                        const rem = (data.member.approved_loan || 0) - (data.member.paid_loan || 0);
+                        document.getElementById('remainingLoanDisplay').innerText = `${rem.toLocaleString()} ETB`;
+                    } else {
+                        document.getElementById('loanDetailsBox').classList.add('hidden');
+                        document.getElementById('noLoanMsg').classList.remove('hidden');
+                    }
                 }
             }
         } catch (e) {
-            console.error("Status check error:", e);
+            console.error(e);
         }
     }
 
-    // Form Submission
+    async function handlePaymentSubmit(event, type) {
+        event.preventDefault();
+        const amount = document.getElementById(type === 'savings' ? 'savingsAmount' : 'loanAmount').value;
+        const receipt = document.getElementById(type === 'savings' ? 'savingsReceipt' : 'loanReceipt').files[0];
+
+        const formData = new FormData();
+        formData.append('type', type);
+        formData.append('amount', amount);
+        formData.append('receipt', receipt);
+        formData.append('telegram_id', telegramId);
+        formData.append('ref_no', userRefNo);
+        formData.append('series_no', userSeriesNo);
+
+        try {
+            const res = await fetch('/api/payment/submit', { method: 'POST', body: formData });
+            const result = await res.json();
+            alert(result.message);
+            if(result.success) location.reload();
+        } catch(e) {
+            alert("ስህተት ተከሰቷል!");
+        }
+    }
+
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> በመላክ ላይ...';
 
         const formData = new FormData();
         formData.append('first_name', document.getElementById('firstName').value);
@@ -223,32 +313,20 @@
         formData.append('phone_number', document.getElementById('phoneNumber').value);
         formData.append('tin_number', document.getElementById('tinNumber').value);
         formData.append('telegram_id', telegramId);
-
-        // Files
         formData.append('national_id', document.getElementById('nationalId').files[0]);
         formData.append('user_photo', document.getElementById('userPhoto').files[0]);
         const tradeLic = document.getElementById('tradeLicense').files[0];
         if (tradeLic) formData.append('trade_license', tradeLic);
 
         try {
-            const res = await fetch('/api/register', {
-                method: 'POST',
-                body: formData
-            });
+            const res = await fetch('/api/register', { method: 'POST', body: formData });
             const result = await res.json();
-            
-            if (result.success) {
-                alert(result.message);
-                checkMemberStatus();
-            } else {
-                alert(result.message || "ስህተት ተከሰቷል!");
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i> መረጃውን ለአድሚን ላክ';
-            }
+            alert(result.message);
+            if(result.success) checkMemberStatus();
+            else btn.disabled = false;
         } catch (err) {
-            alert("መረጃውን መላክ አልተቻለም! እባክዎ እንደገና ይሞክሩ።");
+            alert("መረጃውን መላክ አልተቻለም!");
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> መረጃውን ለአድሚን ላክ';
         }
     });
 </script>
