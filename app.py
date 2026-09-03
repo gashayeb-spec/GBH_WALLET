@@ -1,7 +1,10 @@
 import os
 import sqlite3
 import html
+import threading
+import time
 import telebot
+from telebot import types
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -19,9 +22,10 @@ UPLOAD_FOLDER = os.path.join('static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+# የቦት ቶክን እና የዌብሳይት አድራሻ
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8416599811:AAGJEB4bu2fM1r76NnhfCEEo5ciFBJzh3i8").strip()
 SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
-WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com")
+WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 
 DB_NAME = "database.db"
 
@@ -40,7 +44,6 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Members Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,29 +66,50 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
-    # Savings & Payments Table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS savings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            member_id INTEGER,
-            amount REAL,
-            receipt_path TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (member_id) REFERENCES members (id)
-        )
-    ''')
-    
     conn.commit()
     conn.close()
 
 init_db()
 
 def sanitize_input(text):
-    if text is None: 
-        return ""
+    if text is None: return ""
     return html.escape(str(text).strip())
+
+# ---------------------------------------------------------
+# TELEGRAM BOT HANDLERS & POLLING
+# ---------------------------------------------------------
+if bot:
+    @bot.message_handler(commands=['start'])
+    def send_welcome(message):
+        try:
+            markup = types.InlineKeyboardMarkup()
+            # Mini App Button
+            web_app_info = types.WebAppInfo(url=WEB_APP_URL)
+            web_btn = types.InlineKeyboardButton(text="📱 ምዝገባ / የኔ ደብተር ክፈት", web_app=web_app_info)
+            markup.add(web_btn)
+            
+            welcome_msg = (
+                f"ሰላም {message.from_user.first_name}! 👋\n\n"
+                f"እንኳን ወደ **ተራመድ ሳኮ** በሰላም መጡ።\n\n"
+                f"የአባልነት ምዝገባ ለመሙላት ወይም «የኔ ደብተር» ለመመልከት ከታች ያለውን ቁልፍ ይጫኑ።"
+            )
+            bot.send_message(message.chat.id, welcome_msg, reply_markup=markup, parse_mode="Markdown")
+        except Exception as e:
+            print(f"Start command error: {e}")
+
+    def run_bot_polling():
+        while True:
+            try:
+                # ዌብሁክን ማጽዳትና በግድ ፖሊንግ ማስጀመር
+                bot.remove_webhook()
+                print(">>> Telegram Bot Polling Active <<<")
+                bot.infinity_polling(timeout=20, long_polling_timeout=10, skip_pending=True)
+            except Exception as e:
+                print(f"Bot Polling error, retrying in 5s: {e}")
+                time.sleep(5)
+
+    # ቦቱን ከበስተጀርባ በ Thread ማስነሳት
+    threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
 # Web Routes
@@ -99,10 +123,8 @@ def admin_page():
     return render_template('admin.html')
 
 # ---------------------------------------------------------
-# API Endpoints (User / Client)
+# API Endpoints
 # ---------------------------------------------------------
-
-# የአባልን ሁኔታ እና የኔ ደብተር መረጃ መፈተሻ
 @app.route('/api/member/status', methods=['GET'])
 def get_member_status():
     telegram_id = request.args.get('telegram_id')
@@ -119,7 +141,6 @@ def get_member_status():
         return jsonify({"exists": True, "member": dict(member)})
     return jsonify({"exists": False})
 
-# የአባልነት ምዝገባ በሰነዶችና ፎቶ
 @app.route('/api/register', methods=['POST'])
 def register_member():
     try:
@@ -129,7 +150,6 @@ def register_member():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if user already exists
         telegram_id = sanitize_input(req.get('telegram_id'))
         if telegram_id:
             cursor.execute("SELECT id FROM members WHERE telegram_id = ?", (telegram_id,))
@@ -137,15 +157,11 @@ def register_member():
                 conn.close()
                 return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
 
-        # Ref Number Generation
         cursor.execute("SELECT COUNT(*) FROM members")
         count = cursor.fetchone()[0]
         ref_no = f"TS-{(count + 1):03d}"
 
-        # Handling File Uploads
-        nat_id_path = ""
-        trade_lic_path = ""
-        photo_path = ""
+        nat_id_path, trade_lic_path, photo_path = "", "", ""
 
         if 'national_id' in files and files['national_id'].filename != '':
             f = files['national_id']
@@ -186,23 +202,18 @@ def register_member():
         conn.commit()
         conn.close()
 
-        # Notify Telegram Admin
+        # ለአድሚኑ ማስታወቂያ በቴሌግራም መላክ
         if bot and SUPER_ADMIN_ID:
             try:
-                msg = f"🆕 <b>አዲስ የአባልነት ምዝገባ!</b>\n\n<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n<b>መታወቂያ:</b> {ref_no}\n<b>ስልክ:</b> {req.get('phone_number')}\n<b>ሀገር:</b> {req.get('country')}"
+                msg = f"🆕 <b>አዲስ የአባልነት ምዝገባ!</b>\n\n<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n<b>መታወቂያ:</b> {ref_no}\n<b>ስልክ:</b> {req.get('phone_number')}"
                 bot.send_message(SUPER_ADMIN_ID, msg, parse_mode="HTML")
             except Exception as bot_err:
-                print(f"Telegram notification failed: {bot_err}")
+                print(f"Telegram admin notification failed: {bot_err}")
 
         return jsonify({"success": True, "message": "ምዝገባዎ በስኬት ተልኳል! ለአድሚን ተመርቷል።"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# API Endpoints (Admin Operations)
-# ---------------------------------------------------------
-
-# የአባላትን ዝርዝር ማግኛ
 @app.route('/api/admin/members', methods=['GET'])
 def get_admin_members():
     conn = get_db_connection()
@@ -212,24 +223,19 @@ def get_admin_members():
     conn.close()
     return jsonify({"status": "success", "members": members}), 200
 
-# የአባል ሁኔታ መለወጫ (Pending -> Approved / Rejected)
 @app.route('/api/admin/update_status', methods=['POST'])
 def update_status():
     data = request.get_json(silent=True) or {}
     member_id = data.get('member_id')
     status = data.get('status')
 
-    if not member_id or not status:
-        return jsonify({"status": "error", "message": "ጎደሎ መረጃ"}), 400
-
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("UPDATE members SET status = ? WHERE id = ?", (status, member_id))
     conn.commit()
     conn.close()
-    return jsonify({"status": "success", "message": f"የአባሉ ሁኔታ ወደ '{status}' ተቀይሯል!"}), 200
+    return jsonify({"status": "success", "message": "የአባሉ ሁኔታ ተቀይሯል!"}), 200
 
-# የብድር እና የቁጠባ ሂሳብ ማስተካከያ በአድሚን
 @app.route('/api/admin/update_financials', methods=['POST'])
 def update_financials():
     data = request.get_json(silent=True) or {}
@@ -237,19 +243,18 @@ def update_financials():
     paid_amount = float(data.get('paid_amount', 0))
     approved_loan = float(data.get('approved_loan', 0))
     paid_loan = float(data.get('paid_loan', 0))
-    is_defaulted = int(data.get('is_defaulted', 0))
 
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         UPDATE members 
-        SET paid_amount = ?, approved_loan = ?, paid_loan = ?, is_defaulted = ?
+        SET paid_amount = ?, approved_loan = ?, paid_loan = ?
         WHERE id = ?
-    ''', (paid_amount, approved_loan, paid_loan, is_defaulted, member_id))
+    ''', (paid_amount, approved_loan, paid_loan, member_id))
     conn.commit()
     conn.close()
-    return jsonify({"status": "success", "message": "የፋይናንስ መረጃው በስኬት ተዘምኗል!"}), 200
+    return jsonify({"status": "success", "message": "የፋይናንስ መረጃው ተዘምኗል!"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port)
