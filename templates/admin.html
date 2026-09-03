@@ -13,7 +13,7 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 15px; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1250px; margin: 0 auto; }
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .header h2 { color: var(--gold); font-size: 1.3rem; }
@@ -23,7 +23,7 @@
         .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
         
         .table-responsive { overflow-x: auto; background: var(--card); border-radius: 8px; border: 1px solid var(--border); }
-        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1000px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1050px; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
         th { background: #1e293b; color: var(--gold); white-space: nowrap; }
         tr:hover { background: rgba(255, 255, 255, 0.02); }
@@ -33,11 +33,12 @@
         .badge-approved { background: rgba(16, 185, 129, 0.2); color: var(--success); }
         .badge-rejected { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
 
-        .doc-link { color: var(--blue); text-decoration: none; margin-right: 5px; font-size: 0.8rem; }
+        .doc-link { color: var(--blue); text-decoration: none; font-size: 0.8rem; margin-right: 5px; }
         .doc-link:hover { text-decoration: underline; }
 
-        .btn-action { padding: 5px 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 3px; font-size: 0.75rem; }
+        .btn-action { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 3px; font-size: 0.75rem; }
         .btn-edit { background: var(--blue); color: white; }
+        .btn-deduct { background: var(--gold); color: #000; }
         .btn-approve { background: var(--success); color: white; }
         .btn-reject { background: var(--danger); color: white; }
         
@@ -67,28 +68,50 @@
         <table>
             <thead>
                 <tr>
-                    <th>የተመዘገበበት ቀን</th>
+                    <th>ቀን</th>
                     <th>የቁጠባ No</th>
                     <th>የብድር ሴሪ</th>
                     <th>ሙሉ ስም</th>
-                    <th>ስልክ</th>
-                    <th>ሀገር / TIN</th>
-                    <th>የተላኩ ሰነዶች</th>
+                    <th>ስልክ / TIN</th>
+                    <th>የሰውየው ዶክመንቶች</th>
                     <th>ቁጠባ (ETB)</th>
                     <th>የተፈቀደ ብድር</th>
                     <th>የተከፈለ ብድር</th>
                     <th>ሁኔታ</th>
-                    <th>እርምጃዎች</th>
+                    <th>እርምጃዎች (Actions)</th>
                 </tr>
             </thead>
             <tbody id="membersTableBody">
-                <tr><td colspan="12" style="text-align: center;">መረጃዎች በመጫን ላይ...</td></tr>
+                <tr><td colspan="11" style="text-align: center;">መረጃዎች በመጫን ላይ...</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Modal for Financial & Series Edit -->
+<!-- Modal for Deducting Amount Directly -->
+<div id="deductModal" class="modal hidden">
+    <div class="modal-content">
+        <h3><i class="fas fa-minus-circle"></i> ከሰውየው ደብተር ብር ቀንስ / አዘምን</h3>
+        <input type="hidden" id="deductMemberId">
+        <p id="deductMemberName" style="color: var(--gold); font-weight: bold; margin-bottom: 10px;"></p>
+        
+        <div class="input-group">
+            <label>ከቁጠባ ደብተሩ የሚቀነስ ብር (Deduct Savings)</label>
+            <input type="number" id="deductSavingsInput" placeholder="0.00">
+        </div>
+        <div class="input-group">
+            <label>ለብድር መክፈያ የሚቀነስ/የሚጨመር ብር (Add Loan Paid)</label>
+            <input type="number" id="deductLoanInput" placeholder="0.00">
+        </div>
+
+        <div class="modal-btns">
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveDeduction()"><i class="fas fa-check"></i> ቀንስና አዘምን</button>
+            <button class="btn-action btn-reject" style="padding: 8px 15px;" onclick="closeDeductModal()">ዝጋ</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Full Financial Edit -->
 <div id="editModal" class="modal hidden">
     <div class="modal-content">
         <h3><i class="fas fa-edit"></i> የደብተር እና ሂሳብ ማስተካከያ</h3>
@@ -96,19 +119,19 @@
         
         <div class="input-group">
             <label>የብድር ሴሪ ቁጥር (Loan Series No)</label>
-            <input type="text" id="editLoanSeriesNo" placeholder="ምሳሌ: LN-001-A">
+            <input type="text" id="editLoanSeriesNo">
         </div>
         <div class="input-group">
             <label>የቁጠባ መጠን (ETB)</label>
-            <input type="number" step="any" id="editPaidAmount">
+            <input type="number" id="editPaidAmount">
         </div>
         <div class="input-group">
             <label>የተፈቀደ ብድር መጠን (ETB)</label>
-            <input type="number" step="any" id="editApprovedLoan">
+            <input type="number" id="editApprovedLoan">
         </div>
         <div class="input-group">
             <label>የተከፈለ ብድር ተመላሽ (ETB)</label>
-            <input type="number" step="any" id="editPaidLoan">
+            <input type="number" id="editPaidLoan">
         </div>
 
         <div class="modal-btns">
@@ -127,14 +150,12 @@
         try {
             const res = await fetch('/api/admin/members');
             const data = await res.json();
-            
             if (data.status === "success" && data.members) {
                 allMembersData = data.members;
                 renderTable(allMembersData);
             }
         } catch (e) {
             console.error(e);
-            document.getElementById('membersTableBody').innerHTML = '<tr><td colspan="12" style="text-align: center; color: var(--danger);">መረጃውን መጫን አልተቻለም!</td></tr>';
         }
     }
 
@@ -142,43 +163,31 @@
         const tbody = document.getElementById('membersTableBody');
         tbody.innerHTML = '';
 
-        if (members.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="12" style="text-align: center;">ምንም ተመዝጋቢ አልተገኘም!</td></tr>';
-            return;
-        }
-
         members.forEach(m => {
             const tr = document.createElement('tr');
             
-            // የደብተር ሰነዶች ሊንክ
             let docsHtml = '';
-            if (m.national_id_path) docsHtml += `<a class="doc-link" href="/${m.national_id_path}" target="_blank"><i class="fas fa-id-card"></i> መታወቂያ</a><br>`;
-            if (m.photo_path) docsHtml += `<a class="doc-link" href="/${m.photo_path}" target="_blank"><i class="fas fa-image"></i> ፎቶ</a><br>`;
-            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="/${m.trade_license_path}" target="_blank"><i class="fas fa-file-contract"></i> ንግድ ፈቃድ</a>`;
-            if (!docsHtml) docsHtml = '-';
+            if (m.national_id_path) docsHtml += `<a class="doc-link" href="/${m.national_id_path}" target="_blank">🆔 መታወቂያ</a> `;
+            if (m.photo_path) docsHtml += `<a class="doc-link" href="/${m.photo_path}" target="_blank">🖼️ ፎቶ</a> `;
+            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="/${m.trade_license_path}" target="_blank">📜 ፈቃድ</a>`;
 
-            // Status Badge
-            let badgeClass = 'badge-pending';
-            if (m.status === 'approved') badgeClass = 'badge-approved';
-            if (m.status === 'rejected') badgeClass = 'badge-rejected';
-
-            // የቀን ፎርማት
-            const createdDate = m.created_at ? m.created_at.split('.')[0] : '-';
+            let badgeClass = m.status === 'approved' ? 'badge-approved' : (m.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
+            const dateStr = m.created_at ? m.created_at.split(' ')[0] : '-';
 
             tr.innerHTML = `
-                <td style="font-size: 0.75rem; color: var(--text-muted);">${createdDate}</td>
+                <td style="font-size: 0.75rem;">${dateStr}</td>
                 <td><b>${m.ref_no}</b></td>
                 <td style="color: var(--gold); font-weight: bold;">${m.loan_series_no || '-'}</td>
-                <td><b>${m.first_name} ${m.father_name} ${m.grand_name || ''}</b></td>
-                <td>${m.phone_number}</td>
-                <td style="font-size: 0.75rem;">${m.country || 'ኢትዮጵያ'}<br>TIN: ${m.tin_number || '-'}</td>
-                <td>${docsHtml}</td>
+                <td><b>${m.first_name} ${m.father_name}</b></td>
+                <td style="font-size: 0.75rem;">${m.phone_number}<br>TIN: ${m.tin_number || '-'}</td>
+                <td>${docsHtml || '-'}</td>
                 <td style="color: var(--success); font-weight: bold;">${(m.paid_amount || 0).toLocaleString()} ብር</td>
                 <td style="color: var(--gold); font-weight: bold;">${(m.approved_loan || 0).toLocaleString()} ብር</td>
                 <td style="color: #60a5fa; font-weight: bold;">${(m.paid_loan || 0).toLocaleString()} ብር</td>
                 <td><span class="badge ${badgeClass}">${m.status}</span></td>
                 <td>
-                    <button class="btn-action btn-edit" onclick="openModal(${m.id}, '${m.loan_series_no || ''}', ${m.paid_amount || 0}, ${m.approved_loan || 0}, ${m.paid_loan || 0})"><i class="fas fa-edit"></i></button>
+                    <button class="btn-action btn-deduct" title="ብር ቀንስ/አዘምን" onclick="openDeductModal(${m.id}, '${m.first_name} ${m.father_name}')"><i class="fas fa-minus-circle"></i> ቀንስ</button>
+                    <button class="btn-action btn-edit" title="አስተካክል" onclick="openModal(${m.id}, '${m.loan_series_no || ''}', ${m.paid_amount || 0}, ${m.approved_loan || 0}, ${m.paid_loan || 0})"><i class="fas fa-edit"></i></button>
                     <button class="btn-action btn-approve" onclick="updateStatus(${m.id}, 'approved')"><i class="fas fa-check"></i></button>
                     <button class="btn-action btn-reject" onclick="updateStatus(${m.id}, 'rejected')"><i class="fas fa-times"></i></button>
                 </td>
@@ -187,15 +196,36 @@
         });
     }
 
-    function filterMembers() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
-        const filtered = allMembersData.filter(m => 
-            (m.first_name && m.first_name.toLowerCase().includes(query)) ||
-            (m.father_name && m.father_name.toLowerCase().includes(query)) ||
-            (m.phone_number && m.phone_number.includes(query)) ||
-            (m.ref_no && m.ref_no.toLowerCase().includes(query))
-        );
-        renderTable(filtered);
+    function openDeductModal(id, name) {
+        document.getElementById('deductMemberId').value = id;
+        document.getElementById('deductMemberName').innerText = `አባል፦ ${name}`;
+        document.getElementById('deductSavingsInput').value = '';
+        document.getElementById('deductLoanInput').value = '';
+        document.getElementById('deductModal').classList.remove('hidden');
+    }
+
+    function closeDeductModal() {
+        document.getElementById('deductModal').classList.add('hidden');
+    }
+
+    async function saveDeduction() {
+        const id = document.getElementById('deductMemberId').value;
+        const deductSavings = document.getElementById('deductSavingsInput').value || 0;
+        const deductLoan = document.getElementById('deductLoanInput').value || 0;
+
+        try {
+            const res = await fetch('/api/admin/update_financials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
+            });
+            const data = await res.json();
+            alert(data.message);
+            closeDeductModal();
+            loadMembers();
+        } catch (e) {
+            alert("ስህተት ተከሰቷል!");
+        }
     }
 
     function openModal(id, seriesNo, paid, approved, paidLoan) {
@@ -223,15 +253,12 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    member_id: id,
-                    loan_series_no: seriesNo,
-                    paid_amount: paid_amount,
-                    approved_loan: approved_loan,
-                    paid_loan: paid_loan
+                    member_id: id, loan_series_no: seriesNo,
+                    paid_amount: paid_amount, approved_loan: approved_loan, paid_loan: paid_loan
                 })
             });
             const data = await res.json();
-            alert(data.message || "መረጃው በስኬት ተዘምኗል!");
+            alert(data.message);
             closeModal();
             loadMembers();
         } catch (e) {
@@ -247,11 +274,22 @@
                 body: JSON.stringify({ member_id: id, status: status })
             });
             const data = await res.json();
-            alert(data.message || "ሁኔታው ተቀይሯል!");
+            alert(data.message);
             loadMembers();
         } catch (e) {
             alert("ስህተት ተከሰቷል!");
         }
+    }
+
+    function filterMembers() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allMembersData.filter(m => 
+            (m.first_name && m.first_name.toLowerCase().includes(q)) ||
+            (m.father_name && m.father_name.toLowerCase().includes(q)) ||
+            (m.phone_number && m.phone_number.includes(q)) ||
+            (m.ref_no && m.ref_no.toLowerCase().includes(q))
+        );
+        renderTable(filtered);
     }
 </script>
 </body>
