@@ -69,30 +69,19 @@
         .announcement-title { color: #a5b4fc; font-weight: bold; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
         .announcement-text { font-size: 0.9rem; line-height: 1.5; color: #e0e7ff; }
 
-        /* የክፍያ ሁኔታ ባጆች (Status Badges) */
-        .payment-status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            border-radius: 20px;
+        /* የብድር ደረሰኝ ማረጋገጫ መጠባበቂያ ባነር (Pending Receipt Alert) */
+        .pending-alert-banner {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px dashed var(--gold);
+            color: var(--gold);
+            padding: 10px 12px;
+            border-radius: 8px;
             font-size: 0.85rem;
-            font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .status-paid { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
-        .status-unpaid { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
-
-        /* የአድሚን የግል መልእክት Styling */
-        .personal-msg-card {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid var(--blue);
-            border-radius: 10px;
-            padding: 12px 15px;
-            margin-bottom: 15px;
-        }
-        .personal-msg-header { color: var(--blue); font-weight: bold; font-size: 0.88rem; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
-        .personal-msg-body { font-size: 0.88rem; color: #dbeafe; line-height: 1.4; }
     </style>
 </head>
 <body>
@@ -113,15 +102,7 @@
         <div id="announcementContent" class="announcement-text"></div>
     </div>
 
-    <!-- 2. የአድሚን የግል መልእክት -->
-    <div id="personalDirectMsgBox" class="personal-msg-card hidden">
-        <div class="personal-msg-header">
-            <i class="fas fa-envelope-open-text"></i> ከአድሚን የተላከ የግል መልእክት
-        </div>
-        <div id="personalDirectMsgText" class="personal-msg-body"></div>
-    </div>
-
-    <!-- 3. የምዝገባ ማጣሪያ ገጽ (Pending) -->
+    <!-- 2. የምዝገባ ማጣሪያ ገጽ (Pending) -->
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
@@ -132,14 +113,9 @@
         </div>
     </div>
 
-    <!-- 4. ዋናው የደብተር ገጽ (Passbook Section) -->
+    <!-- 3. ዋናው የደብተር ገጽ (Passbook Section) -->
     <div id="passbookSection" class="hidden">
-        <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 10px;"></h3>
-
-        <!-- የክፍያ ሁኔታ ባጅ (ከፍሏል / አልከፈለም) -->
-        <div style="text-align: center;">
-            <div id="paymentStatusBadge" class="payment-status-badge hidden"></div>
-        </div>
+        <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 15px;"></h3>
 
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
@@ -150,7 +126,7 @@
             </button>
         </div>
 
-        <!-- 4.1 የቁጠባ ደብተር -->
+        <!-- 3.1 የቁጠባ ደብተር -->
         <div id="savingsTabContent" class="passbook-card" style="border-color: var(--success);">
             <div style="color: var(--success); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
                 <span><i class="fas fa-book"></i> የቁጠባ ደብተር</span>
@@ -182,11 +158,20 @@
             </form>
         </div>
 
-        <!-- 4.2 የብድር ደብተር -->
+        <!-- 3.2 የብድር ደብተር -->
         <div id="loanTabContent" class="passbook-card hidden" style="border-color: var(--gold);">
-            <div style="color: var(--gold); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
+            <div style="color: var(--gold); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between; margin-bottom: 10px;">
                 <span><i class="fas fa-file-invoice-dollar"></i> የብድር ደብተር</span>
                 <span id="loanSeriesNo" style="font-size: 0.85rem; color: var(--gold);">ሴሪ፡ አልተመዘገበም</span>
+            </div>
+
+            <!-- በብድር ደብተሩ ላይ ብቻ የሚታይ የክፍያ ደረሰኝ ማረጋገጫ ማስታወሻ -->
+            <div id="loanPendingAlert" class="pending-alert-banner hidden">
+                <i class="fas fa-hourglass-half fa-lg"></i>
+                <div>
+                    <strong>የላኩት የብድር ክፍያ በማረጋገጥ ላይ ነው!</strong><br>
+                    <span>አድሚኑ ደረሰኝዎን ተቀብሎ ሲያጸድቀው የብድር ዕዳዎ ይዘመናል።</span>
+                </div>
             </div>
 
             <div id="noLoanMsg" class="hidden" style="text-align: center; padding: 20px; color: var(--text-muted);">
@@ -229,7 +214,7 @@
         </div>
     </div>
 
-    <!-- 5. የአባልነት ምዝገባ ቅጽ -->
+    <!-- 4. የአባልነት ምዝገባ ቅጽ -->
     <div id="registerSection" class="card">
         <h2><i class="fas fa-id-card"></i> የአባልነት ምዝገባ ቅጽ</h2>
         <form id="registrationForm" enctype="multipart/form-data">
@@ -260,7 +245,6 @@
     let telegramId = "";
     let userRefNo = "";
 
-    // ቴሌግራም ሚኒ አፕ ማስተካከያ
     if (tg) {
         tg.ready();
         tg.expand();
@@ -269,7 +253,6 @@
         }
     }
 
-    // የሀገር መምረጫ ሲቀየር የስልክ ኮድ መቀየሪያ
     function updatePhonePrefix() {
         const select = document.getElementById('countrySelect');
         const selectedOption = select.options[select.selectedIndex];
@@ -277,7 +260,6 @@
         document.getElementById('phoneNumber').value = prefix;
     }
 
-    // የTab መቀየሪያ
     function switchTab(tab) {
         if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 
@@ -302,15 +284,14 @@
     window.addEventListener('DOMContentLoaded', () => {
         checkMemberStatus();
         loadBankAccount();
-        loadNotificationsAndAnnouncements();
+        loadAnnouncements();
     });
 
-    // የባንክ መረጃ መጫኛ
     async function loadBankAccount() {
         try {
             const res = await fetch('/api/settings/bank');
             const data = await res.json();
-            const bankText = data.bank_account || "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ተራመድ ሳኮ)";
+            const bankText = data.bank_account || "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)";
             
             document.getElementById('savingsBankText').innerText = bankText;
             document.getElementById('loanBankText').innerText = bankText;
@@ -319,28 +300,22 @@
         }
     }
 
-    // ማስታወቂያዎችን መጫኛ
-    async function loadNotificationsAndAnnouncements() {
+    async function loadAnnouncements() {
         try {
-            const res = await fetch(`/api/member/notifications?telegram_id=${telegramId}`);
+            const res = await fetch('/api/get_announcements');
             const data = await res.json();
 
-            if (data.announcement && data.announcement.text) {
-                document.getElementById('announcementHeader').innerText = data.announcement.title || 'የአድሚን ማስታወቂያ';
-                document.getElementById('announcementContent').innerText = data.announcement.text;
+            if (data.announcements && data.announcements.length > 0) {
+                const activeAnn = data.announcements[0];
+                document.getElementById('announcementHeader').innerText = activeAnn.title || 'የአድሚን ማስታወቂያ';
+                document.getElementById('announcementContent').innerText = activeAnn.content || activeAnn.message || '';
                 document.getElementById('announcementBox').classList.remove('hidden');
             }
-
-            if (data.direct_message) {
-                document.getElementById('personalDirectMsgText').innerText = data.direct_message;
-                document.getElementById('personalDirectMsgBox').classList.remove('hidden');
-            }
         } catch (e) {
-            console.error("Notification load error:", e);
+            console.error("Announcement load error:", e);
         }
     }
 
-    // የአባሉን ሁኔታ መፈተሻ
     async function checkMemberStatus() {
         try {
             const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
@@ -363,16 +338,13 @@
                     document.getElementById('memberNameDisplay').innerText = `👤 ${fullName}`;
                     document.getElementById('savingsRefNo').innerText = `ደብተር No: ${userRefNo}`;
                     document.getElementById('savingsBalanceDisplay').innerText = `${Number(data.member.paid_amount || 0).toLocaleString()} ETB`;
-                    
-                    const badge = document.getElementById('paymentStatusBadge');
-                    if (data.member.is_paid) {
-                        badge.className = "payment-status-badge status-paid";
-                        badge.innerHTML = `<i class="fas fa-check-circle"></i> ክፍያ፡ ተከፍሏል`;
+
+                    // በብድር ደብተር ላይ ብቻ የክፍያ ማስታወሻ (Receipt Pending Alert) ማሳያ
+                    if (data.member.has_pending_loan_receipt) {
+                        document.getElementById('loanPendingAlert').classList.remove('hidden');
                     } else {
-                        badge.className = "payment-status-badge status-unpaid";
-                        badge.innerHTML = `<i class="fas fa-exclamation-circle"></i> ክፍያ፡ አልተከፈለም (እዳ አለበት)`;
+                        document.getElementById('loanPendingAlert').classList.add('hidden');
                     }
-                    badge.classList.remove('hidden');
 
                     if (data.member.approved_loan > 0 || data.member.loan_series_no) {
                         document.getElementById('loanDetailsBox').classList.remove('hidden');
@@ -382,10 +354,10 @@
                         document.getElementById('approvedLoanDisplay').innerText = `${Number(data.member.approved_loan || 0).toLocaleString()} ETB`;
                         document.getElementById('paidLoanDisplay').innerText = `${Number(data.member.paid_loan || 0).toLocaleString()} ETB`;
                         
-                        const rem = (data.member.approved_loan || 0) - (data.member.paid_loan || 0);
+                        const rem = Math.max(0, (data.member.approved_loan || 0) - (data.member.paid_loan || 0));
                         document.getElementById('remainingLoanDisplay').innerText = `${Number(rem).toLocaleString()} ETB`;
                     } else {
-                        document.getElementById('loanDetailsBox').classList.hidden = false;
+                        document.getElementById('loanDetailsBox').classList.add('hidden');
                         document.getElementById('noLoanMsg').classList.remove('hidden');
                     }
                 }
@@ -395,7 +367,6 @@
         }
     }
 
-    // የክፍያ ደረሰኝ መላኪያ
     async function handlePaymentSubmit(event, type) {
         event.preventDefault();
         const submitBtn = document.getElementById(type === 'savings' ? 'savingsSubmitBtn' : 'loanSubmitBtn');
@@ -437,7 +408,6 @@
         }
     }
 
-    // የምዝገባ ቅጽ መላኪያ
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
