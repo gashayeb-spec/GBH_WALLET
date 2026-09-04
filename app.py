@@ -5,8 +5,6 @@ import threading
 import time
 import hmac
 import hashlib
-import random
-import string
 from urllib.parse import parse_qsl
 import telebot
 from telebot import types
@@ -217,11 +215,6 @@ def init_db():
     if not cursor.fetchone():
         cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
                        ('1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)',))
-
-    # የአድሚን ፓስወርድ በዳታቤዝ ውስጥ ማስቀመጫ
-    cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
-    if not cursor.fetchone():
-        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', ?)", ('123456',))
 
     conn.commit()
     conn.close()
@@ -920,102 +913,6 @@ def get_active_announcements():
         return jsonify({"status": "success", "success": True, "announcements": rows}), 200
     except Exception as e:
         return jsonify({"status": "error", "success": False, "message": str(e)}), 500
-
-# ---------------------------------------------------------
-# ADMIN AUTHENTICATION, OTP & PASSWORD RESET APIs
-# ---------------------------------------------------------
-
-@app.route('/api/admin/login', methods=['POST'])
-def admin_login():
-    try:
-        data = request.get_json(silent=True) or {}
-        password = data.get('password', '').strip()
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
-        row = cursor.fetchone()
-        conn.close()
-
-        db_password = row['value'] if row else "123456"
-
-        if password == db_password or password == "123456":
-            return jsonify({
-                "success": True,
-                "token": "admin_session_token_approved",
-                "message": "በስኬት ገብተዋል!"
-            }), 200
-        else:
-            return jsonify({
-                "success": False,
-                "message": "የተሳሳተ የይለፍ ቃል ነው!"
-            }), 401
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route('/api/admin/request_otp', methods=['POST'])
-def admin_request_otp():
-    try:
-        generated_otp = str(random.randint(100000, 999999))
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_otp', ?)", (generated_otp,))
-        conn.commit()
-        conn.close()
-
-        if bot and SUPER_ADMIN_ID:
-            try:
-                bot.send_message(
-                    SUPER_ADMIN_ID,
-                    f"🔐 <b>የተራመድ አድሚን - ፓስወርድ መቀየሪያ OTP</b>\n\nየእርስዎ OTP ኮድ፦ <code>{generated_otp}</code>\n\n⚠️ ይህንን ኮድ ለማንም አያጋሩ!",
-                    parse_mode="HTML"
-                )
-            except Exception as b_err:
-                print("Bot error sending OTP:", b_err)
-
-        return jsonify({
-            "success": True,
-            "message": "የ6 ዲጂት OTP ኮድ በቴሌግራም ቦትዎ ተልኳል!"
-        }), 200
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
-
-@app.route('/api/admin/reset_password', methods=['POST'])
-def admin_reset_password():
-    try:
-        data = request.get_json(silent=True) or {}
-        otp = str(data.get('otp', '')).strip()
-        new_password = str(data.get('new_password', '')).strip()
-
-        if not otp or not new_password:
-            return jsonify({"success": False, "message": "እባክዎን OTP እና አዲስ ፓስወርድ ያስገቡ!"}), 400
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("SELECT value FROM settings WHERE key = 'admin_otp'")
-        otp_row = cursor.fetchone()
-        saved_otp = otp_row['value'] if otp_row else ""
-
-        if otp == saved_otp or otp == "123456":
-            cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)", (new_password,))
-            cursor.execute("DELETE FROM settings WHERE key = 'admin_otp'")
-            conn.commit()
-            conn.close()
-
-            return jsonify({
-                "success": True,
-                "message": "የይለፍ ቃልዎ በስኬት ተቀይሯል! አሁን ባዘጋጁት አዲስ ፓስወርድ መግባት ይችላሉ።"
-            }), 200
-        else:
-            conn.close()
-            return jsonify({"success": False, "message": "የተሳሳተ የOTP ኮድ ነው!"}), 400
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
