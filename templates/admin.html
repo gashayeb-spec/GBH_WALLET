@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>አድሚን ፓናል - ተራመድ ሳኮ / Admin Panel - TERAMED</title>
+    <title>አድሚን ፓናል - ተራመድ ሳኮ</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
@@ -13,32 +12,9 @@
             --success: #10b981; --danger: #ef4444; --blue: #3b82f6; --purple: #8b5cf6;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 15px; user-select: none; }
+        body { background: var(--bg); color: var(--text); padding: 15px; }
         .container { max-width: 1300px; margin: 0 auto; }
         
-        /* 🌐 Top Bar Controls */
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .lang-switch-btn {
-            background: var(--card); border: 1px solid var(--gold); color: var(--gold);
-            padding: 6px 14px; border-radius: 20px; font-weight: bold; cursor: pointer;
-            font-size: 0.85rem; display: flex; align-items: center; gap: 6px; transition: all 0.2s;
-        }
-        .lang-switch-btn:active { transform: scale(0.95); }
-
-        /* 🔐 Auth / Login Modal Overlay */
-        .auth-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg); display: flex; align-items: center; justify-content: center;
-            z-index: 1000; padding: 15px;
-        }
-        .auth-card {
-            background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid var(--gold);
-            width: 100%; max-width: 400px; box-shadow: 0 8px 25px rgba(245, 158, 11, 0.2);
-        }
-        .auth-card h3 { color: var(--gold); text-align: center; margin-bottom: 20px; }
-        .forgot-link { color: var(--blue); text-decoration: none; font-size: 0.8rem; display: block; margin-top: 8px; text-align: right; cursor: pointer; }
-        .forgot-link:hover { text-decoration: underline; }
-
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .header h2 { color: var(--gold); font-size: 1.3rem; }
         
@@ -103,103 +79,53 @@
 </head>
 <body>
 
-<!-- 🔐 LOGIN / AUTH MODAL OVERLAY -->
-<div id="authOverlay" class="auth-overlay">
-    <div class="auth-card">
-        <!-- 1. LOGIN FORM -->
-        <div id="loginBox">
-            <h3><i class="fas fa-user-shield"></i> <span id="txtLoginTitle">የአድሚን መግቢያ (Admin Login)</span></h3>
-            <div class="input-group">
-                <label id="lblAdminPassword">የአድሚን ፓስወርድ (Password)</label>
-                <input type="password" id="adminPasswordInput" placeholder="••••••••" required>
-            </div>
-            <button class="btn-action btn-approve" style="width:100%; padding: 10px; font-size:0.9rem;" onclick="attemptLogin()">
-                <i class="fas fa-sign-in-alt"></i> <span id="txtLoginBtn">ግባ (Login)</span>
-            </button>
-            <span class="forgot-link" onclick="showForgotBox()" id="txtForgotLink">ፓስወርድ ረስተዋል? (Forgot Password?)</span>
-        </div>
-
-        <!-- 2. FORGOT PASSWORD (OTP REQUEST) FORM -->
-        <div id="forgotBox" class="hidden">
-            <h3><i class="fas fa-key"></i> <span id="txtForgotTitle">ፓስወርድን በOTP መቀየሪያ</span></h3>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;" id="txtForgotDesc">
-                የ6 ዲጂት ኦቲፒ (OTP) ኮድ በቴሌግራም ቦትዎ እንዲላክ 'OTP ላክ' የሚለውን ይጫኑ።
-            </p>
-            <button class="btn-action btn-deduct" style="width:100%; padding: 10px; font-size:0.85rem; margin-bottom:12px;" onclick="requestOtp()">
-                <i class="fas fa-paper-plane"></i> <span id="txtSendOtpBtn">የOTP ኮድ በቴሌግራም ላክ</span>
-            </button>
-
-            <div class="input-group">
-                <label id="lblOtpCode">የተላከው OTP ኮድ</label>
-                <input type="text" id="otpInput" placeholder="123456" maxlength="6">
-            </div>
-            <div class="input-group">
-                <label id="lblNewPassword">አዲስ ፓስወርድ (New Password)</label>
-                <input type="password" id="newPasswordInput" placeholder="••••••••">
-            </div>
-            <button class="btn-action btn-approve" style="width:100%; padding: 10px; font-size:0.9rem;" onclick="resetPasswordWithOtp()">
-                <i class="fas fa-check-circle"></i> <span id="txtResetPasswordBtn">ፓስወርድ አዝምን (Reset Password)</span>
-            </button>
-            <span class="forgot-link" onclick="showLoginBox()" id="txtBackToLogin">ወደ መግቢያ ገጽ ተመለስ</span>
-        </div>
-    </div>
-</div>
-
-<!-- 🌐 TOP BAR LANGUAGE SWITCHER -->
 <div class="container">
-    <div class="top-bar">
-        <div></div>
-        <button class="lang-switch-btn" onclick="toggleLanguage()">
-            <i class="fas fa-globe"></i> <span id="langBtnText">English</span>
-        </button>
-    </div>
-
     <div class="header">
-        <h2><i class="fas fa-users-cog"></i> <span id="txtHeaderTitle">ተራመድ ሳኮ - አድሚን ማኔጅመንት</span></h2>
+        <h2><i class="fas fa-users-cog"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h2>
     </div>
 
     <!-- Analytics Dashboard Cards -->
     <div class="stats-grid">
         <div class="stat-card">
-            <h4 id="lblTotalMembers">ጠቅላላ አባላት</h4>
+            <h4>ጠቅላላ አባላት</h4>
             <div class="value" id="statTotalMembers">0</div>
         </div>
         <div class="stat-card">
-            <h4 id="lblPendingMembers">Pending አባላት</h4>
+            <h4>Pending አባላት</h4>
             <div class="value" id="statPendingMembers">0</div>
         </div>
         <div class="stat-card">
-            <h4 id="lblDailyIncome">የዛሬ ገቢ (Daily)</h4>
-            <div class="value success" id="statDailyIncome">0 ETB</div>
+            <h4>የዛሬ ገቢ (Daily)</h4>
+            <div class="value success" id="statDailyIncome">0 ብር</div>
         </div>
         <div class="stat-card">
-            <h4 id="lblWeeklyIncome">የሳምንት ገቢ (Weekly)</h4>
-            <div class="value success" id="statWeeklyIncome">0 ETB</div>
+            <h4>የሳምንት ገቢ (Weekly)</h4>
+            <div class="value success" id="statWeeklyIncome">0 ብር</div>
         </div>
         <div class="stat-card">
-            <h4 id="lblMonthlyIncome">የወር ገቢ (Monthly)</h4>
-            <div class="value success" id="statMonthlyIncome">0 ETB</div>
+            <h4>የወር ገቢ (Monthly)</h4>
+            <div class="value success" id="statMonthlyIncome">0 ብር</div>
         </div>
         <div class="stat-card">
-            <h4 id="lblYearlyIncome">የዓመት ገቢ (Yearly)</h4>
-            <div class="value success" id="statYearlyIncome">0 ETB</div>
+            <h4>የዓመት ገቢ (Yearly)</h4>
+            <div class="value success" id="statYearlyIncome">0 ብር</div>
         </div>
     </div>
 
     <!-- Bank Account Setting Section -->
     <div class="bank-section">
-        <label style="font-weight: bold; color: var(--gold);"><i class="fas fa-university"></i> <span id="lblBankSection">የባንክ ሂሳብ መቼት (Set Bank Account):</span></label>
+        <label style="font-weight: bold; color: var(--gold);"><i class="fas fa-university"></i> የባንክ ሂሳብ መቼት (Set Bank Account):</label>
         <input type="text" id="bankAccountInput" placeholder="1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)">
-        <button class="btn-action btn-approve" style="padding: 9px 15px;" onclick="saveBankAccount()"><i class="fas fa-save"></i> <span id="btnSaveBank">አስቀምጥ</span></button>
+        <button class="btn-action btn-approve" style="padding: 9px 15px;" onclick="saveBankAccount()"><i class="fas fa-save"></i> አስቀምጥ</button>
     </div>
 
     <!-- Main Navigation Tabs -->
     <div class="tab-controls">
-        <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> <span id="txtTabMembers">የአባላት መዝገብ</span></button>
-        <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> <span id="txtTabSavings">የቁጠባ ሪሲቶች</span></button>
-        <button class="tab-btn" id="tabLoanBtn" onclick="switchTab('loan')"><i class="fas fa-hand-holding-usd"></i> <span id="txtTabLoan">የብድር ተመላሽ ሪሲቶች</span></button>
-        <button class="tab-btn" id="tabBroadcastBtn" onclick="switchTab('broadcast')"><i class="fas fa-bullhorn"></i> <span id="txtTabBroadcast">ማስታወቂያና መልእክት</span></button>
-        <button class="tab-btn" id="tabRolesBtn" onclick="switchTab('roles')"><i class="fas fa-user-shield"></i> <span id="txtTabRoles">ንኡስ አድሚኖች (Roles)</span></button>
+        <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> የአባላት መዝገብ</button>
+        <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> የቁጠባ ሪሲቶች</button>
+        <button class="tab-btn" id="tabLoanBtn" onclick="switchTab('loan')"><i class="fas fa-hand-holding-usd"></i> የብድር ተመላሽ ሪሲቶች</button>
+        <button class="tab-btn" id="tabBroadcastBtn" onclick="switchTab('broadcast')"><i class="fas fa-bullhorn"></i> ማስታወቂያና መልእክት</button>
+        <button class="tab-btn" id="tabRolesBtn" onclick="switchTab('roles')"><i class="fas fa-user-shield"></i> ንኡስ አድሚኖች (Roles)</button>
     </div>
 
     <!-- TAB 1: MEMBERS TABLE -->
@@ -207,7 +133,7 @@
         <div class="header">
             <div class="top-controls">
                 <input type="text" id="searchInput" class="search-box" placeholder="በስም፣ በስልክ ወይም በቁጠባ ቁጥር ፈልግ..." onkeyup="filterMembers()">
-                <button class="btn-refresh" onclick="loadMembers()"><i class="fas fa-sync"></i> <span id="btnRefresh1">አድስ</span></button>
+                <button class="btn-refresh" onclick="loadMembers()"><i class="fas fa-sync"></i> አድስ</button>
             </div>
         </div>
 
@@ -215,17 +141,17 @@
             <table>
                 <thead>
                     <tr>
-                        <th id="thDate">ቀን</th>
-                        <th id="thSavNo">የቁጠባ No</th>
-                        <th id="thLoanSeries">የብድር ሴሪ</th>
-                        <th id="thFullName">ሙሉ ስም</th>
-                        <th id="thPhoneTin">ስልክ / TIN</th>
-                        <th id="thDocs">የሰውየው ዶክመንቶች</th>
-                        <th id="thSavings">ቁጠባ (ETB)</th>
-                        <th id="thAppLoan">የተፈቀደ ብድር</th>
-                        <th id="thPaidLoan">የተከፈለ ብድር</th>
-                        <th id="thStatus">ሁኔታ</th>
-                        <th id="thActions">እርምጃዎች (Actions)</th>
+                        <th>ቀን</th>
+                        <th>የቁጠባ No</th>
+                        <th>የብድር ሴሪ</th>
+                        <th>ሙሉ ስም</th>
+                        <th>ስልክ / TIN</th>
+                        <th>የሰውየው ዶክመንቶች</th>
+                        <th>ቁጠባ (ETB)</th>
+                        <th>የተፈቀደ ብድር</th>
+                        <th>የተከፈለ ብድር</th>
+                        <th>ሁኔታ</th>
+                        <th>እርምጃዎች (Actions)</th>
                     </tr>
                 </thead>
                 <tbody id="membersTableBody">
@@ -240,9 +166,9 @@
         <div class="header">
             <h3 id="receiptSectionTitle" style="color: var(--gold);">የሪሲቶች መዝገብ</h3>
             <div class="top-controls">
-                <label style="align-self: center; font-size: 0.85rem;" id="lblDateFilter">ቀን መምረጫ፦ </label>
+                <label style="align-self: center; font-size: 0.85rem;">ቀን መምረጫ፦ </label>
                 <input type="date" id="receiptDateFilter" class="date-box" onchange="loadReceipts()">
-                <button class="btn-refresh" onclick="resetReceiptDate()"><i class="fas fa-undo"></i> <span id="btnResetDate">ሁሉንም አሳይ</span></button>
+                <button class="btn-refresh" onclick="resetReceiptDate()"><i class="fas fa-undo"></i> ሁሉንም አሳይ</button>
             </div>
         </div>
 
@@ -250,14 +176,14 @@
             <table>
                 <thead>
                     <tr>
-                        <th id="thRecDate">የተላከበት ቀን</th>
-                        <th id="thRecSavNo">የቁጠባ No</th>
-                        <th id="thRecName">የአባል ስም</th>
-                        <th id="thRecPhone">ስልክ</th>
-                        <th id="thRecAmount">የክፍያ መጠን</th>
-                        <th id="thRecDoc">ደረሰኝ (Screenshot)</th>
-                        <th id="thRecStatus">ሁኔታ</th>
-                        <th id="thRecAction">እርምጃዎች (Actions)</th>
+                        <th>የተላከበት ቀን</th>
+                        <th>የቁጠባ No</th>
+                        <th>የአባል ስም</th>
+                        <th>ስልክ</th>
+                        <th>የክፍያ መጠን</th>
+                        <th>ደረሰኝ (Screenshot)</th>
+                        <th>ሁኔታ</th>
+                        <th>እርምጃዎች (Actions)</th>
                     </tr>
                 </thead>
                 <tbody id="receiptsTableBody">
@@ -270,29 +196,29 @@
     <!-- TAB 4: BROADCAST / ANNOUNCEMENT CENTER -->
     <div id="broadcastTabSection" class="hidden">
         <div class="broadcast-card">
-            <h3><i class="fas fa-paper-plane"></i> <span id="txtBcHeader">አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል</span></h3>
+            <h3><i class="fas fa-paper-plane"></i> አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል</h3>
             
             <div class="input-group">
-                <label id="lblBcTarget">የመልእክቱ ተቀባዮች (Target Audience)</label>
+                <label>የመልእክቱ ተቀባዮች (Target Audience)</label>
                 <select id="broadcastTarget" class="select-box" onchange="fillTemplate()">
-                    <option value="all" id="optAll">📢 ለሁሉም አባላት (የበዓላት/የስብሰባ ማስታወቂያ)</option>
-                    <option value="unpaid" id="optUnpaid">⚠️ ላልከፈሉ/እዳ ላለባቸው አባላት (የክፍያ ማስታወሻ)</option>
-                    <option value="paid" id="optPaid">✅ ለከፈሉ አባላት (የምስጋና መልእክት)</option>
+                    <option value="all">📢 ለሁሉም አባላት (የበዓላት/የስብሰባ ማስታወቂያ)</option>
+                    <option value="unpaid">⚠️ ላልከፈሉ/እዳ ላለባቸው አባላት (የክፍያ ማስታወሻ)</option>
+                    <option value="paid">✅ ለከፈሉ አባላት (የምስጋና መልእክት)</option>
                 </select>
             </div>
 
             <div class="input-group">
-                <label id="lblBcTitle">የማስታወቂያው ርዕስ / Title</label>
+                <label>የማስታወቂያው ርዕስ / Title</label>
                 <input type="text" id="broadcastTitle" placeholder="ምሳሌ፦ የእንኳን አደረሳችሁ መልእክት / የስብሰባ ጥሪ">
             </div>
 
             <div class="input-group">
-                <label id="lblBcBody">የመልእክቱ ዝርዝር ጽሁፍ / Message Body</label>
+                <label>የመልእክቱ ዝርዝር ጽሁፍ / Message Body</label>
                 <textarea id="broadcastBody" rows="5" class="textarea-box" placeholder="የሚልኩትን መልእክት እዚህ ይጻፉ..."></textarea>
             </div>
 
             <button class="btn-action btn-approve" style="padding: 10px 20px; font-size: 0.9rem;" onclick="sendBroadcast()">
-                <i class="fas fa-broadcast-tower"></i> <span id="btnSendBroadcast">መልእክቱን በጅምላ ላክ (Send Broadcast)</span>
+                <i class="fas fa-broadcast-tower"></i> መልእክቱን በጅምላ ላክ (Send Broadcast)
             </button>
         </div>
     </div>
@@ -300,18 +226,18 @@
     <!-- TAB 5: SUB-ADMIN ROLES MANAGEMENT -->
     <div id="rolesTabSection" class="hidden">
         <div class="role-card">
-            <h3><i class="fas fa-user-plus"></i> <span id="txtRoleHeader">አዲስ ንኡስ አድሚን መሾሚያ (Assign Sub-Admin)</span></h3>
+            <h3><i class="fas fa-user-plus"></i> አዲስ ንኡስ አድሚን መሾሚያ (Assign Sub-Admin)</h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <div class="input-group" style="flex: 1; min-width: 200px;">
-                    <label id="lblRoleTgId">የቴሌግራም ID (Telegram ID)</label>
+                    <label>የቴሌግራም ID (Telegram ID)</label>
                     <input type="text" id="roleTelegramId" placeholder="ምሳሌ፦ 123456789">
                 </div>
                 <div class="input-group" style="flex: 1; min-width: 200px;">
-                    <label id="lblRoleName">ሙሉ ስም</label>
+                    <label>ሙሉ ስም</label>
                     <input type="text" id="roleFullName" placeholder="ምሳሌ፦ አበበ ከበደ">
                 </div>
                 <div class="input-group" style="flex: 1; min-width: 200px;">
-                    <label id="lblRoleType">የኃላፊነት ዘርፍ (Role Sector)</label>
+                    <label>የኃላፊነት ዘርፍ (Role Sector)</label>
                     <select id="roleType" class="select-box">
                         <option value="loan_dept">🏦 የብድር መምሪያ (Loan Dept)</option>
                         <option value="finance">💰 የገቢና ወጪ ክፍል (Finance)</option>
@@ -323,7 +249,7 @@
                 </div>
             </div>
             <button class="btn-action btn-approve" style="padding: 9px 18px; margin-top: 5px;" onclick="addAdminRole()">
-                <i class="fas fa-check-circle"></i> <span id="btnAddRole">ንኡስ አድሚን ሹም</span>
+                <i class="fas fa-check-circle"></i> ንኡስ አድሚን ሹም
             </button>
         </div>
 
@@ -352,22 +278,22 @@
 <!-- Modal for Deducting Amount Directly -->
 <div id="deductModal" class="modal hidden">
     <div class="modal-content">
-        <h3><i class="fas fa-minus-circle"></i> <span id="txtDeductModalTitle">ከሰውየው ደብተር ብር ቀንስ / አዘምን</span></h3>
+        <h3><i class="fas fa-minus-circle"></i> ከሰውየው ደብተር ብር ቀንስ / አዘምን</h3>
         <input type="hidden" id="deductMemberId">
         <p id="deductMemberName" style="color: var(--gold); font-weight: bold; margin-bottom: 10px;"></p>
         
         <div class="input-group">
-            <label id="lblDeductSavings">ከቁጠባ ደብተሩ የሚቀነስ ብር (Deduct Savings)</label>
+            <label>ከቁጠባ ደብተሩ የሚቀነስ ብር (Deduct Savings)</label>
             <input type="number" id="deductSavingsInput" placeholder="0.00" step="any">
         </div>
         <div class="input-group">
-            <label id="lblDeductLoan">ለብድር መክፈያ የሚቀነስ/የሚጨመር ብር (Add Loan Paid)</label>
+            <label>ለብድር መክፈያ የሚቀነስ/የሚጨመር ብር (Add Loan Paid)</label>
             <input type="number" id="deductLoanInput" placeholder="0.00" step="any">
         </div>
 
         <div class="modal-btns">
-            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveDeduction()"><i class="fas fa-check"></i> <span id="btnSaveDeduct">ቀንስና አዘምን</span></button>
-            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeDeductModal()"><span class="btnClose">ዝጋ</span></button>
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveDeduction()"><i class="fas fa-check"></i> ቀንስና አዘምን</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeDeductModal()">ዝጋ</button>
         </div>
     </div>
 </div>
@@ -375,29 +301,29 @@
 <!-- Modal for Full Financial Edit -->
 <div id="editModal" class="modal hidden">
     <div class="modal-content">
-        <h3><i class="fas fa-edit"></i> <span id="txtEditModalTitle">የደብተር እና ሂሳብ ማስተካከያ</span></h3>
+        <h3><i class="fas fa-edit"></i> የደብተር እና ሂሳብ ማስተካከያ</h3>
         <input type="hidden" id="editMemberId">
         
         <div class="input-group">
-            <label id="lblEditSeries">የብድር ሴሪ ቁጥር (Loan Series No)</label>
+            <label>የብድር ሴሪ ቁጥር (Loan Series No)</label>
             <input type="text" id="editLoanSeriesNo">
         </div>
         <div class="input-group">
-            <label id="lblEditSavings">የቁጠባ መጠን (ETB)</label>
+            <label>የቁጠባ መጠን (ETB)</label>
             <input type="number" id="editPaidAmount" step="any">
         </div>
         <div class="input-group">
-            <label id="lblEditApproved">የተፈቀደ ብድር መጠን (ETB)</label>
+            <label>የተፈቀደ ብድር መጠን (ETB)</label>
             <input type="number" id="editApprovedLoan" step="any">
         </div>
         <div class="input-group">
-            <label id="lblEditPaidLoan">የተከፈለ ብድር ተመላሽ (ETB)</label>
+            <label>የተከፈለ ብድር ተመላሽ (ETB)</label>
             <input type="number" id="editPaidLoan" step="any">
         </div>
 
         <div class="modal-btns">
-            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveFinancials()"><i class="fas fa-save"></i> <span id="btnSaveEdit">አስቀምጥ</span></button>
-            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeModal()"><span class="btnClose">ዝጋ</span></button>
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveFinancials()"><i class="fas fa-save"></i> አስቀምጥ</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeModal()">ዝጋ</button>
         </div>
     </div>
 </div>
@@ -405,290 +331,55 @@
 <!-- Modal for Direct Individual Message -->
 <div id="directMsgModal" class="modal hidden">
     <div class="modal-content">
-        <h3><i class="fas fa-envelope"></i> <span id="txtDirectMsgTitle">ለአባል ቀጥታ መልእክት መላኪያ</span></h3>
+        <h3><i class="fas fa-envelope"></i> ለአባል ቀጥታ መልእክት መላኪያ</h3>
         <input type="hidden" id="directMsgRefNo">
         <p id="directMsgMemberInfo" style="color: var(--gold); font-weight: bold; margin-bottom: 12px; font-size: 0.9rem;"></p>
         
         <div class="input-group">
-            <label id="lblDirectMsgText">የመልእክቱ ጽሁፍ</label>
+            <label>የመልእክቱ ጽሁፍ</label>
             <textarea id="directMsgText" rows="4" class="textarea-box" placeholder="ለዚህ አባል የሚላከውን መልእክት እዚህ ይጻፉ..."></textarea>
         </div>
 
         <div class="modal-btns">
-            <button class="btn-action btn-message" style="padding: 8px 15px;" onclick="sendDirectMessage()"><i class="fas fa-paper-plane"></i> <span id="btnSendDirect">መልእክት ላክ</span></button>
-            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeDirectMsgModal()"><span class="btnClose">ዝጋ</span></button>
+            <button class="btn-action btn-message" style="padding: 8px 15px;" onclick="sendDirectMessage()"><i class="fas fa-paper-plane"></i> መልእክት ላክ</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeDirectMsgModal()">ዝጋ</button>
         </div>
     </div>
 </div>
 
 <script>
-    /* -------------------------------------------------------------
-       🛡️ ANTI-CRACK & SECURITY PROTECTION SYSTEM
-    ------------------------------------------------------------- */
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', e => {
-        if (e.keyCode === 123 || 
-           (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || 
-           (e.ctrlKey && e.keyCode === 85)) {
-            e.preventDefault();
-            return false;
-        }
-    });
-
-    let currentLang = 'am';
-    let adminToken = sessionStorage.getItem('adminToken') || '';
     let allMembersData = [];
-    let currentTab = 'members';
-    let tg = window.Telegram ? window.Telegram.WebApp : null;
-
-    const translations = {
-        am: {
-            langBtn: "English",
-            loginTitle: "የአድሚን መግቢያ (Admin Login)",
-            lblPassword: "የአድሚን ፓስወርድ (Password)",
-            btnLogin: "ግባ (Login)",
-            forgotLink: "ፓስወርድ ረስተዋል? (Forgot Password?)",
-            forgotTitle: "ፓስወርድን በOTP መቀየሪያ",
-            forgotDesc: "የ6 ዲጂት ኦቲፒ (OTP) ኮድ በቴሌግራም ቦትዎ እንዲላክ 'OTP ላክ' የሚለውን ይጫኑ።",
-            btnSendOtp: "የOTP ኮድ በቴሌግራም ላክ",
-            lblOtpCode: "የተላከው OTP ኮድ",
-            lblNewPassword: "አዲስ ፓስወርድ (New Password)",
-            btnResetPassword: "ፓስወርድ አዝምን (Reset Password)",
-            backToLogin: "ወደ መግቢያ ገጽ ተመለስ",
-            headerTitle: "ተራመድ ሳኮ - አድሚን ማኔጅመንት",
-            totalMembers: "ጠቅላላ አባላት",
-            pendingMembers: "Pending አባላት",
-            dailyIncome: "የዛሬ ገቢ (Daily)",
-            weeklyIncome: "የሳምንት ገቢ (Weekly)",
-            monthlyIncome: "የወር ገቢ (Monthly)",
-            yearlyIncome: "የዓመት ገቢ (Yearly)",
-            bankSectionLbl: "የባንክ ሂሳብ መቼት (Set Bank Account):",
-            btnSaveBank: "አስቀምጥ",
-            tabMembers: "የአባላት መዝገብ",
-            tabSavings: "የቁጠባ ሪሲቶች",
-            tabLoan: "የብድር ተመላሽ ሪሲቶች",
-            tabBroadcast: "ማስታወቂያና መልእክት",
-            tabRoles: "ንኡስ አድሚኖች (Roles)",
-            btnRefresh: "አድስ",
-            thDate: "ቀን", thSavNo: "የቁጠባ No", thLoanSeries: "የብድር ሴሪ", thFullName: "ሙሉ ስም",
-            thPhoneTin: "ስልክ / TIN", thDocs: "የሰውየው ዶክመንቶች", thSavings: "ቁጠባ (ETB)",
-            thAppLoan: "የተፈቀደ ብድር", thPaidLoan: "የተከፈለ ብድር", thStatus: "ሁኔታ", thActions: "እርምጃዎች",
-            closeBtn: "ዝጋ"
-        },
-        en: {
-            langBtn: "አማርኛ",
-            loginTitle: "Admin Login",
-            lblPassword: "Admin Password",
-            btnLogin: "Login",
-            forgotLink: "Forgot Password?",
-            forgotTitle: "Reset Password via OTP",
-            forgotDesc: "Click 'Send OTP' to receive a 6-digit verification code on your Telegram Bot.",
-            btnSendOtp: "Send OTP via Telegram",
-            lblOtpCode: "Received OTP Code",
-            lblNewPassword: "New Password",
-            btnResetPassword: "Reset Password",
-            backToLogin: "Back to Login",
-            headerTitle: "TERAMED SACCO - Admin Management",
-            totalMembers: "Total Members",
-            pendingMembers: "Pending Members",
-            dailyIncome: "Daily Income",
-            weeklyIncome: "Weekly Income",
-            monthlyIncome: "Monthly Income",
-            yearlyIncome: "Yearly Income",
-            bankSectionLbl: "Set Bank Account:",
-            btnSaveBank: "Save",
-            tabMembers: "Members Record",
-            tabSavings: "Savings Receipts",
-            tabLoan: "Loan Refund Receipts",
-            tabBroadcast: "Broadcast & Messages",
-            tabRoles: "Sub-Admins (Roles)",
-            btnRefresh: "Refresh",
-            thDate: "Date", thSavNo: "Savings No", thLoanSeries: "Loan Series", thFullName: "Full Name",
-            thPhoneTin: "Phone / TIN", thDocs: "Documents", thSavings: "Savings (ETB)",
-            thAppLoan: "Approved Loan", thPaidLoan: "Paid Loan", thStatus: "Status", thActions: "Actions",
-            closeBtn: "Close"
-        }
-    };
-
-    function toggleLanguage() {
-        currentLang = currentLang === 'am' ? 'en' : 'am';
-        applyLanguage();
-    }
-
-    function applyLanguage() {
-        const t = translations[currentLang];
-        document.getElementById('langBtnText').innerText = t.langBtn;
-        document.getElementById('txtLoginTitle').innerText = t.loginTitle;
-        document.getElementById('lblAdminPassword').innerText = t.lblPassword;
-        document.getElementById('txtLoginBtn').innerText = t.btnLogin;
-        document.getElementById('txtForgotLink').innerText = t.forgotLink;
-        document.getElementById('txtForgotTitle').innerText = t.forgotTitle;
-        document.getElementById('txtForgotDesc').innerText = t.forgotDesc;
-        document.getElementById('txtSendOtpBtn').innerText = t.btnSendOtp;
-        document.getElementById('lblOtpCode').innerText = t.lblOtpCode;
-        document.getElementById('lblNewPassword').innerText = t.lblNewPassword;
-        document.getElementById('txtResetPasswordBtn').innerText = t.btnResetPassword;
-        document.getElementById('txtBackToLogin').innerText = t.backToLogin;
-        document.getElementById('txtHeaderTitle').innerText = t.headerTitle;
-
-        document.getElementById('lblTotalMembers').innerText = t.totalMembers;
-        document.getElementById('lblPendingMembers').innerText = t.pendingMembers;
-        document.getElementById('lblDailyIncome').innerText = t.dailyIncome;
-        document.getElementById('lblWeeklyIncome').innerText = t.weeklyIncome;
-        document.getElementById('lblMonthlyIncome').innerText = t.monthlyIncome;
-        document.getElementById('lblYearlyIncome').innerText = t.yearlyIncome;
-
-        document.getElementById('lblBankSection').innerText = t.bankSectionLbl;
-        document.getElementById('btnSaveBank').innerText = t.btnSaveBank;
-
-        document.getElementById('txtTabMembers').innerText = t.tabMembers;
-        document.getElementById('txtTabSavings').innerText = t.tabSavings;
-        document.getElementById('txtTabLoan').innerText = t.tabLoan;
-        document.getElementById('txtTabBroadcast').innerText = t.tabBroadcast;
-        document.getElementById('txtTabRoles').innerText = t.tabRoles;
-        document.getElementById('btnRefresh1').innerText = t.btnRefresh;
-
-        document.getElementById('thDate').innerText = t.thDate;
-        document.getElementById('thSavNo').innerText = t.thSavNo;
-        document.getElementById('thLoanSeries').innerText = t.thLoanSeries;
-        document.getElementById('thFullName').innerText = t.thFullName;
-        document.getElementById('thPhoneTin').innerText = t.thPhoneTin;
-        document.getElementById('thDocs').innerText = t.thDocs;
-        document.getElementById('thSavings').innerText = t.thSavings;
-        document.getElementById('thAppLoan').innerText = t.thAppLoan;
-        document.getElementById('thPaidLoan').innerText = t.thPaidLoan;
-        document.getElementById('thStatus').innerText = t.thStatus;
-        document.getElementById('thActions').innerText = t.thActions;
-
-        document.querySelectorAll('.btnClose').forEach(el => el.innerText = t.closeBtn);
-    }
-
-    /* -------------------------------------------------------------
-       🔐 AUTHENTICATION & OTP SYSTEM (የተስተካከለ የይለፍ ቃል አሰራር)
-    ------------------------------------------------------------- */
-    function showForgotBox() {
-        document.getElementById('loginBox').classList.add('hidden');
-        document.getElementById('forgotBox').classList.remove('hidden');
-    }
-
-    function showLoginBox() {
-        document.getElementById('forgotBox').classList.add('hidden');
-        document.getElementById('loginBox').classList.remove('hidden');
-    }
-
-    async function attemptLogin() {
-        const pass = document.getElementById('adminPasswordInput').value;
-        if (!pass) return alert(currentLang === 'am' ? "እባክዎን ፓስወርድ ያስገቡ!" : "Please enter password!");
-
-        try {
-            const res = await fetch('/api/admin/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: pass })
-            });
-            const data = await res.json();
-
-            if (data.success || data.token) {
-                adminToken = data.token || 'authenticated_admin_session';
-                sessionStorage.setItem('adminToken', adminToken);
-                document.getElementById('authOverlay').classList.add('hidden');
-                initDashboard();
-            } else {
-                // Fallback validation for direct testing
-                if (pass === '123456' || pass === 'admin123') {
-                    adminToken = 'authenticated_admin_session';
-                    sessionStorage.setItem('adminToken', adminToken);
-                    document.getElementById('authOverlay').classList.add('hidden');
-                    initDashboard();
-                } else {
-                    alert(data.message || (currentLang === 'am' ? "ተሳስቷል! ትክክለኛ ፓስወርድ ያስገቡ።" : "Incorrect password!"));
-                }
-            }
-        } catch(e) {
-            // Fallback strategy if backend offline/local
-            if (pass === '123456' || pass === 'admin123') {
-                adminToken = 'authenticated_admin_session';
-                sessionStorage.setItem('adminToken', adminToken);
-                document.getElementById('authOverlay').classList.add('hidden');
-                initDashboard();
-            } else {
-                alert(currentLang === 'am' ? "ተሳስቷል! ትክክለኛ ፓስወርድ ያስገቡ።" : "Incorrect password!");
-            }
-        }
-    }
-
-    async function requestOtp() {
-        try {
-            const res = await fetch('/api/admin/request_otp', { method: 'POST' });
-            const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "የOTP ኮድ ወደ ቴሌግራም ተልኳል!" : "OTP sent to Telegram!"));
-        } catch(e) { 
-            alert(currentLang === 'am' ? "የOTP ኮድ በቴሌግራም ቦትዎ ተልኳል!" : "OTP Code sent via Telegram Bot!");
-        }
-    }
-
-    async function resetPasswordWithOtp() {
-        const otp = document.getElementById('otpInput').value.trim();
-        const newPass = document.getElementById('newPasswordInput').value;
-
-        if (!otp || !newPass) {
-            return alert(currentLang === 'am' ? "እባክዎን OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please fill OTP and new password!");
-        }
-
-        try {
-            const res = await fetch('/api/admin/reset_password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ otp: otp, new_password: newPass })
-            });
-            const data = await res.json();
-            if (data.success) {
-                alert(data.message || (currentLang === 'am' ? "ፓስወርዱ በስኬት ተቀይሯል! አሁን ይግቡ።" : "Password updated! Please login."));
-                showLoginBox();
-            } else {
-                alert(data.message || (currentLang === 'am' ? "ፓስወርዱ በስኬት ተቀይሯል!" : "Password updated!"));
-                showLoginBox();
-            }
-        } catch(e) { 
-            alert(currentLang === 'am' ? "ፓስወርዱ በስኬት ተቀይሯል! አሁን ይግቡ።" : "Password updated successfully!");
-            showLoginBox();
-        }
-    }
+    let currentTab = 'members'; // 'members', 'savings', 'loan', 'broadcast', 'roles'
 
     window.addEventListener('DOMContentLoaded', () => {
-        if (adminToken) {
-            document.getElementById('authOverlay').classList.add('hidden');
-            initDashboard();
-        }
-    });
-
-    function initDashboard() {
         loadAnalytics();
         loadBankAccount();
         loadMembers();
-    }
+    });
 
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
-            .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
 
     // 1. Analytics Load
     async function loadAnalytics() {
         try {
-            const res = await fetch('/api/admin/analytics', { headers: { 'Authorization': adminToken } });
+            const res = await fetch('/api/admin/analytics');
             const data = await res.json();
             if (data.status === "success" && data.analytics) {
                 const a = data.analytics;
                 document.getElementById('statTotalMembers').innerText = a.total_members || 0;
                 document.getElementById('statPendingMembers').innerText = a.pending_members || 0;
-                document.getElementById('statDailyIncome').innerText = (a.daily_income || 0).toLocaleString() + ' ETB';
-                document.getElementById('statWeeklyIncome').innerText = (a.weekly_income || 0).toLocaleString() + ' ETB';
-                document.getElementById('statMonthlyIncome').innerText = (a.monthly_income || 0).toLocaleString() + ' ETB';
-                document.getElementById('statYearlyIncome').innerText = (a.yearly_income || 0).toLocaleString() + ' ETB';
+                document.getElementById('statDailyIncome').innerText = (a.daily_income || 0).toLocaleString() + ' ብር';
+                document.getElementById('statWeeklyIncome').innerText = (a.weekly_income || 0).toLocaleString() + ' ብር';
+                document.getElementById('statMonthlyIncome').innerText = (a.monthly_income || 0).toLocaleString() + ' ብር';
+                document.getElementById('statYearlyIncome').innerText = (a.yearly_income || 0).toLocaleString() + ' ብር';
             }
         } catch (e) { console.error("Error loading analytics:", e); }
     }
@@ -709,12 +400,12 @@
         try {
             const res = await fetch('/api/admin/settings/bank', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ bank_account: bankInfo })
             });
             const data = await res.json();
             alert(data.message || "የባንክ መረጃው ተቀምጧል!");
-        } catch (e) { alert("መረጃው ተቀምጧል!"); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // 3. Tab Navigation Controller
@@ -746,10 +437,10 @@
         } else {
             if (tab === 'savings') {
                 document.getElementById('tabSavingsBtn').classList.add('active');
-                document.getElementById('receiptSectionTitle').innerText = currentLang === 'am' ? "💰 የቁጠባ ገቢ ደረሰኞች መዝገብ" : "💰 Savings Income Receipts";
+                document.getElementById('receiptSectionTitle').innerText = "💰 የቁጠባ ገቢ ደረሰኞች መዝገብ";
             } else {
                 document.getElementById('tabLoanBtn').classList.add('active');
-                document.getElementById('receiptSectionTitle').innerText = currentLang === 'am' ? "💳 የብድር ተመላሽ ደረሰኞች መዝገብ" : "💳 Loan Refund Receipts";
+                document.getElementById('receiptSectionTitle').innerText = "💳 የብድር ተመላሽ ደረሰኞች መዝገብ";
             }
             document.getElementById('receiptsTabSection').classList.remove('hidden');
             loadReceipts();
@@ -759,7 +450,7 @@
     // 4. Load & Render Members Table
     async function loadMembers() {
         try {
-            const res = await fetch('/api/admin/members', { headers: { 'Authorization': adminToken } });
+            const res = await fetch('/api/admin/members');
             const data = await res.json();
             if (data.status === "success" && data.members) {
                 allMembersData = data.members;
@@ -840,18 +531,21 @@
         const refNo = document.getElementById('directMsgRefNo').value;
         const msg = document.getElementById('directMsgText').value.trim();
 
-        if (!msg) return alert("እባክዎን መልእክቱን ይጻፉ!");
+        if (!msg) {
+            alert("እባክዎን መልእክቱን ይጻፉ!");
+            return;
+        }
 
         try {
             const res = await fetch('/api/messages/send', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ref_no: refNo, sender: 'admin', message_text: msg })
             });
             const data = await res.json();
             alert(data.message || "መልእክቱ ለአባሉ በስኬት ተላክዋል!");
             closeDirectMsgModal();
-        } catch (e) { alert("መልእክቱ ተልኳል!"); closeDirectMsgModal(); }
+        } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
     }
 
     // 6. Broadcast Announcement Logic
@@ -877,35 +571,39 @@
         const title = document.getElementById('broadcastTitle').value.trim();
         const body = document.getElementById('broadcastBody').value.trim();
 
-        if (!title || !body) return alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
-        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ በጅምላ መላክ ይፈልጋሉ?`)) return;
+        if (!title || !body) {
+            alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
+            return;
+        }
+
+        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት በጅምላ መላክ ይፈልጋሉ?`)) return;
 
         try {
             const res = await fetch('/api/admin/announcement', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ target_audience: target, title: title, message: body })
             });
             const data = await res.json();
             alert(data.message || "ማስታወቂያው በስኬት ተሰራጭቷል!");
-        } catch (e) { alert("ማስታወቂያው በስኬት ተሰራጭቷል!"); }
+        } catch (e) { alert("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!"); }
     }
 
     // 7. Delete Member Function
     async function deleteMember(id, name) {
-        if (!confirm(`⚠️ ማስጠንቀቂያ፦ አባል '${name}' ጨርሶ ከአሰራሩ ይሰረዛል! እርግጠኛ ነዎት?`)) return;
+        if (!confirm(`⚠️ ማስጠንቀቂያ፦ አባል '${name}' ጨርሶ ከአሰራሩ ይሰረዛል! ድጋሚ መመዝገብ ይችላል። እርግጠኛ ነዎት?`)) return;
 
         try {
             const res = await fetch('/api/admin/delete_member', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ member_id: id })
             });
             const data = await res.json();
             alert(data.message || "አባሉ ተሰርዟል!");
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("አባሉ ተሰርዟል!"); loadMembers(); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // 8. Receipts Management
@@ -914,7 +612,7 @@
         const url = `/api/admin/receipts?type=${currentTab}&date=${dateVal}`;
 
         try {
-            const res = await fetch(url, { headers: { 'Authorization': adminToken } });
+            const res = await fetch(url);
             const data = await res.json();
             const tbody = document.getElementById('receiptsTableBody');
             tbody.innerHTML = '';
@@ -972,20 +670,20 @@
         try {
             const res = await fetch('/api/admin/receipt/action', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ receipt_id: receiptId, action: action })
             });
             const data = await res.json();
             alert(data.message || "ክወናው ተጠናቋል!");
             loadReceipts();
             loadAnalytics();
-        } catch (e) { alert("ክወናው ተጠናቋል!"); loadReceipts(); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // 9. Sub-Admin Role Operations
     async function loadAdminRoles() {
         try {
-            const res = await fetch('/api/admin/roles/list', { headers: { 'Authorization': adminToken } });
+            const res = await fetch('/api/admin/roles/list');
             const data = await res.json();
             const tbody = document.getElementById('rolesTableBody');
             tbody.innerHTML = '';
@@ -1027,12 +725,15 @@
         const fullName = document.getElementById('roleFullName').value.trim();
         const role = document.getElementById('roleType').value;
 
-        if (!telegramId || !fullName) return alert("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!");
+        if (!telegramId || !fullName) {
+            alert("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!");
+            return;
+        }
 
         try {
             const res = await fetch('/api/admin/roles/add', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ telegram_id: telegramId, full_name: fullName, role: role })
             });
             const data = await res.json();
@@ -1040,7 +741,7 @@
             document.getElementById('roleTelegramId').value = '';
             document.getElementById('roleFullName').value = '';
             loadAdminRoles();
-        } catch (e) { alert("ንኡስ አድሚኑ ተሾሟል!"); loadAdminRoles(); }
+        } catch (e) { alert("ንኡስ አድሚን ሲሾም ስህተት ተከሰቷል!"); }
     }
 
     async function deleteAdminRole(roleId) {
@@ -1048,13 +749,13 @@
         try {
             const res = await fetch('/api/admin/roles/delete', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ role_id: roleId })
             });
             const data = await res.json();
             alert(data.message || "ሹመቱ ተሰርዟል!");
             loadAdminRoles();
-        } catch (e) { alert("ሹመቱ ተሰርዟል!"); loadAdminRoles(); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // Modal Operations for Financials
@@ -1078,7 +779,7 @@
         try {
             const res = await fetch('/api/admin/update_financials', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
             });
             const data = await res.json();
@@ -1086,7 +787,7 @@
             closeDeductModal();
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("መረጃው ተዘምኗል!"); closeDeductModal(); loadMembers(); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     function openModal(id, seriesNo, paid, approved, paidLoan) {
@@ -1112,7 +813,7 @@
         try {
             const res = await fetch('/api/admin/update_financials', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     member_id: id, loan_series_no: seriesNo,
                     paid_amount: paid_amount, approved_loan: approved_loan, paid_loan: paid_loan
@@ -1123,7 +824,7 @@
             closeModal();
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("መረጃው ተዘምኗል!"); closeModal(); loadMembers(); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     async function updateStatus(id, status) {
@@ -1131,14 +832,14 @@
         try {
             const res = await fetch('/api/admin/update_status', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': adminToken },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ member_id: id, status: status })
             });
             const data = await res.json();
             alert(data.message || "ሁኔታው ተቀይሯል!");
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("ሁኔታው ተቀይሯል!"); loadMembers(); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     function filterMembers() {
