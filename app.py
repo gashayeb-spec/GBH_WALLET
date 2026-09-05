@@ -5,7 +5,7 @@ import threading
 import time
 import telebot
 from telebot import types
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
@@ -39,11 +39,20 @@ def allowed_file(filename):
 def format_file_url(path):
     if not path:
         return ""
-    return "/" + path.replace("\\", "/").lstrip("/")
+    # Convert absolute persistent path to dynamic route URL
+    filename = os.path.basename(path)
+    return f"/uploads/{filename}"
 
 def sanitize_input(text):
     if text is None: return ""
     return html.escape(str(text).strip())
+
+# ---------------------------------------------------------
+# Route for Serving Uploaded Files from Persistent Storage
+# ---------------------------------------------------------
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ---------------------------------------------------------
 # Database Setup & Thread-Safe Connection
@@ -156,7 +165,6 @@ if bot:
             web_btn = types.InlineKeyboardButton(text="📱 ምዝገባ / የኔ ደብተሮች", web_app=web_app_info)
             markup.add(web_btn)
             
-            # Super Admin ወይም ንኡስ አድሚን መሆኑን ማረጋገጥ
             is_admin = False
             if user_id == SUPER_ADMIN_ID:
                 is_admin = True
@@ -642,6 +650,39 @@ def update_financials():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ---------------------------------------------------------
+# Admin Delete Option (አድሚኑ በገዛ ፈቃዱ መረጃዎችን ለመሰረዝ)
+# ---------------------------------------------------------
+@app.route('/api/admin/delete_member', methods=['POST'])
+def delete_member():
+    try:
+        data = request.get_json(silent=True) or {}
+        member_id = data.get('member_id')
+        
+        if not member_id:
+            return jsonify({"status": "error", "message": "የአባል ID አልተገለጸም!"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # የተያያዙ ደረሰኞችን እና መልእክቶችን ማጽዳት
+        cursor.execute("SELECT ref_no FROM members WHERE id = ?", (member_id,))
+        row = cursor.fetchone()
+        if row:
+            ref_no = row['ref_no']
+            cursor.execute("DELETE FROM receipts WHERE member_id = ?", (member_id,))
+            cursor.execute("DELETE FROM messages WHERE ref_no = ?", (ref_no,))
+            cursor.execute("DELETE FROM members WHERE id = ?", (member_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({"status": "success", "message": "አባሉና የተያያዙ ፋይሎቹ ሙሉ በሙሉ ተሰርዘዋል!"}), 200
+
+        conn.close()
+        return jsonify({"status": "error", "message": "አባሉ አልተገኘም!"}), 404
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/messages/send', methods=['POST'])
 def send_message():
     try:
@@ -804,11 +845,9 @@ def get_active_announcements():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # አክቲቭ የሆነውን ማስታወቂያ ያመጣል
         cursor.execute("SELECT * FROM announcements WHERE status = 'active' ORDER BY id DESC LIMIT 1")
         row = cursor.fetchone()
         
-        # አክቲቭ ከሌለ የመጨረሻውን የገባውን ያመጣል
         if not row:
             cursor.execute("SELECT * FROM announcements ORDER BY id DESC LIMIT 1")
             row = cursor.fetchone()
