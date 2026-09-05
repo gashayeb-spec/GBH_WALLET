@@ -10,12 +10,13 @@
         :root {
             --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
             --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
-            --success: #10b981; --danger: #ef4444; --blue: #3b82f6;
+            --success: #10b981; --danger: #ef4444; --blue: #3b82f6; --purple: #8b5cf6;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 15px; -webkit-tap-highlight-color: transparent; }
         .container { max-width: 500px; margin: 0 auto; }
         
+        /* 🌐 የቋንቋ መቆጣጠሪያ ማዕከል */
         .top-bar {
             display: flex;
             justify-content: flex-end;
@@ -44,10 +45,9 @@
             display: block; width: 100%; text-align: center; background: var(--blue); color: white;
             padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-bottom: 15px;
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
-            transition: transform 0.1s;
         }
-        .admin-nav-btn:active { transform: scale(0.98); }
 
+        /* 📢 ከአድሚን የሚላክ ማስታወቂያ */
         .announcement-card {
             background: linear-gradient(135deg, #1e1b4b, #311b92);
             border: 2px solid var(--gold);
@@ -74,9 +74,18 @@
             white-space: pre-line;
         }
 
+        /* ✉️ ለአባል ቀጥታ የተላከ አድሚን መልእክት ሳጥን */
+        .direct-msg-card {
+            background: linear-gradient(135deg, #2e1065, #4c1d95);
+            border: 2px solid var(--purple);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25);
+        }
+
         .tab-container { display: flex; gap: 10px; margin-bottom: 15px; }
         .tab-btn { flex: 1; padding: 12px; background: var(--card); border: 1px solid var(--border); color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; }
-        .tab-btn:active { transform: scale(0.97); }
         .tab-btn.active-savings { background: #065f46; border-color: var(--success); }
         .tab-btn.active-loan { background: #854d0e; border-color: var(--gold); }
 
@@ -89,7 +98,6 @@
             width: 100%; padding: 11px; background: #0f172a; border: 1px solid var(--border);
             border-radius: 8px; color: #fff; font-size: 0.95rem; outline: none;
         }
-        .input-group input[type="file"] { padding: 8px; font-size: 0.85rem; }
         .input-group input:focus, .input-group select:focus { border-color: var(--gold); }
         
         .btn-submit {
@@ -127,16 +135,19 @@
 
 <div class="container">
 
+    <!-- 🌐 የቋንቋ መቀየሪያ ቁልፍ -->
     <div class="top-bar">
         <button class="lang-switch-btn" onclick="toggleLanguage()">
             <i class="fas fa-globe"></i> <span id="langBtnText">English</span>
         </button>
     </div>
 
+    <!-- ወደ አድሚን ዳሽቦርድ መሄጃ -->
     <a id="adminLinkBtn" href="/admin" class="admin-nav-btn hidden">
         <i class="fas fa-user-shield"></i> <span id="txtAdminBtn">ወደ አድሚን ፓናል ሂድ (Admin Dashboard)</span>
     </a>
 
+    <!-- 📢 ከአድሚኑ የሚላክ አጠቃላይ ማስታወቂያ (የበዓል/የስብሰባ/የክፍያ ማስታወሻ) -->
     <div id="announcementBox" class="announcement-card hidden">
         <div class="announcement-title">
             <i class="fas fa-bullhorn fa-lg"></i>
@@ -145,6 +156,16 @@
         <div id="announcementContent" class="announcement-text"></div>
     </div>
 
+    <!-- ✉️ ከአድሚኑ በቀጥታ ለዚህ አባል የተላከ የግል መልእክት (Direct Admin Message) -->
+    <div id="directMsgBox" class="direct-msg-card hidden">
+        <div class="announcement-title" style="color: #c084fc; border-bottom-color: rgba(192, 132, 252, 0.3);">
+            <i class="fas fa-envelope-open-text fa-lg"></i>
+            <span id="directMsgHeader">የአድሚን መልእክት</span>
+        </div>
+        <div id="directMsgContent" class="announcement-text"></div>
+    </div>
+
+    <!-- የምዝገባ ማጣሪያ ገጽ (Pending) -->
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
@@ -155,10 +176,12 @@
         </div>
     </div>
 
+    <!-- ዋናው የደብተር ገጽ (Passbook Section) -->
     <div id="passbookSection" class="hidden">
 
         <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 12px;"></h3>
 
+        <!-- ደብተሮች (የቁጠባና የብድር ታቦች) -->
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
                 <i class="fas fa-piggy-bank"></i> <span id="txtSavingsTab">የቁጠባ ደብተር</span>
@@ -168,6 +191,7 @@
             </button>
         </div>
 
+        <!-- 1. የቁጠባ ደብተር -->
         <div id="savingsTabContent" class="passbook-card" style="border-color: var(--success);">
             <div style="color: var(--success); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between;">
                 <span><i class="fas fa-book"></i> <span id="txtSavingsCardTitle">የቁጠባ ደብተር</span></span>
@@ -199,6 +223,7 @@
             </form>
         </div>
 
+        <!-- 2. የብድር ደብተር -->
         <div id="loanTabContent" class="passbook-card hidden" style="border-color: var(--gold);">
             <div style="color: var(--gold); font-weight: bold; font-size: 1.1rem; display: flex; justify-content: space-between; margin-bottom: 10px;">
                 <span><i class="fas fa-file-invoice-dollar"></i> <span id="txtLoanCardTitle">የብድር ደብተር</span></span>
@@ -249,6 +274,7 @@
         </div>
     </div>
 
+    <!-- የአባልነት ምዝገባ ቅጽ -->
     <div id="registerSection" class="card">
         <h2><i class="fas fa-id-card"></i> <span id="txtRegTitle">የአባልነት ምዝገባ ቅጽ</span></h2>
         <form id="registrationForm" enctype="multipart/form-data">
@@ -258,9 +284,9 @@
             <div class="input-group">
                 <label id="lblCountry">ሀገር</label>
                 <select id="countrySelect" onchange="updatePhonePrefix()" required>
-                    <option value="ኢትዮጵያ" data-prefix="+251 " data-en="Ethiopia">ኢትዮጵያ (+251)</option>
-                    <option value="አሜሪካ" data-prefix="+1 " data-en="USA">አሜሪካ (+1)</option>
-                    <option value="ዱባይ" data-prefix="+971 " data-en="UAE (Dubai)">ዱባይ (+971)</option>
+                    <option value="ኢትዮጵያ" data-prefix="+251 ">ኢትዮጵያ (+251)</option>
+                    <option value="አሜሪካ" data-prefix="+1 ">አሜሪካ (+1)</option>
+                    <option value="ዱባይ" data-prefix="+971 ">ዱባይ (+971)</option>
                 </select>
             </div>
             <div class="input-group"><label id="lblPhone">ስልክ ቁጥር</label><input type="tel" id="phoneNumber" value="+251 " required></div>
@@ -275,7 +301,7 @@
 </div>
 
 <script>
-    let currentLang = 'am'; 
+    let currentLang = 'am'; // Default Amharic
     let tg = window.Telegram ? window.Telegram.WebApp : null;
     let telegramId = "";
     let userRefNo = "";
@@ -286,6 +312,7 @@
             langBtn: "English",
             adminBtn: "ወደ አድሚን ፓናል ሂድ (Admin Dashboard)",
             announcementHeader: "የአድሚን ማስታወቂያ",
+            directMsgHeader: "የአድሚን መልእክት",
             pendingTitle: "ምዝገባዎ በማጣራት ላይ ይገኛል!",
             pendingDesc: "አድሚኑ መረጃዎን አይቶ ሲያጸድቀው የቁጠባ እና የብድር ደብተሮችዎ ይከፈታሉ።",
             savingsTab: "የቁጠባ ደብተር",
@@ -326,6 +353,7 @@
             langBtn: "አማርኛ",
             adminBtn: "Go to Admin Dashboard",
             announcementHeader: "Admin Announcement",
+            directMsgHeader: "Direct Admin Message",
             pendingTitle: "Your registration is under review!",
             pendingDesc: "Your savings and loan passbooks will open once the admin reviews and approves your information.",
             savingsTab: "Savings Book",
@@ -375,6 +403,7 @@
         document.getElementById('langBtnText').innerText = t.langBtn;
         document.getElementById('txtAdminBtn').innerText = t.adminBtn;
         document.getElementById('announcementHeader').innerText = t.announcementHeader;
+        document.getElementById('directMsgHeader').innerText = t.directMsgHeader;
         document.getElementById('txtPendingTitle').innerText = t.pendingTitle;
         document.getElementById('txtPendingDesc').innerText = t.pendingDesc;
         document.getElementById('txtSavingsTab').innerText = t.savingsTab;
@@ -405,14 +434,6 @@
         document.getElementById('lblTin').innerText = t.lblTin;
         document.getElementById('lblUserPhoto').innerText = t.lblUserPhoto;
         document.getElementById('submitBtn').innerText = t.btnRegSubmit;
-
-        // የሀገር መቆጣጠሪያውን በቋንቋ መቀየር
-        const countrySelect = document.getElementById('countrySelect');
-        Array.from(countrySelect.options).forEach(opt => {
-            const prefix = opt.getAttribute('data-prefix');
-            const enName = opt.getAttribute('data-en');
-            opt.text = currentLang === 'am' ? `${opt.value} (${prefix.trim()})` : `${enName} (${prefix.trim()})`;
-        });
 
         if (globalMemberData) {
             renderMemberDetails(globalMemberData);
@@ -474,21 +495,45 @@
         }
     }
 
+    /* 📢 አድሚኑ ሴት የሚያደርገውን አጠቃላይ ማስታወቂያ መጫኛ */
     async function loadAnnouncement() {
         try {
             const res = await fetch('/api/announcement');
             const data = await res.json();
 
-            if (data && (data.text || data.content || data.message)) {
+            if (data && (data.text || data.content || data.message || data.title)) {
                 const headerText = data.title || translations[currentLang].announcementHeader;
-                const bodyText = data.text || data.content || data.message;
+                const bodyText = data.text || data.content || data.message || '';
 
-                document.getElementById('announcementHeader').innerText = headerText;
-                document.getElementById('announcementContent').innerText = bodyText;
-                document.getElementById('announcementBox').classList.remove('hidden');
+                if(bodyText || headerText) {
+                    document.getElementById('announcementHeader').innerText = headerText;
+                    document.getElementById('announcementContent').innerText = bodyText;
+                    document.getElementById('announcementBox').classList.remove('hidden');
+                }
             }
         } catch (e) {
             console.error("Announcement load error:", e);
+        }
+    }
+
+    /* ✉️ ለአባሉ ቀጥታ ከአድሚኑ የተላኩ መልእክቶችን መጫኛ */
+    async function loadDirectMessages(refNo) {
+        if (!refNo) return;
+        try {
+            const res = await fetch(`/api/messages/get?ref_no=${refNo}`);
+            const data = await res.json();
+            
+            if (data.status === "success" && data.messages && data.messages.length > 0) {
+                // ከአድሚኑ የተላከውን የቅርብ ጊዜ መልእክት መውሰድ
+                const adminMsgs = data.messages.filter(m => m.sender === 'admin');
+                if (adminMsgs.length > 0) {
+                    const latestMsg = adminMsgs[adminMsgs.length - 1];
+                    document.getElementById('directMsgContent').innerText = latestMsg.message_text || latestMsg.text || '';
+                    document.getElementById('directMsgBox').classList.remove('hidden');
+                }
+            }
+        } catch(e) {
+            console.error("Direct messages load error:", e);
         }
     }
 
@@ -500,6 +545,9 @@
         document.getElementById('memberNameDisplay').innerText = `👤 ${fullName}`;
         document.getElementById('savingsRefNo').innerText = `${t.passbookNoText}${userRefNo}`;
         document.getElementById('savingsBalanceDisplay').innerText = `${Number(member.paid_amount || 0).toLocaleString()} ETB`;
+
+        // ለአባሉ የተላከ መልእክት ካለ መጫን
+        loadDirectMessages(userRefNo);
 
         if (member.approved_loan > 0 || member.loan_series_no) {
             document.getElementById('loanDetailsBox').classList.remove('hidden');
@@ -531,16 +579,11 @@
     }
 
     async function checkMemberStatus() {
-        if (!telegramId) {
-            console.warn("Telegram ID Not Available");
-            return;
-        }
-
         try {
             const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
             const data = await res.json();
 
-            if (data.admin_id && telegramId === data.admin_id.toString()) {
+            if (telegramId && data.admin_id && telegramId === data.admin_id.toString()) {
                 document.getElementById('adminLinkBtn').classList.remove('hidden');
             }
 
@@ -572,12 +615,6 @@
             return;
         }
 
-        // የፋይል መጠን ፍተሻ (5MB Max)
-        if (receiptInput.files[0].size > 5 * 1024 * 1024) {
-            alert(currentLang === 'am' ? "የምስሉ መጠን ከ 5MB ማነስ አለበት!" : "Image size must be less than 5MB!");
-            return;
-        }
-
         submitBtn.disabled = true;
         submitBtn.innerText = currentLang === 'am' ? "መረጃው በመላክ ላይ..." : "Sending data...";
 
@@ -598,10 +635,11 @@
                 location.reload();
             } else {
                 alert(result.message || (currentLang === 'am' ? "ስህተት ተከሰቷል!" : "An error occurred!"));
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> <span>${type === 'savings' ? t.savingsSubmit : t.loanSubmit}</span>`;
             }
         } catch(e) {
-            alert(currentLang === 'am' ? "የአውታረ መረብ ስህተት ተከሰቷል! እባክዎ ደግመው ይሞክሩ።" : "Network error occurred! Please try again.");
-        } finally {
+            alert(currentLang === 'am' ? "ስህተት ተከሰቷል! እባክዎ ደግመው ይሞክሩ።" : "Error occurred! Please try again.");
             submitBtn.disabled = false;
             submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> <span>${type === 'savings' ? t.savingsSubmit : t.loanSubmit}</span>`;
         }
@@ -610,16 +648,6 @@
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
-        
-        const nationalIdFile = document.getElementById('nationalId').files[0];
-        const userPhotoFile = document.getElementById('userPhoto').files[0];
-
-        // የፎቶዎች መጠን ፍተሻ
-        if ((nationalIdFile && nationalIdFile.size > 5 * 1024 * 1024) || (userPhotoFile && userPhotoFile.size > 5 * 1024 * 1024)) {
-            alert(currentLang === 'am' ? "የፎቶዎቹ መጠን ከ 5MB ማነስ አለበት!" : "Photo sizes must be less than 5MB!");
-            return;
-        }
-
         btn.disabled = true;
         btn.innerText = currentLang === 'am' ? "መረጃው በመላክ ላይ..." : "Sending data...";
 
@@ -632,19 +660,11 @@
         formData.append('tin_number', document.getElementById('tinNumber').value);
         formData.append('telegram_id', telegramId);
         
-        formData.append('national_id', nationalIdFile);
-        formData.append('user_photo', userPhotoFile);
+        formData.append('national_id', document.getElementById('nationalId').files[0]);
+        formData.append('user_photo', document.getElementById('userPhoto').files[0]);
         
         const tradeLic = document.getElementById('tradeLicense').files[0];
-        if (tradeLic) {
-            if (tradeLic.size > 5 * 1024 * 1024) {
-                alert(currentLang === 'am' ? "የንግድ ፈቃዱ መጠን ከ 5MB ማነስ አለበት!" : "Trade license size must be less than 5MB!");
-                btn.disabled = false;
-                btn.innerText = translations[currentLang].btnRegSubmit;
-                return;
-            }
-            formData.append('trade_license', tradeLic);
-        }
+        if (tradeLic) formData.append('trade_license', tradeLic);
 
         try {
             const res = await fetch('/api/register', { method: 'POST', body: formData });
@@ -656,10 +676,11 @@
                 checkMemberStatus();
             } else {
                 alert(result.message || (currentLang === 'am' ? "ምዝገባው አልተሳካም።" : "Registration failed."));
+                btn.disabled = false;
+                btn.innerText = translations[currentLang].btnRegSubmit;
             }
         } catch (err) {
             alert(currentLang === 'am' ? "መረጃውን መላክ አልተቻለም! እባክዎ ደግመው ይሞክሩ።" : "Could not submit! Please try again.");
-        } finally {
             btn.disabled = false;
             btn.innerText = translations[currentLang].btnRegSubmit;
         }
