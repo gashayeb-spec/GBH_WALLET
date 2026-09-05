@@ -69,9 +69,10 @@
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: var(--card); padding: 22px; border-radius: 12px; width: 95%; max-width: 480px; border: 1px solid var(--gold); }
         .modal-content h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
-        .input-group { margin-bottom: 12px; }
+        .input-group { margin-bottom: 12px; position: relative; }
         .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
-        .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 8px 10px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 8px 35px 8px 10px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .toggle-password { position: absolute; right: 10px; top: 30px; cursor: pointer; color: var(--text-muted); }
         .modal-btns { display: flex; justify-content: space-between; margin-top: 18px; }
         .hidden { display: none !important; }
 
@@ -91,7 +92,6 @@
         </div>
     </div>
 
-    <!-- Analytics Dashboard Cards -->
     <div class="stats-grid">
         <div class="stat-card">
             <h4><span data-key="total_members">ጠቅላላ አባላት</span></h4>
@@ -119,14 +119,12 @@
         </div>
     </div>
 
-    <!-- Bank Account Setting Section -->
     <div class="bank-section">
         <label style="font-weight: bold; color: var(--gold);"><i class="fas fa-university"></i> <span data-key="bank_setting">የባንክ ሂሳብ መቼት (Set Bank Account):</span></label>
         <input type="text" id="bankAccountInput" placeholder="1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)">
         <button class="btn-action btn-approve" style="padding: 9px 15px;" onclick="saveBankAccount()"><i class="fas fa-save"></i> <span data-key="save">አስቀምጥ</span></button>
     </div>
 
-    <!-- Main Navigation Tabs -->
     <div class="tab-controls">
         <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> <span data-key="tab_members">የአባላት መዝገብ</span></button>
         <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> <span data-key="tab_savings">የቁጠባ ሪሲቶች</span></button>
@@ -135,7 +133,6 @@
         <button class="tab-btn" id="tabRolesBtn" onclick="switchTab('roles')"><i class="fas fa-user-shield"></i> <span data-key="tab_roles">ንኡስ አድሚኖች (Roles)</span></button>
     </div>
 
-    <!-- TAB 1: MEMBERS TABLE -->
     <div id="membersTabSection">
         <div class="header">
             <div class="top-controls">
@@ -154,17 +151,17 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ቀን</th>
-                        <th>የቁጠባ No</th>
-                        <th>የብድር ሴሪ</th>
-                        <th>ሙሉ ስም</th>
-                        <th>ስልክ / TIN</th>
-                        <th>የሰውየው ዶክመንቶች</th>
-                        <th>ቁጠባ (ETB)</th>
-                        <th>የተፈቀደ ብድር</th>
-                        <th>የተከፈለ ብድር</th>
-                        <th>ሁኔታ</th>
-                        <th>እርምጃዎች (Actions)</th>
+                        <th data-key="th_date">ቀን</th>
+                        <th data-key="th_ref_no">የቁጠባ No</th>
+                        <th data-key="th_series_no">የብድር ሴሪ</th>
+                        <th data-key="th_full_name">ሙሉ ስም</th>
+                        <th data-key="th_phone">ስልክ / TIN</th>
+                        <th data-key="th_docs">የሰውየው ዶክመንቶች</th>
+                        <th data-key="th_savings">ቁጠባ (ETB)</th>
+                        <th data-key="th_approved_loan">የተፈቀደ ብድር</th>
+                        <th data-key="th_paid_loan">የተከፈለ ብድር</th>
+                        <th data-key="th_status">ሁኔታ</th>
+                        <th data-key="th_actions">እርምጃዎች (Actions)</th>
                     </tr>
                 </thead>
                 <tbody id="membersTableBody">
@@ -174,14 +171,13 @@
         </div>
     </div>
 
-    <!-- TAB 2 & 3: RECEIPTS TABLE (Savings / Loan Returns) -->
     <div id="receiptsTabSection" class="hidden">
         <div class="header">
             <h3 id="receiptSectionTitle" style="color: var(--gold);">የሪሲቶች መዝገብ</h3>
             <div class="top-controls">
-                <label style="align-self: center; font-size: 0.85rem;">ቀን መምረጫ፦ </label>
+                <label style="align-self: center; font-size: 0.85rem;" data-key="select_date">ቀን መምረጫ፦ </label>
                 <input type="date" id="receiptDateFilter" class="date-box" onchange="loadReceipts()">
-                <button class="btn-refresh" onclick="resetReceiptDate()"><i class="fas fa-undo"></i> ሁሉንም አሳይ</button>
+                <button class="btn-refresh" onclick="resetReceiptDate()"><i class="fas fa-undo"></i> <span data-key="show_all">ሁሉንም አሳይ</span></button>
             </div>
         </div>
 
@@ -189,14 +185,14 @@
             <table>
                 <thead>
                     <tr>
-                        <th>የተላከበት ቀን</th>
-                        <th>የቁጠባ No</th>
-                        <th>የአባል ስም</th>
-                        <th>ስልክ</th>
-                        <th>የክፍያ መጠን</th>
-                        <th>ደረሰኝ (Screenshot)</th>
-                        <th>ሁኔታ</th>
-                        <th>እርምጃዎች (Actions)</th>
+                        <th data-key="th_sent_date">የተላከበት ቀን</th>
+                        <th data-key="th_ref_no">የቁጠባ No</th>
+                        <th data-key="th_member_name">የአባል ስም</th>
+                        <th data-key="th_phone">ስልክ</th>
+                        <th data-key="th_amount">የክፍያ መጠን</th>
+                        <th data-key="th_receipt_img">ደረሰኝ (Screenshot)</th>
+                        <th data-key="th_status">ሁኔታ</th>
+                        <th data-key="th_actions">እርምጃዎች (Actions)</th>
                     </tr>
                 </thead>
                 <tbody id="receiptsTableBody">
@@ -206,13 +202,12 @@
         </div>
     </div>
 
-    <!-- TAB 4: BROADCAST / ANNOUNCEMENT CENTER -->
     <div id="broadcastTabSection" class="hidden">
         <div class="broadcast-card">
-            <h3><i class="fas fa-paper-plane"></i> አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል</h3>
+            <h3><i class="fas fa-paper-plane"></i> <span data-key="broadcast_title">አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል</span></h3>
             
             <div class="input-group">
-                <label>የመልእክቱ ተቀባዮች (Target Audience)</label>
+                <label data-key="lbl_target">የመልእክቱ ተቀባዮች (Target Audience)</label>
                 <select id="broadcastTarget" class="select-box" onchange="fillTemplate()">
                     <option value="all">📢 ለሁሉም አባላት (የበዓላት/የስብሰባ ማስታወቂያ)</option>
                     <option value="unpaid">⚠️ ላልከፈሉ/እዳ ላለባቸው አባላት (የክፍያ ማስታወሻ)</option>
@@ -221,36 +216,35 @@
             </div>
 
             <div class="input-group">
-                <label>የማስታወቂያው ርዕስ / Title</label>
+                <label data-key="lbl_msg_title">የማስታወቂያው ርዕስ / Title</label>
                 <input type="text" id="broadcastTitle" placeholder="ምሳሌ፦ የእንኳን አደረሳችሁ መልእክት / የስብሰባ ጥሪ">
             </div>
 
             <div class="input-group">
-                <label>የመልእክቱ ዝርዝር ጽሁፍ / Message Body</label>
+                <label data-key="lbl_msg_body">የመልእክቱ ዝርዝር ጽሁፍ / Message Body</label>
                 <textarea id="broadcastBody" rows="5" class="textarea-box" placeholder="የሚልኩትን መልእክት እዚህ ይጻፉ..."></textarea>
             </div>
 
             <button class="btn-action btn-approve" style="padding: 10px 20px; font-size: 0.9rem;" onclick="sendBroadcast()">
-                <i class="fas fa-broadcast-tower"></i> መልእክቱን በጅምላ ላክ (Send Broadcast)
+                <i class="fas fa-broadcast-tower"></i> <span data-key="btn_send_broadcast">መልእክቱን በጅምላ ላክ (ወደ Index ገፅ ይላካል)</span>
             </button>
         </div>
     </div>
 
-    <!-- TAB 5: SUB-ADMIN ROLES MANAGEMENT -->
     <div id="rolesTabSection" class="hidden">
         <div class="role-card">
-            <h3><i class="fas fa-user-plus"></i> አዲስ ንኡስ አድሚን መሾሚያ (Assign Sub-Admin)</h3>
+            <h3><i class="fas fa-user-plus"></i> <span data-key="role_card_title">አዲስ ንኡስ አድሚን መሾሚያ (Assign Sub-Admin)</span></h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <div class="input-group" style="flex: 1; min-width: 200px;">
-                    <label>የቴሌግራም ID (Telegram ID)</label>
+                    <label data-key="lbl_tg_id">የቴሌግራም ID (Telegram ID)</label>
                     <input type="text" id="roleTelegramId" placeholder="ምሳሌ፦ 123456789">
                 </div>
                 <div class="input-group" style="flex: 1; min-width: 200px;">
-                    <label>ሙሉ ስም</label>
+                    <label data-key="lbl_full_name">ሙሉ ስም</label>
                     <input type="text" id="roleFullName" placeholder="ምሳሌ፦ አበበ ከበደ">
                 </div>
                 <div class="input-group" style="flex: 1; min-width: 200px;">
-                    <label>የኃላፊነት ዘርፍ (Role Sector)</label>
+                    <label data-key="lbl_role_type">የኃላፊነት ዘርፍ (Role Sector)</label>
                     <select id="roleType" class="select-box">
                         <option value="loan_dept">🏦 የብድር መምሪያ (Loan Dept)</option>
                         <option value="finance">💰 የገቢና ወጪ ክፍል (Finance)</option>
@@ -262,7 +256,7 @@
                 </div>
             </div>
             <button class="btn-action btn-approve" style="padding: 9px 18px; margin-top: 5px;" onclick="addAdminRole()">
-                <i class="fas fa-check-circle"></i> ንኡስ አድሚን ሹም
+                <i class="fas fa-check-circle"></i> <span data-key="btn_assign_role">ንኡስ አድሚን ሹም</span>
             </button>
         </div>
 
@@ -272,11 +266,11 @@
                     <tr>
                         <th>ተ/ቁ</th>
                         <th>የቴሌግራም ID</th>
-                        <th>ሙሉ ስም</th>
-                        <th>የተሾሙበት ክፍል</th>
-                        <th>የሾመው አካል</th>
-                        <th>የተሾሙበት ቀን</th>
-                        <th>እርምጃ</th>
+                        <th data-key="lbl_full_name">ሙሉ ስም</th>
+                        <th data-key="th_role_dept">የተሾሙበት ክፍል</th>
+                        <th data-key="th_assigned_by">የሾመው አካል</th>
+                        <th data-key="th_assigned_date">የተሾሙበት ቀን</th>
+                        <th data-key="th_action">እርምጃ</th>
                     </tr>
                 </thead>
                 <tbody id="rolesTableBody">
@@ -288,32 +282,33 @@
 
 </div>
 
-<!-- Modal for Password Change -->
 <div id="passwordModal" class="modal hidden">
     <div class="modal-content">
-        <h3><i class="fas fa-key"></i> የይለፍ ቃልቀይር (Change Password)</h3>
+        <h3><i class="fas fa-key"></i> <span data-key="change_pwd_title">የይለፍ ቃልቀይር (Change Password)</span></h3>
         
         <div class="input-group">
-            <label>የድሮ ፓስወርድ (Old Password)</label>
+            <label data-key="lbl_old_pwd">የድሮ ፓስወርድ (Old Password)</label>
             <input type="password" id="oldPasswordInput">
+            <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('oldPasswordInput', this)"></i>
         </div>
         <div class="input-group">
-            <label>አዲስ ፓስወርድ (New Password)</label>
+            <label data-key="lbl_new_pwd">አዲስ ፓስወርድ (New Password)</label>
             <input type="password" id="newPasswordInput">
+            <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('newPasswordInput', this)"></i>
         </div>
         <div class="input-group">
-            <label>አዲስ ፓስወርድ ድጋሚ (Confirm New Password)</label>
+            <label data-key="lbl_confirm_pwd">አዲስ ፓስወርድ ድጋሚ (Confirm New Password)</label>
             <input type="password" id="confirmPasswordInput">
+            <i class="fa-solid fa-eye toggle-password" onclick="togglePasswordVisibility('confirmPasswordInput', this)"></i>
         </div>
 
         <div class="modal-btns">
-            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveNewPassword()"><i class="fas fa-save"></i> ቀይር</button>
-            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closePasswordModal()">ዝጋ</button>
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveNewPassword()"><i class="fas fa-save"></i> <span data-key="btn_change">ቀይር</span></button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closePasswordModal()"><span data-key="btn_close">ዝጋ</span></button>
         </div>
     </div>
 </div>
 
-<!-- Modal for Deducting Amount Directly -->
 <div id="deductModal" class="modal hidden">
     <div class="modal-content">
         <h3><i class="fas fa-minus-circle"></i> ከሰውየው ደብተር ብር ቀንስ / አዘምን</h3>
@@ -336,7 +331,6 @@
     </div>
 </div>
 
-<!-- Modal for Full Financial Edit -->
 <div id="editModal" class="modal hidden">
     <div class="modal-content">
         <h3><i class="fas fa-edit"></i> የደብተር እና ሂሳብ ማስተካከያ</h3>
@@ -366,7 +360,6 @@
     </div>
 </div>
 
-<!-- Modal for Direct Individual Message -->
 <div id="directMsgModal" class="modal hidden">
     <div class="modal-content">
         <h3><i class="fas fa-envelope"></i> ለአባል ቀጥታ መልእክት መላኪያ</h3>
@@ -390,6 +383,20 @@
     let currentTab = 'members'; 
     let currentLang = 'am';
 
+    // Password Eye Toggle Handler
+    function togglePasswordVisibility(inputId, icon) {
+        const input = document.getElementById(inputId);
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+        } else {
+            input.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+        }
+    }
+
     const langTranslations = {
         am: {
             title: "ተራመድ ሳኮ - አድሚን ማኔጅመንት",
@@ -407,7 +414,44 @@
             tab_loan: "የብድር ተመላሽ ሪሲቶች",
             tab_broadcast: "ማስታወቂያና መልእክት",
             tab_roles: "ንኡስ አድሚኖች (Roles)",
-            refresh: "አድስ"
+            refresh: "አድስ",
+            th_date: "ቀን",
+            th_ref_no: "የቁጠባ No",
+            th_series_no: "የብድር ሴሪ",
+            th_full_name: "ሙሉ ስም",
+            th_phone: "ስልክ / TIN",
+            th_docs: "የሰውየው ዶክመንቶች",
+            th_savings: "ቁጠባ (ETB)",
+            th_approved_loan: "የተፈቀደ ብድር",
+            th_paid_loan: "የተከፈለ ብድር",
+            th_status: "ሁኔታ",
+            th_actions: "እርምጃዎች (Actions)",
+            select_date: "ቀን መምረጫ፦ ",
+            show_all: "ሁሉንም አሳይ",
+            th_sent_date: "የተላከበት ቀን",
+            th_member_name: "የአባል ስም",
+            th_amount: "የክፍያ መጠን",
+            th_receipt_img: "ደረሰኝ (Screenshot)",
+            broadcast_title: "አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል",
+            lbl_target: "የመልእክቱ ተቀባዮች (Target Audience)",
+            lbl_msg_title: "የማስታወቂያው ርዕስ / Title",
+            lbl_msg_body: "የመልእክቱ ዝርዝር ጽሁፍ / Message Body",
+            btn_send_broadcast: "መልእክቱን በጅምላ ላክ (ወደ Index ገፅ ይላካል)",
+            role_card_title: "አዲስ ንኡስ አድሚን መሾሚያ (Assign Sub-Admin)",
+            lbl_tg_id: "የቴሌግራም ID (Telegram ID)",
+            lbl_full_name: "ሙሉ ስም",
+            lbl_role_type: "የኃላፊነት ዘርፍ (Role Sector)",
+            btn_assign_role: "ንኡስ አድሚን ሹም",
+            th_role_dept: "የተሾሙበት ክፍል",
+            th_assigned_by: "የሾመው አካል",
+            th_assigned_date: "የተሾሙበት ቀን",
+            th_action: "እርምጃ",
+            change_pwd_title: "የይለፍ ቃልቀይር (Change Password)",
+            lbl_old_pwd: "የድሮ ፓስወርድ (Old Password)",
+            lbl_new_pwd: "አዲስ ፓስወርድ (New Password)",
+            lbl_confirm_pwd: "አዲስ ፓስወርድ ድጋሚ (Confirm New Password)",
+            btn_change: "ቀይር",
+            btn_close: "ዝጋ"
         },
         en: {
             title: "Teramed SACCO - Admin Management",
@@ -425,7 +469,44 @@
             tab_loan: "Loan Receipts",
             tab_broadcast: "Broadcast Center",
             tab_roles: "Sub-Admins",
-            refresh: "Refresh"
+            refresh: "Refresh",
+            th_date: "Date",
+            th_ref_no: "Savings No",
+            th_series_no: "Loan Series",
+            th_full_name: "Full Name",
+            th_phone: "Phone / TIN",
+            th_docs: "User Documents",
+            th_savings: "Savings (ETB)",
+            th_approved_loan: "Approved Loan",
+            th_paid_loan: "Paid Loan",
+            th_status: "Status",
+            th_actions: "Actions",
+            select_date: "Select Date: ",
+            show_all: "Show All",
+            th_sent_date: "Sent Date",
+            th_member_name: "Member Name",
+            th_amount: "Amount",
+            th_receipt_img: "Receipt (Screenshot)",
+            broadcast_title: "Broadcast & Announcement Center",
+            lbl_target: "Target Audience",
+            lbl_msg_title: "Announcement Title",
+            lbl_msg_body: "Message Body",
+            btn_send_broadcast: "Publish to Index Page",
+            role_card_title: "Assign Sub-Admin Role",
+            lbl_tg_id: "Telegram ID",
+            lbl_full_name: "Full Name",
+            lbl_role_type: "Role Sector",
+            btn_assign_role: "Assign Sub-Admin",
+            th_role_dept: "Department",
+            th_assigned_by: "Assigned By",
+            th_assigned_date: "Assigned Date",
+            th_action: "Action",
+            change_pwd_title: "Change Password",
+            lbl_old_pwd: "Old Password",
+            lbl_new_pwd: "New Password",
+            lbl_confirm_pwd: "Confirm New Password",
+            btn_change: "Change",
+            btn_close: "Close"
         }
     };
 
@@ -601,12 +682,11 @@
             
             let docsHtml = '';
             if (m.national_id_path) docsHtml += `<a class="doc-link" href="${m.national_id_path}" target="_blank">🆔 መታወቂያ</a> `;
-            if (m.photo_path) docsHtml += `<a class="doc-link" href="${m.photo_path}" target="_blank">🖼️ ፎቶ</a> `;
-            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${m.trade_license_path}" target="_blank">📜 ፈቃድ</a>`;
+            if (m.photo_path) docsHtml += `<a class="doc-link" href="${m.photo_path}" target="_blank">🖼️ ፎቶ</a> `;             if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${m.trade_license_path}" target="_blank">📜 ፈቃድ</a>`;
 
             let badgeClass = m.status === 'approved' ? 'badge-approved' : (m.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
             const dateStr = m.created_at ? m.created_at.split(' ')[0] : '-';
-            const fullName = `${m.first_name || ''} ${m.father_name || ''}`.trim() || 'ስም የለም';
+            const fullName = `${m.first_name \vert{}\vert{} ''}${m.father_name || ''}`.trim() || 'ስም የለም';
             const refNo = m.ref_no || '-';
             const seriesNo = m.loan_series_no || '-';
 
@@ -615,7 +695,7 @@
                 <td><b>${escapeHtml(refNo)}</b></td>
                 <td style="color: var(--gold); font-weight: bold;">${escapeHtml(seriesNo)}</td>
                 <td><b>${escapeHtml(fullName)}</b></td>
-                <td style="font-size: 0.75rem;">${escapeHtml(m.phone_number || '-')}<br>TIN: ${escapeHtml(m.tin_number || '-')}</td>
+                <td style="font-size: 0.75rem;">${escapeHtml(m.phone_number \vert{}\vert{} '-')}<br>TIN:${escapeHtml(m.tin_number || '-')}</td>
                 <td>${docsHtml || '-'}</td>
                 <td style="color: var(--success); font-weight: bold;">${(m.paid_amount || 0).toLocaleString()} ብር</td>
                 <td style="color: var(--gold); font-weight: bold;">${(m.approved_loan || 0).toLocaleString()} ብር</td>
@@ -624,370 +704,4 @@
                 <td>
                     <button class="btn-action btn-message" title="ሜሴጅ ላክ"><i class="fas fa-envelope"></i></button>
                     <button class="btn-action btn-deduct" title="ብር ቀንስ/አዘምን"><i class="fas fa-minus-circle"></i> ቀንስ</button>
-                    <button class="btn-action btn-edit" title="አስተካክል"><i class="fas fa-edit"></i></button>
-                    <button class="btn-action btn-approve" title="አጽድቅ"><i class="fas fa-check"></i></button>
-                    <button class="btn-action btn-reject" title="የተሰረዘ አድርግ"><i class="fas fa-ban"></i></button>
-                    <button class="btn-action btn-delete" title="ጨርሰህ ሰርዝ"><i class="fas fa-trash-alt"></i></button>
-                </td>
-            `;
-
-            const btns = tr.querySelectorAll('.btn-action');
-            btns[0].onclick = () => openDirectMsgModal(refNo, fullName, seriesNo);
-            btns[1].onclick = () => openDeductModal(m.id, fullName);
-            btns[2].onclick = () => openModal(m.id, seriesNo, m.paid_amount || 0, m.approved_loan || 0, m.paid_loan || 0);
-            btns[3].onclick = () => updateStatus(m.id, 'approved');
-            btns[4].onclick = () => updateStatus(m.id, 'rejected');
-            btns[5].onclick = () => deleteMember(m.id, fullName);
-
-            tbody.appendChild(tr);
-        });
-    }
-
-    // 5. Direct Individual Message Logic
-    function openDirectMsgModal(refNo, name, seriesNo) {
-        document.getElementById('directMsgRefNo').value = refNo;
-        document.getElementById('directMsgMemberInfo').innerText = `ተቀባይ፦ ${name} (የቁጠባ No: ${refNo} | ሴሪ: ${seriesNo})`;
-        document.getElementById('directMsgText').value = '';
-        document.getElementById('directMsgModal').classList.remove('hidden');
-    }
-
-    function closeDirectMsgModal() {
-        document.getElementById('directMsgModal').classList.add('hidden');
-    }
-
-    async function sendDirectMessage() {
-        const refNo = document.getElementById('directMsgRefNo').value;
-        const msg = document.getElementById('directMsgText').value.trim();
-
-        if (!msg) {
-            alert("እባክዎን መልእክቱን ይጻፉ!");
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/messages/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ref_no: refNo, sender: 'admin', message_text: msg })
-            });
-            const data = await res.json();
-            alert(data.message || "መልእክቱ ለአባሉ በስኬት ተላክዋል!");
-            closeDirectMsgModal();
-        } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
-    }
-
-    // 6. Broadcast Announcement Logic
-    function fillTemplate() {
-        const target = document.getElementById('broadcastTarget').value;
-        const titleInput = document.getElementById('broadcastTitle');
-        const bodyInput = document.getElementById('broadcastBody');
-
-        if (target === 'unpaid') {
-            titleInput.value = "⚠️ የክፍያ ማስታወሻ - ተራመድ ሳኮ";
-            bodyInput.value = "ውድ የአበላችን፣ የወርሃዊ ቁጠባ ወይም የብድር ክፍያዎ ያልተከፈለ መሆኑን እናሳውቃለን። እባክዎን እስከተወሰነው ቀን ድረስ ክፍያውን ፈጽመው ደረሰኙን በአፑ በኩል ይላኩ። አመሰግናለሁ!";
-        } else if (target === 'paid') {
-            titleInput.value = "🎉 የምስጋና መልእክት - ተራመድ ሳኮ";
-            bodyInput.value = "ውድ የአበላችን፣ ወቅታዊ ክፍያዎን ስለፈፀሙ እናመሰግናለን! የቁጠባ ሂሳብዎ በአግባቡ ተዘምኗል።";
-        } else {
-            titleInput.value = "📢 እንኳን ለበዓል አደረሳችሁ / አጠቃላይ ማስታወቂያ";
-            bodyInput.value = "ውድ የተራመድ ሳኮ አባላት፣ እንኳን ለአዲሱ ዓመት በሰላም አደረሳችሁ! መልካም የቁጠባና የሥራ ጊዜ እንዲሆንልዎ እንመኛለን።";
-        }
-    }
-
-    async function sendBroadcast() {
-        const target = document.getElementById('broadcastTarget').value;
-        const title = document.getElementById('broadcastTitle').value.trim();
-        const body = document.getElementById('broadcastBody').value.trim();
-
-        if (!title || !body) {
-            alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
-            return;
-        }
-
-        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት በጅምላ መላክ ይፈልጋሉ?`)) return;
-
-        try {
-            const res = await fetch('/api/admin/announcement', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target_audience: target, title: title, message: body })
-            });
-            const data = await res.json();
-            alert(data.message || "ማስታወቂያው በስኬት ተሰራጭቷል!");
-        } catch (e) { alert("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!"); }
-    }
-
-    // 7. Delete Member Function
-    async function deleteMember(id, name) {
-        if (!confirm(`⚠️ ማስጠንቀቂያ፦ አባል '${name}' ጨርሶ ከአሰራሩ ይሰረዛል! ድጋሚ መመዝገብ ይችላል። እርግጠኛ ነዎት?`)) return;
-
-        try {
-            const res = await fetch('/api/admin/delete_member', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: id })
-            });
-            const data = await res.json();
-            alert(data.message || "አባሉ ተሰርዟል!");
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
-    }
-
-    // 8. Receipts Management
-    async function loadReceipts() {
-        const dateVal = document.getElementById('receiptDateFilter').value;
-        const url = `/api/admin/receipts?type=${currentTab}&date=${dateVal}`;
-
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            const tbody = document.getElementById('receiptsTableBody');
-            tbody.innerHTML = '';
-
-            if (data.status === "success" && data.receipts && data.receipts.length > 0) {
-                data.receipts.forEach(r => {
-                    const tr = document.createElement('tr');
-                    let badgeClass = r.status === 'approved' ? 'badge-approved' : (r.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
-                    const dateStr = r.created_at ? r.created_at.replace('T', ' ').split('.')[0] : '-';
-                    const fullName = `${r.first_name || ''} ${r.father_name || ''}`.trim() || 'ስም የለም';
-
-                    tr.innerHTML = `
-                        <td style="font-size: 0.75rem;">${dateStr}</td>
-                        <td><b>${escapeHtml(r.ref_no || '-')}</b></td>
-                        <td><b>${escapeHtml(fullName)}</b></td>
-                        <td>${escapeHtml(r.phone_number || '-')}</td>
-                        <td style="color: var(--success); font-weight: bold;">${(r.amount || 0).toLocaleString()} ብር</td>
-                        <td><a class="doc-link" href="${r.receipt_path}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
-                        <td><span class="badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
-                        <td class="action-cell">-</td>
-                    `;
-
-                    if (r.status === 'pending') {
-                        const actionCell = tr.querySelector('.action-cell');
-                        actionCell.innerHTML = '';
-                        
-                        const btnApprove = document.createElement('button');
-                        btnApprove.className = 'btn-action btn-approve';
-                        btnApprove.innerHTML = '<i class="fas fa-check"></i> አጽድቅ';
-                        btnApprove.onclick = () => actionReceipt(r.id, 'approve');
-
-                        const btnReject = document.createElement('button');
-                        btnReject.className = 'btn-action btn-reject';
-                        btnReject.innerHTML = '<i class="fas fa-times"></i> ሰርዝ';
-                        btnReject.onclick = () => actionReceipt(r.id, 'reject');
-
-                        actionCell.appendChild(btnApprove);
-                        actionCell.appendChild(btnReject);
-                    }
-
-                    tbody.appendChild(tr);
-                });
-            } else {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">በዚህ ቀን የተላከ ደረሰኝ አልተገኘም።</td></tr>';
-            }
-        } catch (e) { console.error("Error loading receipts:", e); }
-    }
-
-    function resetReceiptDate() {
-        document.getElementById('receiptDateFilter').value = '';
-        loadReceipts();
-    }
-
-    async function actionReceipt(receiptId, action) {
-        try {
-            const res = await fetch('/api/admin/receipt/action', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ receipt_id: receiptId, action: action })
-            });
-            const data = await res.json();
-            alert(data.message || "ክወናው ተጠናቋል!");
-            loadReceipts();
-            loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
-    }
-
-    // 9. Sub-Admin Role Operations
-    async function loadAdminRoles() {
-        try {
-            const res = await fetch('/api/admin/roles/list');
-            const data = await res.json();
-            const tbody = document.getElementById('rolesTableBody');
-            tbody.innerHTML = '';
-
-            if (data.status === "success" && data.roles && data.roles.length > 0) {
-                const roleLabels = {
-                    'loan_dept': '🏦 የብድር ክፍል',
-                    'finance': '💰 የገቢና ወጪ',
-                    'asset': '🏢 የንብረት ክፍል',
-                    'doc_approval': '📑 ሰነድ ማረጋገጫ',
-                    'legal': '⚖️ የህግ ክፍል',
-                    'marketing': '📢 ማርኬቲንግ',
-                    'super_admin': '👑 ዋና አድሚን'
-                };
-
-                data.roles.forEach((r, index) => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${index + 1}</td>
-                        <td><b>${escapeHtml(r.telegram_id)}</b></td>
-                        <td>${escapeHtml(r.full_name || '-')}</td>
-                        <td><span class="badge badge-approved">${roleLabels[r.role] || escapeHtml(r.role)}</span></td>
-                        <td>${escapeHtml(r.assigned_by || '-')}</td>
-                        <td style="font-size: 0.75rem;">${r.created_at ? r.created_at.split(' ')[0] : '-'}</td>
-                        <td>
-                            ${r.role !== 'super_admin' ? `<button class="btn-action btn-delete" onclick="deleteAdminRole(${r.id})"><i class="fas fa-trash"></i> ሹመት ሰርዝ</button>` : '-'}
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } else {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">ምንም የተሾመ ንኡስ አድሚን የለም።</td></tr>';
-            }
-        } catch (e) { console.error("Error loading admin roles:", e); }
-    }
-
-    async function addAdminRole() {
-        const telegramId = document.getElementById('roleTelegramId').value.trim();
-        const fullName = document.getElementById('roleFullName').value.trim();
-        const role = document.getElementById('roleType').value;
-
-        if (!telegramId || !fullName) {
-            alert("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!");
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/admin/roles/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telegram_id: telegramId, full_name: fullName, role: role })
-            });
-            const data = await res.json();
-            alert(data.message || "ንኡስ አድሚኑ በስኬት ተሾሟል!");
-            document.getElementById('roleTelegramId').value = '';
-            document.getElementById('roleFullName').value = '';
-            loadAdminRoles();
-        } catch (e) { alert("ንኡስ አድሚን ሲሾም ስህተት ተከሰቷል!"); }
-    }
-
-    async function deleteAdminRole(roleId) {
-        if (!confirm("እርግጠኛ ነዎት የዚህን አካል የአድሚን ሹመት መሰረዝ ይፈልጋሉ?")) return;
-        try {
-            const res = await fetch('/api/admin/roles/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role_id: roleId })
-            });
-            const data = await res.json();
-            alert(data.message || "ሹመቱ ተሰርዟል!");
-            loadAdminRoles();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
-    }
-
-    // Modal Operations for Financials
-    function openDeductModal(id, name) {
-        document.getElementById('deductMemberId').value = id;
-        document.getElementById('deductMemberName').innerText = `አባል፦ ${name}`;
-        document.getElementById('deductSavingsInput').value = '';
-        document.getElementById('deductLoanInput').value = '';
-        document.getElementById('deductModal').classList.remove('hidden');
-    }
-
-    function closeDeductModal() {
-        document.getElementById('deductModal').classList.add('hidden');
-    }
-
-    async function saveDeduction() {
-        const id = document.getElementById('deductMemberId').value;
-        const deductSavings = document.getElementById('deductSavingsInput').value || 0;
-        const deductLoan = document.getElementById('deductLoanInput').value || 0;
-
-        try {
-            const res = await fetch('/api/admin/update_financials', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
-            });
-            const data = await res.json();
-            alert(data.message || "መረጃው ተዘምኗል!");
-            closeDeductModal();
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
-    }
-
-    function openModal(id, seriesNo, paid, approved, paidLoan) {
-        document.getElementById('editMemberId').value = id;
-        document.getElementById('editLoanSeriesNo').value = seriesNo;
-        document.getElementById('editPaidAmount').value = paid;
-        document.getElementById('editApprovedLoan').value = approved;
-        document.getElementById('editPaidLoan').value = paidLoan;
-        document.getElementById('editModal').classList.remove('hidden');
-    }
-
-    function closeModal() {
-        document.getElementById('editModal').classList.add('hidden');
-    }
-
-    async function saveFinancials() {
-        const id = document.getElementById('editMemberId').value;
-        const seriesNo = document.getElementById('editLoanSeriesNo').value;
-        const paid_amount = document.getElementById('editPaidAmount').value;
-        const approved_loan = document.getElementById('editApprovedLoan').value;
-        const paid_loan = document.getElementById('editPaidLoan').value;
-
-        try {
-            const res = await fetch('/api/admin/update_financials', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    member_id: id, loan_series_no: seriesNo,
-                    paid_amount: paid_amount, approved_loan: approved_loan, paid_loan: paid_loan
-                })
-            });
-            const data = await res.json();
-            alert(data.message || "መረጃው ተዘምኗል!");
-            closeModal();
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
-    }
-
-    async function updateStatus(id, status) {
-        if (!confirm(`እርግጠኛ ነዎት የአባሉን ሁኔታ መቀየር ይፈልጋሉ?`)) return;
-        try {
-            const res = await fetch('/api/admin/update_status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: id, status: status })
-            });
-            const data = await res.json();
-            alert(data.message || "ሁኔታው ተቀይሯል!");
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
-    }
-
-    function filterMembers() {
-        const q = document.getElementById('searchInput').value.toLowerCase().trim();
-        const statusVal = document.getElementById('statusFilter').value;
-
-        const filtered = allMembersData.filter(m => {
-            const firstName = (m.first_name || '').toLowerCase();
-            const fatherName = (m.father_name || '').toLowerCase();
-            const phone = (m.phone_number || '').toLowerCase();
-            const refNo = (m.ref_no || '').toLowerCase();
-            const seriesNo = (m.loan_series_no || '').toLowerCase();
-
-            const matchesQuery = firstName.includes(q) || fatherName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q);
-            const matchesStatus = statusVal === 'all' || m.status === statusVal;
-
-            return matchesQuery && matchesStatus;
-        });
-        renderTable(filtered);
-    }
-</script>
-</body>
-</html>
+                    <button class="btn-
