@@ -34,9 +34,9 @@
         .tab-btn { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .tab-btn.active { background: var(--gold); color: #000; }
 
-        .top-controls { display: flex; gap: 10px; width: 100%; max-width: 600px; }
+        .top-controls { display: flex; gap: 10px; width: 100%; max-width: 800px; flex-wrap: wrap; }
         .search-box, .date-box, .select-box, .textarea-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; width: 100%; }
-        .search-box { flex: 1; }
+        .search-box { flex: 1; min-width: 200px; }
         .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
         .btn-refresh:hover { background: #475569; }
         
@@ -61,6 +61,7 @@
         .btn-reject { background: #f97316; color: white; }
         .btn-delete { background: var(--danger); color: white; }
         .btn-message { background: var(--purple); color: white; }
+        .btn-print { background: #64748b; color: white; }
         
         /* Modal Popup */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
@@ -156,6 +157,7 @@
             <div class="top-controls">
                 <input type="text" id="searchInput" class="search-box" placeholder="በስም፣ በስልክ ወይም በቁጠባ ቁጥር ፈልግ..." onkeyup="filterMembers()">
                 <button class="btn-refresh" id="btnRefreshMembers" onclick="loadMembers()"><i class="fas fa-sync"></i> አድስ</button>
+                <button class="btn-action btn-approve" id="btnExportCSV" style="padding: 8px 12px;" onclick="exportMembersToCSV()"><i class="fas fa-file-excel"></i> Excel (CSV) አውርድ</button>
             </div>
         </div>
 
@@ -364,11 +366,21 @@
     </div>
 </div>
 
-<!-- Modal for Forgot Password & OTP -->
+<!-- Modal for Forgot Password & Telegram OTP -->
 <div id="forgotPasswordModal" class="modal hidden">
     <div class="modal-content">
         <h3 id="titleForgotModal"><i class="fas fa-shield-alt"></i> ፓስወርድ በቴሌግራም OTP ቀይር</h3>
-        <p id="descForgotModal" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">OTP ኮድ ወደ ቴሌግራምዎ እንዲላክ አዝራሩን ይጫኑ።</p>
+        <p id="descForgotModal" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">የቴሌግራም ID እና ስልክ ቁጥርዎን በማስገባት OTP እንዲላክሎት ያድርጉ።</p>
+
+        <div class="input-group">
+            <label id="lblTelegramIdOtp" style="color: var(--gold);">የቴሌግራም ID (Telegram Chat ID)</label>
+            <input type="text" id="otpTelegramIdInput" placeholder="ምሳሌ፦ 123456789">
+        </div>
+
+        <div class="input-group">
+            <label id="lblPhoneOtp">የተመዘገበ ስልክ ቁጥር (Phone Number)</label>
+            <input type="text" id="otpPhoneInput" placeholder="0916......">
+        </div>
 
         <div class="input-group">
             <button class="btn-action btn-edit" id="btnSendOtp" style="width: 100%; padding: 8px;" onclick="sendTelegramOTP()"><i class="fab fa-telegram-plane"></i> OTP ወደ ቴሌግራም ላክ</button>
@@ -491,6 +503,7 @@
             tabRolesBtn: '<i class="fas fa-user-shield"></i> ንኡስ አድሚኖች (Roles)',
             searchInputPlaceholder: 'በስም፣ በስልክ ወይም በቁጠባ ቁጥር ፈልግ...',
             btnRefreshMembers: '<i class="fas fa-sync"></i> አድስ',
+            btnExportCSV: '<i class="fas fa-file-excel"></i> Excel (CSV) አውርድ',
             thDate: 'ቀን', thSavingsNo: 'የቁጠባ No', thLoanSeries: 'የብድር ሴሪ', thFullName: 'ሙሉ ስም',
             thPhoneTin: 'ስልክ / TIN', thDocs: 'የሰውየው ዶክመንቶች', thSavingsAmount: 'ቁጠባ (ETB)',
             thApprovedLoan: 'የተፈቀደ ብድር', thPaidLoan: 'የተከፈለ ብድር', thStatus: 'ሁኔታ', thActions: 'እርምጃዎች (Actions)',
@@ -539,7 +552,9 @@
             btnSaveNewPwd: '<i class="fas fa-save"></i> ቀይር',
             btnCloseChangePwd: 'ዝጋ',
             titleForgotModal: '<i class="fas fa-shield-alt"></i> ፓስወርድ በቴሌግራም OTP ቀይር',
-            descForgotModal: 'OTP ኮድ ወደ ቴሌግራምዎ እንዲላክ አዝራሩን ይጫኑ።',
+            descForgotModal: 'የቴሌግራም ID እና ስልክ ቁጥርዎን በማስገባት OTP እንዲላክሎት ያድርጉ።',
+            lblTelegramIdOtp: 'የቴሌግራም ID (Telegram Chat ID)',
+            lblPhoneOtp: 'የተመዘገበ ስልክ ቁጥር (Phone Number)',
             btnSendOtp: '<i class="fab fa-telegram-plane"></i> OTP ወደ ቴሌግራም ላክ',
             lblOtpCode: 'በቴሌግራም የመጣው 6 አሃዝ OTP',
             lblResetPwd: 'አዲስ ፓስወርድ (New Password)',
@@ -582,6 +597,7 @@
             tabRolesBtn: '<i class="fas fa-user-shield"></i> Sub-Admins (Roles)',
             searchInputPlaceholder: 'Search by Name, Phone, or Savings No...',
             btnRefreshMembers: '<i class="fas fa-sync"></i> Refresh',
+            btnExportCSV: '<i class="fas fa-file-excel"></i> Export CSV',
             thDate: 'Date', thSavingsNo: 'Savings No', thLoanSeries: 'Loan Series', thFullName: 'Full Name',
             thPhoneTin: 'Phone / TIN', thDocs: 'Member Documents', thSavingsAmount: 'Savings (ETB)',
             thApprovedLoan: 'Approved Loan', thPaidLoan: 'Paid Loan', thStatus: 'Status', thActions: 'Actions',
@@ -630,7 +646,9 @@
             btnSaveNewPwd: '<i class="fas fa-save"></i> Change',
             btnCloseChangePwd: 'Close',
             titleForgotModal: '<i class="fas fa-shield-alt"></i> Reset Password via Telegram OTP',
-            descForgotModal: 'Click the button below to send OTP code to your Telegram.',
+            descForgotModal: 'Enter your Telegram ID and Phone number to send OTP.',
+            lblTelegramIdOtp: 'Telegram Chat ID',
+            lblPhoneOtp: 'Registered Phone Number',
             btnSendOtp: '<i class="fab fa-telegram-plane"></i> Send OTP to Telegram',
             lblOtpCode: '6-Digit OTP Code from Telegram',
             lblResetPwd: 'New Password',
@@ -790,9 +808,11 @@
         } catch (e) { alert(currentLang === 'am' ? "ፓስወርድ ሲቀየር ስህተት ተከሰቷል!" : "Error updating password!"); }
     }
 
-    // Forgot Password & Telegram OTP Operations
+    // Forgot Password & Telegram OTP Operations mapped with Telegram Chat ID & Phone Number
     function openForgotPasswordModal() {
         document.getElementById('loginModal').classList.add('hidden');
+        document.getElementById('otpTelegramIdInput').value = '';
+        document.getElementById('otpPhoneInput').value = '';
         document.getElementById('otpInput').value = '';
         document.getElementById('resetNewPassword').value = '';
         document.getElementById('forgotPasswordModal').classList.remove('hidden');
@@ -804,19 +824,36 @@
     }
 
     async function sendTelegramOTP() {
+        const telegramId = document.getElementById('otpTelegramIdInput').value.trim();
+        const phone = document.getElementById('otpPhoneInput').value.trim();
+
+        if (!telegramId || !phone) {
+            alert(currentLang === 'am' ? "እባክዎን የቴሌግራም ID እና ስልክ ቁጥርዎን ያስገቡ!" : "Please enter Telegram ID and Phone number!");
+            return;
+        }
+
         try {
-            const res = await fetch('/api/admin/send_otp', { method: 'POST' });
+            const res = await fetch('/api/admin/send_otp', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ telegram_id: telegramId, phone_number: phone })
+            });
             const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!" : "OTP code sent to your Telegram!"));
+            if (data.status === "success") {
+                alert(data.message || (currentLang === 'am' ? "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!" : "OTP code sent to your Telegram!"));
+            } else {
+                alert(data.message || "OTP መላክ አልተቻለም!");
+            }
         } catch (e) { alert(currentLang === 'am' ? "OTP ሲላክ ስህተት ተከሰቷል!" : "Error sending OTP!"); }
     }
 
     async function resetPasswordWithOTP() {
+        const telegramId = document.getElementById('otpTelegramIdInput').value.trim();
         const otp = document.getElementById('otpInput').value.trim();
         const newPwd = document.getElementById('resetNewPassword').value.trim();
 
-        if (!otp || !newPwd) {
-            alert(currentLang === 'am' ? "እባክዎን OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please enter OTP and new password!");
+        if (!telegramId || !otp || !newPwd) {
+            alert(currentLang === 'am' ? "እባክዎን የቴሌግራም ID፣ OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please enter Telegram ID, OTP, and new password!");
             return;
         }
 
@@ -824,7 +861,7 @@
             const res = await fetch('/api/admin/reset_password_otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ otp: otp, new_password: newPwd })
+                body: JSON.stringify({ telegram_id: telegramId, otp: otp, new_password: newPwd })
             });
             const data = await res.json();
             if (data.status === "success") {
@@ -976,6 +1013,7 @@
                 <td style="color: #60a5fa; font-weight: bold;">${(m.paid_loan || 0).toLocaleString()} ${curr}</td>
                 <td><span class="badge ${badgeClass}">${escapeHtml(m.status)}</span></td>
                 <td>
+                    <button class="btn-action btn-print" title="Print Ledger"><i class="fas fa-print"></i></button>
                     <button class="btn-action btn-message" title="Msg"><i class="fas fa-envelope"></i></button>
                     <button class="btn-action btn-deduct" title="Deduct"><i class="fas fa-minus-circle"></i> ${currentLang==='am'?'ቀንስ':'Deduct'}</button>
                     <button class="btn-action btn-edit" title="Edit"><i class="fas fa-edit"></i></button>
@@ -986,15 +1024,92 @@
             `;
 
             const btns = tr.querySelectorAll('.btn-action');
-            btns[0].onclick = () => openDirectMsgModal(refNo, fullName, seriesNo);
-            btns[1].onclick = () => openDeductModal(m.id, fullName);
-            btns[2].onclick = () => openModal(m.id, seriesNo, m.paid_amount || 0, m.approved_loan || 0, m.paid_loan || 0);
-            btns[3].onclick = () => updateStatus(m.id, 'approved');
-            btns[4].onclick = () => updateStatus(m.id, 'rejected');
-            btns[5].onclick = () => deleteMember(m.id, fullName);
+            btns[0].onclick = () => printMemberLedger(m);
+            btns[1].onclick = () => openDirectMsgModal(refNo, fullName, seriesNo);
+            btns[2].onclick = () => openDeductModal(m.id, fullName);
+            btns[3].onclick = () => openModal(m.id, seriesNo, m.paid_amount || 0, m.approved_loan || 0, m.paid_loan || 0);
+            btns[4].onclick = () => updateStatus(m.id, 'approved');
+            btns[5].onclick = () => updateStatus(m.id, 'rejected');
+            btns[6].onclick = () => deleteMember(m.id, fullName);
 
             tbody.appendChild(tr);
         });
+    }
+
+    // Member Printable Statement Ledger
+    function printMemberLedger(member) {
+        const printWindow = window.open('', '', 'height=600,width=800');
+        const curr = translations[currentLang].currency;
+        const fullName = `${member.first_name || ''} ${member.father_name || ''}`.trim();
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>ተራመድ ሳኮ - የአባል ደብተር ሪፖርት</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 25px; color: #333; }
+                        h2 { color: #d97706; text-align: center; margin-bottom: 5px; }
+                        h4 { text-align: center; margin-top: 0; color: #555; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+                        th { background-color: #f1f5f9; }
+                        .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 0.85rem; }
+                    </style>
+                </head>
+                <body>
+                    <h2>ተራመድ የቁጠባና ብድር ህብረት ሥራ ማህበር</h2>
+                    <h4>የአባል ሂሳብ ደብተር መግለጫ (Member Statement)</h4>
+                    <hr>
+                    <p><b>የአባል ስም፦</b> ${fullName}</p>
+                    <p><b>የቁጠባ No፦</b> ${member.ref_no || '-'}</p>
+                    <p><b>የብድር ሴሪ፦</b> ${member.loan_series_no || '-'}</p>
+                    <p><b>ስልክ ቁጥር፦</b> ${member.phone_number || '-'}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>የሂሳብ ዘርፍ (Account Category)</th>
+                                <th>የገንዘብ መጠን (${curr})</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>ጠቅላላ የተቀመጠ ቁጠባ</td><td><b>${(member.paid_amount || 0).toLocaleString()} ${curr}</b></td></tr>
+                            <tr><td>የተፈቀደ ብድር</td><td><b>${(member.approved_loan || 0).toLocaleString()} ${curr}</b></td></tr>
+                            <tr><td>የተከፈለ ብድር ተመላሽ</td><td><b>${(member.paid_loan || 0).toLocaleString()} ${curr}</b></td></tr>
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <p>የአድሚን ፊርማ፦ _______________</p>
+                        <p>ቀን፦ ${new Date().toLocaleDateString()}</p>
+                    </div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    // Export Data to CSV (Excel)
+    function exportMembersToCSV() {
+        if (!allMembersData || allMembersData.length === 0) {
+            alert(currentLang === 'am' ? "የሚወርድ መረጃ አልተገኘም!" : "No data available to export!");
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "ID,Savings No,Loan Series,Full Name,Phone,TIN,Savings ETB,Approved Loan ETB,Paid Loan ETB,Status\n";
+
+        allMembersData.forEach(m => {
+            let fullName = `${m.first_name || ''} ${m.father_name || ''}`.trim();
+            let row = `"${m.id}","${m.ref_no || ''}","${m.loan_series_no || ''}","${fullName}","${m.phone_number || ''}","${m.tin_number || ''}","${m.paid_amount || 0}","${m.approved_loan || 0}","${m.paid_loan || 0}","${m.status}"`;
+            csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Teramed_Members_Ledger_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     // 5. Direct Individual Message Logic (Sends directly to index.html member dashboard)
