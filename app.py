@@ -803,24 +803,39 @@ def get_active_announcements():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM announcements WHERE status = 'active' ORDER BY id DESC LIMIT 5")
-        rows = [dict(r) for r in cursor.fetchall()]
         
-        if not rows:
+        # አክቲቭ የሆነውን ማስታወቂያ ያመጣል
+        cursor.execute("SELECT * FROM announcements WHERE status = 'active' ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        
+        # አክቲቭ ከሌለ የመጨረሻውን የገባውን ያመጣል
+        if not row:
             cursor.execute("SELECT * FROM announcements ORDER BY id DESC LIMIT 1")
-            rows = [dict(r) for r in cursor.fetchall()]
+            row = cursor.fetchone()
 
         conn.close()
 
-        latest = rows[0] if rows else None
+        if row:
+            ann_data = dict(row)
+            return jsonify({
+                "status": "success", 
+                "success": True, 
+                "announcements": [ann_data],
+                "announcement": ann_data,
+                "data": ann_data,
+                "title": ann_data.get('title', '📢 ከአድሚን የተላከ ማስታወቂያ'),
+                "content": ann_data.get('content', '')
+            }), 200
+        else:
+            return jsonify({
+                "status": "success", 
+                "success": True, 
+                "announcements": [],
+                "announcement": None,
+                "data": None,
+                "content": ""
+            }), 200
 
-        return jsonify({
-            "status": "success", 
-            "success": True, 
-            "announcements": rows,
-            "announcement": latest,
-            "data": latest
-        }), 200
     except Exception as e:
         return jsonify({"status": "error", "success": False, "message": str(e)}), 500
 
