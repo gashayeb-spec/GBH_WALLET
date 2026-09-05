@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-# CORS ሙሉ በሙሉ ለሁሉም የAPI routes እንዲሰራ የተደረገ
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # ---------------------------------------------------------
@@ -26,7 +25,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
-# SUPER_ADMIN_ID በ .env ካልተገኘ በቋሚነት 5351353727 ይጠቀማል
 SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 DEFAULT_ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin123").strip()
@@ -51,14 +49,14 @@ def sanitize_input(text):
     return html.escape(str(text).strip())
 
 # ---------------------------------------------------------
-# Route for Serving Uploaded Files from Persistent Storage
+# Route for Serving Uploaded Files
 # ---------------------------------------------------------
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ---------------------------------------------------------
-# Database Setup & Thread-Safe Connection
+# Database Setup & Connection
 # ---------------------------------------------------------
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME, timeout=30)
@@ -293,7 +291,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# OTP መላኪያ (Telegram User ID Strictly REQUIRED, Phone/Username OPTIONAL)
+# Direct OTP Sending API (Only Requires Telegram User ID)
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -301,20 +299,20 @@ def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        # 1. Telegram User ID (ግዴታ / REQUIRED)
+        # ከ Frontend የሚመጣውን Telegram User ID ማግኘት (የስልክ ቁጥር እና Username ፍላጎት ተወግዷል)
         target_telegram_id = str(
             data.get('telegram_id') or 
-            data.get('telegram_chat_id') or 
+            data.get('admin_id') or 
             data.get('chat_id') or 
-            data.get('user_id') or ""
+            data.get('user_id') or 
+            SUPER_ADMIN_ID
         ).strip()
 
-        # Telegram User ID ካልተገባ ብቻ Error ይመልሳል
         if not target_telegram_id:
             return jsonify({
                 "success": False, 
                 "status": "error", 
-                "message": "የቴሌግራም User ID ማስገባት ግዴታ ነው!"
+                "message": "የቴሌግራም User ID አልተገኘም!"
             }), 400
 
         if not bot:
@@ -324,7 +322,7 @@ def send_admin_otp():
                 "message": "የቴሌግራም ቦት አልተጀመረም! BOT_TOKEN መዋቀሩን ያረጋግጡ።"
             }), 400
 
-        # የ 6 ዲጂት OTP ኮድ ማመንጨት
+        # የ 6 አሃዝ OTP ማመንጨት
         otp_code = str(random.randint(100000, 999999))
 
         # OTP በዳታቤዝ ውስጥ ማስቀመጥ
@@ -335,8 +333,8 @@ def send_admin_otp():
         conn.commit()
         conn.close()
 
-        # OTP መልእክት ማዘጋጀትና በ Telegram User ID መላክ
-        msg = f"🔐 <b>የማረጋገጫ OTP ኮድዎ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ ለማንም አያጋሩ!"
+        # መልእክት አዘጋጅቶ ቀጥታ ወደ Telegram መላክ
+        msg = f"🔑 <b>የአድሚን ማረጋገጫ OTP ኮድ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ በመጠቀም የይለፍ ቃልዎን መቀየር ይችላሉ።"
         
         try:
             bot.send_message(chat_id=target_telegram_id, text=msg, parse_mode="HTML")
@@ -345,17 +343,17 @@ def send_admin_otp():
             return jsonify({
                 "success": False, 
                 "status": "error", 
-                "message": f"OTP መላክ አልተቻለም! እባክዎን ቦቱን በቴሌግራም ላይ /start ማድረጎትን ያረጋግጡ። (User ID: {target_telegram_id})"
+                "message": f"OTP መላክ አልተቻለም! ቦቱን በቴሌግራም /start ማድረጎትን ያረጋግጡ። (User ID: {target_telegram_id})"
             }), 400
 
-        return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!"}), 200
+        return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ቀጥታ ወደ ቴሌግራምዎ ተልኳል!"}), 200
 
     except Exception as e:
         print(f"General Send OTP Error: {e}")
         return jsonify({"success": False, "status": "error", "message": f"የውስጥ ሰርቨር ስህተት: {str(e)}"}), 500
 
 # ---------------------------------------------------------
-# የይለፍ ቃል መቀየሪያ ክፍል (Change Password)
+# Password Change Endpoint
 # ---------------------------------------------------------
 @app.route('/api/admin/change-password', methods=['POST'])
 @app.route('/api/change-password', methods=['POST'])
@@ -363,7 +361,6 @@ def change_admin_password():
     try:
         data = request.get_json(silent=True) or {}
         
-        # የ UI የመስክ ስሞችን ለማጣጣም አጋዥ ተለዋዋጮች
         otp_input = str(data.get('otp') or data.get('otp_code') or "").strip()
         new_password = str(data.get('new_password') or data.get('password') or "").strip()
         confirm_password = str(data.get('confirm_password') or data.get('confirm_new_password') or "").strip()
@@ -372,14 +369,13 @@ def change_admin_password():
         if not new_password:
             return jsonify({"success": False, "status": "error", "message": "እባክዎን አዲሱን የይለፍ ቃል ያስገቡ!"}), 400
 
-        # Confirm Password የቀረበ ከሆነ እና ካልተመሳሰለ
         if confirm_password and new_password != confirm_password:
-            return jsonify({"success": False, "status": "error", "message": "አዲሱ የይለፍ ቃል እና ማረጋገጫው (Confirm Password) አይመሳሰሉም!"}), 400
+            return jsonify({"success": False, "status": "error", "message": "አዲሱ የይለፍ ቃል እና ማረጋገጫው አይመሳሰሉም!"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 1. በነባር የይለፍ ቃል (Old Password) ለመቀየር ከሆነ
+        # 1. በድሮ የይለፍ ቃል ለመቀየር ከሆነ
         if old_password:
             cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
             row = cursor.fetchone()
@@ -398,22 +394,22 @@ def change_admin_password():
                 return jsonify({"success": False, "status": "error", "message": "የተሳሳተ OTP ኮድ አስገብተዋል!"}), 400
         else:
             conn.close()
-            return jsonify({"success": False, "status": "error", "message": "እባክዎን OTP ወይም የድሮውን የይለፍ ቃል ያስገቡ!"}), 400
+            return jsonify({"success": False, "status": "error", "message": "እባክዎን የተላከልዎትን OTP ኮድ ያስገቡ!"}), 400
 
-        # አዲሱን የይለፍ ቃል ማዘመን እና የተቀመጠውን OTP ማፅዳት
+        # የይለፍ ቃሉን ማዘመን
         cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)", (new_password,))
         cursor.execute("DELETE FROM settings WHERE key = 'admin_otp'")
         cursor.execute("DELETE FROM settings WHERE key = 'admin_otp_time'")
         conn.commit()
         conn.close()
 
-        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል! አሁን በአዲሱ የይለፍ ቃል መግባት ይችላሉ።"}), 200
+        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል!"}), 200
 
     except Exception as e:
         return jsonify({"success": False, "status": "error", "message": f"ስህተት ተከሰተ: {str(e)}"}), 500
 
 # ---------------------------------------------------------
-# Web Page Routes & API Endpoints
+# Web Page & Core API Routes
 # ---------------------------------------------------------
 @app.route('/')
 def home():
@@ -537,7 +533,7 @@ def submit_payment():
             with open(save_path, 'rb') as photo:
                 bot.send_photo(SUPER_ADMIN_ID, photo, caption=caption, reply_markup=markup, parse_mode="HTML")
 
-        return jsonify({"success": True, "message": "የክፍያ ማረጋገጫው ለአድሚን በስኬት ተልኳል! አድሚኑ እንደተቀበለው ደብተሩ ይዘመናል።"}), 200
+        return jsonify({"success": True, "message": "የክፍያ ማረጋገጫው ለአድሚን በስኬት ተልኳል!"}), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
