@@ -137,7 +137,7 @@
         <i class="fas fa-user-shield"></i> <span id="txtAdminBtn">ወደ አድሚን ፓናል ሂድ (Admin Dashboard)</span>
     </a>
 
-    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ (ከደብተሩ አናት ላይ ሁልጊዜ ጎልቶ እንዲታይ hidden ክላሱ ተወግዷል) -->
+    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ -->
     <div id="announcementBox" class="announcement-card">
         <div class="announcement-title">
             <i class="fas fa-bullhorn fa-lg"></i>
@@ -473,18 +473,36 @@
         }
     }
 
+    /* 📢 በአድሚን የተላከውን ማስታወቂያ በትክክል የሚያነብ የስተካከለ የloadAnnouncement ተግባር */
     async function loadAnnouncement() {
         try {
-            const res = await fetch('/api/get-announcement');
+            const res = await fetch('/api/announcements');
             const data = await res.json();
 
-            if (data && (data.announcement || data.text || data.content || data.message)) {
-                const headerText = data.title || translations[currentLang].announcementHeader;
-                const bodyText = data.announcement || data.text || data.content || data.message;
-
-                document.getElementById('announcementHeader').innerText = headerText;
-                document.getElementById('announcementContent').innerText = bodyText;
+            let ann = null;
+            if (data.announcements && data.announcements.length > 0) {
+                ann = data.announcements[0];
+            } else if (data.announcement) {
+                ann = data.announcement;
+            } else if (data.data) {
+                ann = data.data;
             }
+
+            if (ann) {
+                const headerText = ann.title || data.title || translations[currentLang].announcementHeader;
+                const bodyText = ann.content || ann.message || data.content || data.message || "";
+
+                if (bodyText.trim() !== "") {
+                    document.getElementById('announcementHeader').innerText = headerText;
+                    document.getElementById('announcementContent').innerText = bodyText;
+                    return;
+                }
+            }
+
+            // ማስታወቂያ ከሌለ የሚታይ ነባሪ መልእክት
+            document.getElementById('announcementHeader').innerText = translations[currentLang].announcementHeader;
+            document.getElementById('announcementContent').innerText = currentLang === 'am' ? "ከአድሚን የተላከ አዲስ ማስታወቂያ የለም።" : "No new announcements from admin.";
+
         } catch (e) {
             console.error("Announcement load error:", e);
         }
