@@ -18,7 +18,6 @@ CORS(app)
 # ---------------------------------------------------------
 # Configurations & Environment Paths (Render Persistent Storage)
 # ---------------------------------------------------------
-# በ Render ላይ "Disk" ሲጨምሩ Path የመረጡትን DATA_DIR Environment Variable ያነባል
 DATA_DIR = os.environ.get("DATA_DIR", ".")
 UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -157,7 +156,19 @@ if bot:
             web_btn = types.InlineKeyboardButton(text="📱 ምዝገባ / የኔ ደብተሮች", web_app=web_app_info)
             markup.add(web_btn)
             
+            # Super Admin ወይም ንኡስ አድሚን መሆኑን ማረጋገጥ
+            is_admin = False
             if user_id == SUPER_ADMIN_ID:
+                is_admin = True
+            else:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM admins WHERE telegram_id = ?", (user_id,))
+                if cursor.fetchone():
+                    is_admin = True
+                conn.close()
+
+            if is_admin:
                 admin_web_info = types.WebAppInfo(url=f"{WEB_APP_URL}/admin")
                 admin_btn = types.InlineKeyboardButton(text="⚙️ የአድሚን ፓናል (Admin Panel)", web_app=admin_web_info)
                 markup.add(admin_btn)
