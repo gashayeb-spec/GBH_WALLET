@@ -16,8 +16,9 @@ app = Flask(__name__)
 CORS(app)
 
 # ---------------------------------------------------------
-# Configurations & Environment Paths
+# Configurations & Environment Paths (Render Persistent Storage)
 # ---------------------------------------------------------
+# በ Render ላይ "Disk" ሲጨምሩ Path የመረጡትን DATA_DIR Environment Variable ያነባል
 DATA_DIR = os.environ.get("DATA_DIR", ".")
 UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -122,7 +123,6 @@ def init_db():
         )
     ''')
 
-    # ለንኡስ አድሚኖች መሾሚያ አዲስ የዳታቤዝ ሰንጠረዥ (Admins / Roles)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -267,7 +267,6 @@ def get_member_status():
         member['trade_license_path'] = format_file_url(member.get('trade_license_path'))
         member['photo_path'] = format_file_url(member.get('photo_path'))
         
-        # የብድር ክፍያ ደረሰኝ ገና ያልጸደቀበት (Pending) መኖር አለመኖሩን ማረጋገጫ
         cursor.execute("SELECT COUNT(*) FROM receipts WHERE member_id = ? AND pay_type = 'loan' AND status = 'pending'", (member['id'],))
         pending_loan_receipts = cursor.fetchone()[0]
         member['has_pending_loan_receipt'] = True if pending_loan_receipts > 0 else False
@@ -721,13 +720,8 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# ማስታወቂያ እና ንኡስ አድሚን መሾሚያ የተስተካከሉ ኤፒአዮች (APIs)
-# ---------------------------------------------------------
-
 @app.route('/api/admin/roles/assign', methods=['POST'])
 def assign_sub_admin_role():
-    """ንኡስ አድሚን ሲሾም የሚፈጠረውን Error የሚያስተካክል ኤፒአይ"""
     try:
         data = request.get_json(silent=True) or {}
         telegram_id = sanitize_input(data.get('telegram_id'))
@@ -752,7 +746,6 @@ def assign_sub_admin_role():
 
 @app.route('/api/admin/announcement', methods=['POST'])
 def create_announcement():
-    """ማስታወቂያ በሚላክበት ጊዜ Title እና Body ባለመኖሩ የሚፈጠረውን ችግር የሚያስተካክል"""
     try:
         data = request.get_json(silent=True) or {}
         title = data.get('title', '').strip()
@@ -771,7 +764,6 @@ def create_announcement():
         cursor.execute("INSERT INTO announcements (title, content, status) VALUES (?, ?, 'active')", (title, content))
         conn.commit()
 
-        # ለአባላት በቴሌግራም ቦት በኩል ብሮድካስት ማድረግ
         if bot:
             cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
             members = cursor.fetchall()
@@ -797,7 +789,6 @@ def create_announcement():
 @app.route('/api/get_announcements', methods=['GET'])
 @app.route('/api/announcement', methods=['GET'])
 def get_active_announcements():
-    """በ index.html ላይ በየጥቂት ሰከንዱ የሚጠየቁ የመልእክት/የማስታወቂያ ኤፒአዮች በሙሉ የሚሰሩበት ማስተካከያ"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
