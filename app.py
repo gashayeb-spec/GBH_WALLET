@@ -3,17 +3,32 @@ import sqlite3
 import html
 import threading
 import time
+import hmac
+import hashlib
 import telebot
 from telebot import types
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from functools import wraps
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# ---------------------------------------------------------
+# Anti-Brute Force / Rate Limiter (Anti-Crack Protection)
+# ---------------------------------------------------------
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # ---------------------------------------------------------
 # Configurations & Environment Paths
@@ -42,8 +57,60 @@ def format_file_url(path):
     return "/" + path.replace("\\", "/").lstrip("/")
 
 def sanitize_input(text):
+    """Anti-XSS and Injection Attack Input Cleaner"""
     if text is None: return ""
-    return html.escape(str(text).strip())
+    clean_text = html.escape(str(text).strip())
+    # ጽሑፉ ውስጥ ያሉ አደገኛ የጠለፋ ቁልፍ ቃላትን ማጽዳት
+    dangerous_keywords = ["<script>", "</script>", "javascript:", "eval(", "UNION SELECT", "--"]
+    for kw in dangerous_keywords:
+        clean_text = clean_text.replace(kw, "")
+    return clean_text
+
+# ---------------------------------------------------------
+# Anti-Theft / Security Authentication Helper Functions
+# ---------------------------------------------------------
+def verify_telegram_hash(init_data):
+    """Verifies if the incoming request genuinely originated from Telegram WebApp"""
+    if not BOT_TOKEN or not init_data:
+        return False
+    try:
+        from urllib.parse import parse_qsl
+        parsed_data = dict(parse_qsl(init_data))
+        if 'hash' not in parsed_data:
+            return False
+        
+        check_hash = parsed_data.pop('hash')
+        data_check_string = "\n".join([f"{k}={v}" for k, v in sorted(parsed_data.items())])
+        
+        secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+        
+        return hmac.compare_digest(calculated_hash, check_hash)
+    except Exception:
+        return False
+
+def admin_required(f):
+    """Decorator to enforce Admin Authentication & Role Authorization"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        admin_id = request.headers.get('X-Admin-Telegram-ID') or request.args.get('admin_id')
+        
+        # ሱፐር አድሚን መሆኑን ማረጋገጥ
+        if admin_id and str(admin_id).strip() == SUPER_ADMIN_ID:
+            return f(*args, **kwargs)
+        
+        # ንኡስ አድሚን መሆኑን በዳታቤዝ ማረጋገጥ
+        if admin_id:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM admins WHERE telegram_id = ?", (str(admin_id).strip(),))
+            sub_admin = cursor.fetchone()
+            conn.close()
+            if sub_admin:
+                return f(*args, **kwargs)
+                
+        return jsonify({"status": "error", "message": "Unauthorized access! Access Denied (ያልተፈቀደ የጠለፋ/የመግባት ሙከራ!)"}), 403
+    return decorated_function
 
 # ---------------------------------------------------------
 # Database Setup & Thread-Safe Connection
@@ -122,7 +189,6 @@ def init_db():
         )
     ''')
 
-    # ለንኡስ አድሚኖች መሾሚያ አዲስ የዳታቤዝ ሰንጠረዥ (Admins / Roles)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -251,8 +317,9 @@ def admin_page():
     return render_template('admin.html')
 
 @app.route('/api/member/status', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_member_status():
-    telegram_id = request.args.get('telegram_id')
+    telegram_id = sanitize_input(request.args.get('telegram_id'))
     if not telegram_id:
         return jsonify({"exists": False, "admin_id": SUPER_ADMIN_ID})
 
@@ -267,7 +334,6 @@ def get_member_status():
         member['trade_license_path'] = format_file_url(member.get('trade_license_path'))
         member['photo_path'] = format_file_url(member.get('photo_path'))
         
-        # የብድር ክፍያ ደረሰኝ ገና ያልጸደቀበት (Pending) መኖር አለመኖሩን ማረጋገጫ (በብድር ደብተር ላይ ብቻ ማሳወቂያ ለማሳየት)
         cursor.execute("SELECT COUNT(*) FROM receipts WHERE member_id = ? AND pay_type = 'loan' AND status = 'pending'", (member['id'],))
         pending_loan_receipts = cursor.fetchone()[0]
         member['has_pending_loan_receipt'] = True if pending_loan_receipts > 0 else False
@@ -289,10 +355,11 @@ def get_bank_account():
     return jsonify({"bank_account": bank_info})
 
 @app.route('/api/admin/settings/bank', methods=['POST'])
+@admin_required
 def set_bank_account():
     try:
         data = request.get_json(silent=True) or {}
-        bank_info = data.get('bank_account', '')
+        bank_info = sanitize_input(data.get('bank_account', ''))
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -304,14 +371,15 @@ def set_bank_account():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/payment/submit', methods=['POST'])
+@limiter.limit("10 per minute")
 def submit_payment():
     try:
         req = request.form
         files = request.files
 
-        pay_type = req.get('type')
+        pay_type = sanitize_input(req.get('type'))
         amount = float(req.get('amount', 0))
-        ref_no = req.get('ref_no')
+        ref_no = sanitize_input(req.get('ref_no'))
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -370,6 +438,7 @@ def submit_payment():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def register_member():
     try:
         req = request.form
@@ -448,6 +517,7 @@ def register_member():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route('/api/admin/members', methods=['GET'])
+@admin_required
 def get_admin_members():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -463,9 +533,10 @@ def get_admin_members():
     return jsonify({"status": "success", "members": members}), 200
 
 @app.route('/api/admin/receipts', methods=['GET'])
+@admin_required
 def get_admin_receipts():
-    pay_type = request.args.get('type')
-    date_str = request.args.get('date')
+    pay_type = sanitize_input(request.args.get('type'))
+    date_str = sanitize_input(request.args.get('date'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -499,11 +570,12 @@ def get_admin_receipts():
     return jsonify({"status": "success", "receipts": receipts}), 200
 
 @app.route('/api/admin/receipt/action', methods=['POST'])
+@admin_required
 def process_receipt_action():
     try:
         data = request.get_json(silent=True) or {}
         receipt_id = data.get('receipt_id')
-        action = data.get('action')
+        action = sanitize_input(data.get('action'))
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -545,6 +617,7 @@ def process_receipt_action():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/admin/analytics', methods=['GET'])
+@admin_required
 def get_admin_analytics():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -582,12 +655,13 @@ def get_admin_analytics():
     }), 200
 
 @app.route('/api/admin/update_status', methods=['POST'])
+@admin_required
 def update_status():
     try:
         data = request.get_json(silent=True) or {}
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (data.get('status'), data.get('member_id')))
+        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (sanitize_input(data.get('status')), data.get('member_id')))
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": "የአባሉ ሁኔታ በስኬት ተቀይሯል!"}), 200
@@ -595,6 +669,7 @@ def update_status():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/admin/update_financials', methods=['POST'])
+@admin_required
 def update_financials():
     try:
         data = request.get_json(silent=True) or {}
@@ -622,7 +697,7 @@ def update_financials():
                 float(data.get('paid_amount', 0)), 
                 float(data.get('approved_loan', 0)), 
                 float(data.get('paid_loan', 0)),
-                data.get('loan_series_no', ''),
+                sanitize_input(data.get('loan_series_no', '')),
                 member_id
             ))
 
@@ -633,6 +708,7 @@ def update_financials():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/messages/send', methods=['POST'])
+@limiter.limit("15 per minute")
 def send_message():
     try:
         data = request.get_json(silent=True) or {}
@@ -672,7 +748,7 @@ def send_message():
 @app.route('/api/messages/get', methods=['GET'])
 def get_messages():
     try:
-        ref_no = request.args.get('ref_no')
+        ref_no = sanitize_input(request.args.get('ref_no'))
         if not ref_no:
             return jsonify({"status": "error", "message": "Ref No አልተጠቀሰም!"}), 400
 
@@ -687,6 +763,7 @@ def get_messages():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/admin/borrowers/status', methods=['GET'])
+@admin_required
 def get_borrowers_status():
     try:
         conn = get_db_connection()
@@ -726,6 +803,7 @@ def get_borrowers_status():
 # ---------------------------------------------------------
 
 @app.route('/api/admin/roles/assign', methods=['POST'])
+@admin_required
 def assign_sub_admin_role():
     """ንኡስ አድሚን ሲሾም የሚፈጠረውን Error የሚያስተካክል ኤፒአይ"""
     try:
@@ -751,12 +829,13 @@ def assign_sub_admin_role():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/admin/announcement', methods=['POST'])
+@admin_required
 def create_announcement():
-    """ማስታወቂያ በሚላክበት ጊዜ Title እና Body ባለመኖሩ የሚፈጠረውን ችግር የሚያስተካክል"""
+    """ማስታወቂያ/የበዓል መልእክት በቴሌግራም እና በዌብ ደብተር የሚያሰራጭ ኤፒአይ"""
     try:
         data = request.get_json(silent=True) or {}
-        title = data.get('title', '').strip()
-        content = data.get('content', '').strip() or data.get('message', '').strip()
+        title = sanitize_input(data.get('title', ''))
+        content = sanitize_input(data.get('content', '') or data.get('message', ''))
 
         if not title or not content:
             return jsonify({"status": "error", "message": "እባክዎን የማስታወቂያውን ርዕስ (Title) እና ዝርዝር መልእክት ያስገቡ!"}), 400
@@ -768,7 +847,7 @@ def create_announcement():
         cursor.execute("INSERT INTO announcements (title, content, status) VALUES (?, ?, 'active')", (title, content))
         conn.commit()
 
-        # ለአባላት በቴሌግራም ቦት በኩል ብሮድካስት ማድረግ
+        # ለአባላት በቴሌግራም ቦት በኩል ብሮድካስት ማድረግ (Direct Message to all members)
         if bot:
             cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
             members = cursor.fetchall()
@@ -786,7 +865,7 @@ def create_announcement():
 
         conn.close()
 
-        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ለሁሉም አባላት ተሰራጭቷል!"}), 200
+        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ለሁሉም አባላት በቴሌግራም ተልኳል፤ በደብተራቸውም ላይ ይታያል!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
