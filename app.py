@@ -293,7 +293,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# OTP መላኪያ (Telegram Chat ID strictly REQUIRED, Phone/Username OPTIONAL)
+# OTP መላኪያ (Telegram User ID Strictly REQUIRED, Phone/Username OPTIONAL)
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -301,18 +301,15 @@ def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        # 1. Telegram ID ግዴታ (Required) ነው
+        # 1. Telegram User ID (ግዴታ / REQUIRED)
         target_telegram_id = str(
             data.get('telegram_id') or 
             data.get('telegram_chat_id') or 
-            data.get('chat_id') or ""
+            data.get('chat_id') or 
+            data.get('user_id') or ""
         ).strip()
 
-        # 2. ስልክ ቁጥር እና Username አማራጭ (Optional) ናቸው
-        phone_number = str(data.get('phone_number') or data.get('phone') or "").strip()
-        username = str(data.get('username') or "").replace('@', '').strip()
-
-        # Telegram ID ጭራሽ ካልተገባ ግዴታ መሆኑን ያሳውቃል
+        # Telegram User ID ካልተገባ ብቻ Error ይመልሳል
         if not target_telegram_id:
             return jsonify({
                 "success": False, 
@@ -320,23 +317,11 @@ def send_admin_otp():
                 "message": "የቴሌግራም User ID ማስገባት ግዴታ ነው!"
             }), 400
 
-        # Optional: ስልክ ቁጥር ወይም Username ከተላከ ከ Telegram ID ጋር መዛመዱን ከዳታቤዝ ማረጋገጫ የመስራት እድል
-        if phone_number or username:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT telegram_id FROM members WHERE phone_number = ? OR telegram_id = ?", 
-                (phone_number, target_telegram_id)
-            )
-            member = cursor.fetchone()
-            conn.close()
-            # ለምሳሌ በስልክ መረጃው ከተገኘ Telegram IDውን ማመሳከር ይቻላል
-
         if not bot:
             return jsonify({
                 "success": False, 
                 "status": "error", 
-                "message": "የቴሌግራም ቦት አልተጀመረም! እባክዎን በ Render ላይ BOT_TOKEN መዋቀሩን ያረጋግጡ።"
+                "message": "የቴሌግራም ቦት አልተጀመረም! BOT_TOKEN መዋቀሩን ያረጋግጡ።"
             }), 400
 
         # የ 6 ዲጂት OTP ኮድ ማመንጨት
@@ -350,7 +335,7 @@ def send_admin_otp():
         conn.commit()
         conn.close()
 
-        # OTP ወደ ቴሌግራም መላክ
+        # OTP መልእክት ማዘጋጀትና በ Telegram User ID መላክ
         msg = f"🔐 <b>የማረጋገጫ OTP ኮድዎ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ ለማንም አያጋሩ!"
         
         try:
@@ -360,7 +345,7 @@ def send_admin_otp():
             return jsonify({
                 "success": False, 
                 "status": "error", 
-                "message": f"OTP መላክ አልተቻለም! እባክዎን ቦቱን በቴሌግራም ላይ /start ማድረጎትን ያረጋግጡ። (ID: {target_telegram_id})"
+                "message": f"OTP መላክ አልተቻለም! እባክዎን ቦቱን በቴሌግራም ላይ /start ማድረጎትን ያረጋግጡ። (User ID: {target_telegram_id})"
             }), 400
 
         return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!"}), 200
@@ -422,7 +407,7 @@ def change_admin_password():
         conn.commit()
         conn.close()
 
-        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል! አሁን ባዲሱ የይለፍ ቃል መግባት ይችላሉ።"}), 200
+        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል! አሁን በአዲሱ የይለፍ ቃል መግባት ይችላሉ።"}), 200
 
     except Exception as e:
         return jsonify({"success": False, "status": "error", "message": f"ስህተት ተከሰተ: {str(e)}"}), 500
