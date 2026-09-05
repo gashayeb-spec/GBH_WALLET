@@ -293,7 +293,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# የተስተካከለው የ OTP መላኪያ ክፍል
+# የተስተካከለው የ OTP መላኪያ ክፍል (Telegram Chat ID strictly required)
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -304,7 +304,7 @@ def send_admin_otp():
         target_telegram_id = str(data.get('telegram_id') or data.get('telegram_chat_id') or "").strip()
         phone_number = str(data.get('phone_number') or "").strip()
 
-        # telegram_id ካልቀረበ በስልክ ቁጥር መፈለግ
+        # telegram_id ካልቀረበ በስልክ ቁጥር መፈለግ (ለአማራጭነት)
         if not target_telegram_id and phone_number:
             conn = get_db_connection()
             cursor = conn.cursor()
