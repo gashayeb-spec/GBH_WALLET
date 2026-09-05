@@ -384,7 +384,7 @@
         } catch (e) { console.error("Error loading analytics:", e); }
     }
 
-    // 2. Bank Account Management (Direct link to index.html settings)
+    // 2. Bank Account Management
     async function loadBankAccount() {
         try {
             const res = await fetch('/api/settings/bank');
@@ -515,7 +515,7 @@
         });
     }
 
-    // 5. Direct Individual Message Logic (Sends directly to member's index.html interface)
+    // 5. Direct Individual Message Logic
     function openDirectMsgModal(refNo, name, seriesNo) {
         document.getElementById('directMsgRefNo').value = refNo;
         document.getElementById('directMsgMemberInfo').innerText = `ተቀባይ፦ ${name} (የቁጠባ No: ${refNo} | ሴሪ: ${seriesNo})`;
@@ -548,7 +548,7 @@
         } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
     }
 
-    // 6. Broadcast Announcement Logic (Publishes messages for index.html)
+    // 6. Broadcast Announcement Logic
     function fillTemplate() {
         const target = document.getElementById('broadcastTarget').value;
         const titleInput = document.getElementById('broadcastTitle');
