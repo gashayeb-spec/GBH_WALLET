@@ -43,7 +43,6 @@ def allowed_file(filename):
 def format_file_url(path):
     if not path:
         return ""
-    # Convert absolute persistent path to dynamic route URL
     filename = os.path.basename(path)
     return f"/uploads/{filename}"
 
@@ -294,18 +293,30 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# የተስተካከለው የ OTP መላኪያ ክፍል (ID 5351353727 በነባሪነት ተተክቷል)
+# የተስተካከለው የ OTP መላኪያ ክፍል
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
+@app.route('/api/send-otp', methods=['POST'])
 def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        # 1. ከጥያቄው የመጣውን ወይም በቋሚነት 5351353727 ማግኘት
-        target_telegram_id = str(data.get('telegram_id') or SUPER_ADMIN_ID).strip()
+        target_telegram_id = str(data.get('telegram_id') or data.get('telegram_chat_id') or "").strip()
+        phone_number = str(data.get('phone_number') or "").strip()
 
-        if not target_telegram_id or target_telegram_id == "":
-            target_telegram_id = "5351353727"
+        # telegram_id ካልቀረበ በስልክ ቁጥር መፈለግ
+        if not target_telegram_id and phone_number:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT telegram_id FROM members WHERE phone_number = ?", (phone_number,))
+            row = cursor.fetchone()
+            conn.close()
+            if row and row['telegram_id']:
+                target_telegram_id = str(row['telegram_id']).strip()
+
+        # አሁንም ካልተገኘ ነባሪውን SUPER_ADMIN_ID መጠቀም
+        if not target_telegram_id:
+            target_telegram_id = SUPER_ADMIN_ID
 
         if not bot:
             return jsonify({
@@ -314,18 +325,19 @@ def send_admin_otp():
                 "message": "የቴሌግራም ቦት አልተጀመረም! እባክዎን በ Render ላይ BOT_TOKEN መዋቀሩን ያረጋግጡ።"
             }), 400
 
-        # 2. የ 6 ዲጂት OTP ኮድ ማመንጨት
+        # የ 6 ዲጂት OTP ኮድ ማመንጨት
         otp_code = str(random.randint(100000, 999999))
 
-        # 3. OTP በዳታቤዝ ውስጥ ማስቀመጥ
+        # OTP በዳታቤዝ ውስጥ ማስቀመጥ
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_otp', ?)", (otp_code,))
+        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_otp_time', ?)", (str(int(time.time())),))
         conn.commit()
         conn.close()
 
-        # 4. OTP ወደ ቴሌግራም መላክ
-        msg = f"🔐 <b>የአድሚን የይለፍ ቃል መቀየሪያ OTP ኮድ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ ለማንም አያጋሩ!"
+        # OTP ወደ ቴሌግራም መላክ
+        msg = f"🔐 <b>የማረጋገጫ OTP ኮድዎ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ ለማንም አያጋሩ!"
         
         try:
             bot.send_message(chat_id=target_telegram_id, text=msg, parse_mode="HTML")
@@ -343,27 +355,50 @@ def send_admin_otp():
         print(f"General Send OTP Error: {e}")
         return jsonify({"success": False, "status": "error", "message": f"የውስጥ ሰርቨር ስህተት: {str(e)}"}), 500
 
+# ---------------------------------------------------------
+# የተስተካከለው የይለፍ ቃል መቀየሪያ ክፍል (Change Password)
+# ---------------------------------------------------------
 @app.route('/api/admin/change-password', methods=['POST'])
+@app.route('/api/change-password', methods=['POST'])
 def change_admin_password():
     try:
         data = request.get_json(silent=True) or {}
-        otp_input = data.get('otp', '').strip()
-        new_password = data.get('new_password', '').strip()
-
-        if not otp_input or not new_password:
-            return jsonify({"success": False, "status": "error", "message": "እባክዎን OTP እና አዲሱን የይለፍ ቃል ያስገቡ!"}), 400
+        otp_input = str(data.get('otp') or data.get('otp_code') or "").strip()
+        new_password = str(data.get('new_password') or data.get('password') or "").strip()
+        old_password = str(data.get('old_password') or "").strip()
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT value FROM settings WHERE key = 'admin_otp'")
-        otp_row = cursor.fetchone()
 
-        if not otp_row or otp_row['value'] != otp_input:
+        # 1. በቅድሚያ በOld Password መቀየር ከተፈለገ
+        if old_password:
+            cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
+            row = cursor.fetchone()
+            stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
+            if old_password != stored_pass:
+                conn.close()
+                return jsonify({"success": False, "status": "error", "message": "የድሮው የይለፍ ቃል የተሳሳተ ነው!"}), 400
+
+        # 2. በ OTP መቀየር ከተፈለገ
+        elif otp_input:
+            cursor.execute("SELECT value FROM settings WHERE key = 'admin_otp'")
+            otp_row = cursor.fetchone()
+
+            if not otp_row or otp_row['value'] != otp_input:
+                conn.close()
+                return jsonify({"success": False, "status": "error", "message": "የተሳሳተ OTP ኮድ አስገብተዋል!"}), 400
+        else:
             conn.close()
-            return jsonify({"success": False, "status": "error", "message": "የተሳሳተ OTP ኮድ አስገብተዋል!"}), 400
+            return jsonify({"success": False, "status": "error", "message": "እባክዎን OTP ወይም የድሮውን የይለፍ ቃል ያስገቡ!"}), 400
 
+        if not new_password:
+            conn.close()
+            return jsonify({"success": False, "status": "error", "message": "እባክዎን አዲሱን የይለፍ ቃል ያስገቡ!"}), 400
+
+        # የይለፍ ቃሉን ማዘመን እና OTPውን ማፅዳት
         cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)", (new_password,))
         cursor.execute("DELETE FROM settings WHERE key = 'admin_otp'")
+        cursor.execute("DELETE FROM settings WHERE key = 'admin_otp_time'")
         conn.commit()
         conn.close()
 
