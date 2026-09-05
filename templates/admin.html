@@ -17,7 +17,8 @@
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .header h2 { color: var(--gold); font-size: 1.3rem; }
-        
+        .header-controls { display: flex; gap: 10px; align-items: center; }
+
         /* Dashboard Analytics Section */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
         .stat-card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
@@ -34,9 +35,9 @@
         .tab-btn { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .tab-btn.active { background: var(--gold); color: #000; }
 
-        .top-controls { display: flex; gap: 10px; width: 100%; max-width: 600px; }
+        .top-controls { display: flex; gap: 10px; width: 100%; max-width: 700px; flex-wrap: wrap; }
         .search-box, .date-box, .select-box, .textarea-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
-        .search-box { flex: 1; }
+        .search-box { flex: 1; min-width: 200px; }
         .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
         .btn-refresh:hover { background: #475569; }
         
@@ -61,6 +62,8 @@
         .btn-reject { background: #f97316; color: white; }
         .btn-delete { background: var(--danger); color: white; }
         .btn-message { background: var(--purple); color: white; }
+        .btn-lang { background: #475569; color: white; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
+        .btn-pwd { background: #8b5cf6; color: white; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
         
         /* Modal Popup */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
@@ -75,64 +78,61 @@
         /* Announcement & Admin Roles Section */
         .broadcast-card, .role-card { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
         .broadcast-card h3, .role-card h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
-
-        /* Toast Notification System */
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
-        .toast { background: var(--card); color: #fff; border-left: 4px solid var(--gold); padding: 12px 20px; border-radius: 6px; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-size: 0.85rem; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; }
-        .toast.show { opacity: 1; transform: translateY(0); }
-        .toast.success { border-left-color: var(--success); }
-        .toast.error { border-left-color: var(--danger); }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h2><i class="fas fa-users-cog"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h2>
+        <h2><i class="fas fa-users-cog"></i> <span data-key="title">ተራመድ ሳኮ - አድሚን ማኔጅመንት</span></h2>
+        <div class="header-controls">
+            <button class="btn-pwd" onclick="openPasswordModal()"><i class="fas fa-key"></i> <span data-key="change_pwd">ፓስወርድ ቀይር</span></button>
+            <button class="btn-lang" onclick="toggleLanguage()"><i class="fas fa-globe"></i> <span id="langBtnText">English</span></button>
+        </div>
     </div>
 
     <!-- Analytics Dashboard Cards -->
     <div class="stats-grid">
         <div class="stat-card">
-            <h4>ጠቅላላ አባላት</h4>
+            <h4><span data-key="total_members">ጠቅላላ አባላት</span></h4>
             <div class="value" id="statTotalMembers">0</div>
         </div>
         <div class="stat-card">
-            <h4>Pending አባላት</h4>
+            <h4><span data-key="pending_members">Pending አባላት</span></h4>
             <div class="value" id="statPendingMembers">0</div>
         </div>
         <div class="stat-card">
-            <h4>የዛሬ ገቢ (Daily)</h4>
+            <h4><span data-key="daily_income">የዛሬ ገቢ (Daily)</span></h4>
             <div class="value success" id="statDailyIncome">0 ብር</div>
         </div>
         <div class="stat-card">
-            <h4>የሳምንት ገቢ (Weekly)</h4>
+            <h4><span data-key="weekly_income">የሳምንት ገቢ (Weekly)</span></h4>
             <div class="value success" id="statWeeklyIncome">0 ብር</div>
         </div>
         <div class="stat-card">
-            <h4>የወር ገቢ (Monthly)</h4>
+            <h4><span data-key="monthly_income">የወር ገቢ (Monthly)</span></h4>
             <div class="value success" id="statMonthlyIncome">0 ብር</div>
         </div>
         <div class="stat-card">
-            <h4>የዓመት ገቢ (Yearly)</h4>
+            <h4><span data-key="yearly_income">የዓመት ገቢ (Yearly)</span></h4>
             <div class="value success" id="statYearlyIncome">0 ብር</div>
         </div>
     </div>
 
     <!-- Bank Account Setting Section -->
     <div class="bank-section">
-        <label style="font-weight: bold; color: var(--gold);"><i class="fas fa-university"></i> የባንክ ሂሳብ መቼት (Set Bank Account):</label>
+        <label style="font-weight: bold; color: var(--gold);"><i class="fas fa-university"></i> <span data-key="bank_setting">የባንክ ሂሳብ መቼት (Set Bank Account):</span></label>
         <input type="text" id="bankAccountInput" placeholder="1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)">
-        <button class="btn-action btn-approve" style="padding: 9px 15px;" onclick="saveBankAccount()"><i class="fas fa-save"></i> አስቀምጥ</button>
+        <button class="btn-action btn-approve" style="padding: 9px 15px;" onclick="saveBankAccount()"><i class="fas fa-save"></i> <span data-key="save">አስቀምጥ</span></button>
     </div>
 
     <!-- Main Navigation Tabs -->
     <div class="tab-controls">
-        <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> የአባላት መዝገብ</button>
-        <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> የቁጠባ ሪሲቶች</button>
-        <button class="tab-btn" id="tabLoanBtn" onclick="switchTab('loan')"><i class="fas fa-hand-holding-usd"></i> የብድር ተመላሽ ሪሲቶች</button>
-        <button class="tab-btn" id="tabBroadcastBtn" onclick="switchTab('broadcast')"><i class="fas fa-bullhorn"></i> ማስታወቂያና መልእክት</button>
-        <button class="tab-btn" id="tabRolesBtn" onclick="switchTab('roles')"><i class="fas fa-user-shield"></i> ንኡስ አድሚኖች (Roles)</button>
+        <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> <span data-key="tab_members">የአባላት መዝገብ</span></button>
+        <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> <span data-key="tab_savings">የቁጠባ ሪሲቶች</span></button>
+        <button class="tab-btn" id="tabLoanBtn" onclick="switchTab('loan')"><i class="fas fa-hand-holding-usd"></i> <span data-key="tab_loan">የብድር ተመላሽ ሪሲቶች</span></button>
+        <button class="tab-btn" id="tabBroadcastBtn" onclick="switchTab('broadcast')"><i class="fas fa-bullhorn"></i> <span data-key="tab_broadcast">ማስታወቂያና መልእክት</span></button>
+        <button class="tab-btn" id="tabRolesBtn" onclick="switchTab('roles')"><i class="fas fa-user-shield"></i> <span data-key="tab_roles">ንኡስ አድሚኖች (Roles)</span></button>
     </div>
 
     <!-- TAB 1: MEMBERS TABLE -->
@@ -140,7 +140,13 @@
         <div class="header">
             <div class="top-controls">
                 <input type="text" id="searchInput" class="search-box" placeholder="በስም፣ በስልክ ወይም በቁጠባ ቁጥር ፈልግ..." onkeyup="filterMembers()">
-                <button class="btn-refresh" onclick="loadMembers()"><i class="fas fa-sync"></i> አድስ</button>
+                <select id="statusFilter" class="select-box" onchange="filterMembers()">
+                    <option value="all">ሁሉንም አሳይ (All)</option>
+                    <option value="pending">Pending ብቻ (በጥበቃ ላይ)</option>
+                    <option value="approved">Approved ብቻ (የጸደቁ)</option>
+                    <option value="rejected">Rejected ብቻ (የተሰረዙ)</option>
+                </select>
+                <button class="btn-refresh" onclick="loadMembers()"><i class="fas fa-sync"></i> <span data-key="refresh">አድስ</span></button>
             </div>
         </div>
 
@@ -282,8 +288,30 @@
 
 </div>
 
-<!-- Container for Toast Notifications -->
-<div id="toast-container"></div>
+<!-- Modal for Password Change -->
+<div id="passwordModal" class="modal hidden">
+    <div class="modal-content">
+        <h3><i class="fas fa-key"></i> የይለፍ ቃልቀይር (Change Password)</h3>
+        
+        <div class="input-group">
+            <label>የድሮ ፓስወርድ (Old Password)</label>
+            <input type="password" id="oldPasswordInput">
+        </div>
+        <div class="input-group">
+            <label>አዲስ ፓስወርድ (New Password)</label>
+            <input type="password" id="newPasswordInput">
+        </div>
+        <div class="input-group">
+            <label>አዲስ ፓስወርድ ድጋሚ (Confirm New Password)</label>
+            <input type="password" id="confirmPasswordInput">
+        </div>
+
+        <div class="modal-btns">
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveNewPassword()"><i class="fas fa-save"></i> ቀይር</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closePasswordModal()">ዝጋ</button>
+        </div>
+    </div>
+</div>
 
 <!-- Modal for Deducting Amount Directly -->
 <div id="deductModal" class="modal hidden">
@@ -359,7 +387,47 @@
 
 <script>
     let allMembersData = [];
-    let currentTab = 'members'; // 'members', 'savings', 'loan', 'broadcast', 'roles'
+    let currentTab = 'members'; 
+    let currentLang = 'am';
+
+    const langTranslations = {
+        am: {
+            title: "ተራመድ ሳኮ - አድሚን ማኔጅመንት",
+            change_pwd: "ፓስወርድ ቀይር",
+            total_members: "ጠቅላላ አባላት",
+            pending_members: "Pending አባላት",
+            daily_income: "የዛሬ ገቢ (Daily)",
+            weekly_income: "የሳምንት ገቢ (Weekly)",
+            monthly_income: "የወር ገቢ (Monthly)",
+            yearly_income: "የዓመት ገቢ (Yearly)",
+            bank_setting: "የባንክ ሂሳብ መቼት (Set Bank Account):",
+            save: "አስቀምጥ",
+            tab_members: "የአባላት መዝገብ",
+            tab_savings: "የቁጠባ ሪሲቶች",
+            tab_loan: "የብድር ተመላሽ ሪሲቶች",
+            tab_broadcast: "ማስታወቂያና መልእክት",
+            tab_roles: "ንኡስ አድሚኖች (Roles)",
+            refresh: "አድስ"
+        },
+        en: {
+            title: "Teramed SACCO - Admin Management",
+            change_pwd: "Change Password",
+            total_members: "Total Members",
+            pending_members: "Pending Members",
+            daily_income: "Daily Income",
+            weekly_income: "Weekly Income",
+            monthly_income: "Monthly Income",
+            yearly_income: "Yearly Income",
+            bank_setting: "Bank Account Setting:",
+            save: "Save",
+            tab_members: "Members List",
+            tab_savings: "Savings Receipts",
+            tab_loan: "Loan Receipts",
+            tab_broadcast: "Broadcast Center",
+            tab_roles: "Sub-Admins",
+            refresh: "Refresh"
+        }
+    };
 
     window.addEventListener('DOMContentLoaded', () => {
         loadAnalytics();
@@ -367,22 +435,56 @@
         loadMembers();
     });
 
-    // Helper: Toast Notifications
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerText = message;
-        container.appendChild(toast);
-
-        setTimeout(() => toast.classList.add('show'), 50);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3500);
+    function toggleLanguage() {
+        currentLang = currentLang === 'am' ? 'en' : 'am';
+        document.getElementById('langBtnText').innerText = currentLang === 'am' ? 'English' : 'አማርኛ';
+        
+        document.querySelectorAll('[data-key]').forEach(elem => {
+            const key = elem.getAttribute('data-key');
+            if (langTranslations[currentLang][key]) {
+                elem.innerText = langTranslations[currentLang][key];
+            }
+        });
     }
 
-    // Helper: XSS Protection
+    function openPasswordModal() {
+        document.getElementById('oldPasswordInput').value = '';
+        document.getElementById('newPasswordInput').value = '';
+        document.getElementById('confirmPasswordInput').value = '';
+        document.getElementById('passwordModal').classList.remove('hidden');
+    }
+
+    function closePasswordModal() {
+        document.getElementById('passwordModal').classList.add('hidden');
+    }
+
+    async function saveNewPassword() {
+        const oldPassword = document.getElementById('oldPasswordInput').value;
+        const newPassword = document.getElementById('newPasswordInput').value;
+        const confirmPassword = document.getElementById('confirmPasswordInput').value;
+
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            alert(currentLang === 'am' ? "እባክዎን ሁሉንም ቦታዎች ይሙሉ።" : "Please fill in all fields.");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            alert(currentLang === 'am' ? "አዲሱ ፓስወርድ እና ማረጋገጫው አይመሳሰሉም!" : "New passwords do not match!");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/change_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+            });
+            const data = await res.json();
+            alert(data.message || (currentLang === 'am' ? "ፓስወርድ በስኬት ተቀይሯል!" : "Password changed successfully!"));
+            if(data.status === 'success') closePasswordModal();
+        } catch (e) { alert(currentLang === 'am' ? "ስህተት ተከሰቷል!" : "Error occurred!"); }
+    }
+
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -430,8 +532,8 @@
                 body: JSON.stringify({ bank_account: bankInfo })
             });
             const data = await res.json();
-            showToast(data.message || "የባንክ መረጃው ተቀምጧል!", "success");
-        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
+            alert(data.message || "የባንክ መረጃው ተቀምጧል!");
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // 3. Tab Navigation Controller
@@ -480,7 +582,7 @@
             const data = await res.json();
             if (data.status === "success" && data.members) {
                 allMembersData = data.members;
-                renderTable(allMembersData);
+                filterMembers();
             }
         } catch (e) { console.error("Error loading members:", e); }
     }
@@ -498,9 +600,9 @@
             const tr = document.createElement('tr');
             
             let docsHtml = '';
-            if (m.national_id_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.national_id_path)}" target="_blank">🆔 መታወቂያ</a> `;
-            if (m.photo_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.photo_path)}" target="_blank">🖼️ ፎቶ</a> `;
-            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.trade_license_path)}" target="_blank">📜 ፈቃድ</a>`;
+            if (m.national_id_path) docsHtml += `<a class="doc-link" href="${m.national_id_path}" target="_blank">🆔 መታወቂያ</a> `;
+            if (m.photo_path) docsHtml += `<a class="doc-link" href="${m.photo_path}" target="_blank">🖼️ ፎቶ</a> `;
+            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${m.trade_license_path}" target="_blank">📜 ፈቃድ</a>`;
 
             let badgeClass = m.status === 'approved' ? 'badge-approved' : (m.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
             const dateStr = m.created_at ? m.created_at.split(' ')[0] : '-';
@@ -509,7 +611,7 @@
             const seriesNo = m.loan_series_no || '-';
 
             tr.innerHTML = `
-                <td style="font-size: 0.75rem;">${escapeHtml(dateStr)}</td>
+                <td style="font-size: 0.75rem;">${dateStr}</td>
                 <td><b>${escapeHtml(refNo)}</b></td>
                 <td style="color: var(--gold); font-weight: bold;">${escapeHtml(seriesNo)}</td>
                 <td><b>${escapeHtml(fullName)}</b></td>
@@ -558,7 +660,7 @@
         const msg = document.getElementById('directMsgText').value.trim();
 
         if (!msg) {
-            showToast("እባክዎን መልእክቱን ይጻፉ!", "error");
+            alert("እባክዎን መልእክቱን ይጻፉ!");
             return;
         }
 
@@ -569,9 +671,9 @@
                 body: JSON.stringify({ ref_no: refNo, sender: 'admin', message_text: msg })
             });
             const data = await res.json();
-            showToast(data.message || "መልእክቱ ለአባሉ በስኬት ተላክዋል!", "success");
+            alert(data.message || "መልእክቱ ለአባሉ በስኬት ተላክዋል!");
             closeDirectMsgModal();
-        } catch (e) { showToast("መልእክት ሲላክ ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
     }
 
     // 6. Broadcast Announcement Logic
@@ -598,7 +700,7 @@
         const body = document.getElementById('broadcastBody').value.trim();
 
         if (!title || !body) {
-            showToast("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!", "error");
+            alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
             return;
         }
 
@@ -611,8 +713,8 @@
                 body: JSON.stringify({ target_audience: target, title: title, message: body })
             });
             const data = await res.json();
-            showToast(data.message || "ማስታወቂያው በስኬት ተሰራጭቷል!", "success");
-        } catch (e) { showToast("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!", "error"); }
+            alert(data.message || "ማስታወቂያው በስኬት ተሰራጭቷል!");
+        } catch (e) { alert("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!"); }
     }
 
     // 7. Delete Member Function
@@ -626,10 +728,10 @@
                 body: JSON.stringify({ member_id: id })
             });
             const data = await res.json();
-            showToast(data.message || "አባሉ ተሰርዟል!", "success");
+            alert(data.message || "አባሉ ተሰርዟል!");
             loadMembers();
             loadAnalytics();
-        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // 8. Receipts Management
@@ -651,12 +753,12 @@
                     const fullName = `${r.first_name || ''} ${r.father_name || ''}`.trim() || 'ስም የለም';
 
                     tr.innerHTML = `
-                        <td style="font-size: 0.75rem;">${escapeHtml(dateStr)}</td>
+                        <td style="font-size: 0.75rem;">${dateStr}</td>
                         <td><b>${escapeHtml(r.ref_no || '-')}</b></td>
                         <td><b>${escapeHtml(fullName)}</b></td>
                         <td>${escapeHtml(r.phone_number || '-')}</td>
                         <td style="color: var(--success); font-weight: bold;">${(r.amount || 0).toLocaleString()} ብር</td>
-                        <td><a class="doc-link" href="${escapeHtml(r.receipt_path)}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
+                        <td><a class="doc-link" href="${r.receipt_path}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
                         <td><span class="badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
                         <td class="action-cell">-</td>
                     `;
@@ -700,10 +802,10 @@
                 body: JSON.stringify({ receipt_id: receiptId, action: action })
             });
             const data = await res.json();
-            showToast(data.message || "ክወናው ተጠናቋል!", "success");
+            alert(data.message || "ክወናው ተጠናቋል!");
             loadReceipts();
             loadAnalytics();
-        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // 9. Sub-Admin Role Operations
@@ -733,7 +835,7 @@
                         <td>${escapeHtml(r.full_name || '-')}</td>
                         <td><span class="badge badge-approved">${roleLabels[r.role] || escapeHtml(r.role)}</span></td>
                         <td>${escapeHtml(r.assigned_by || '-')}</td>
-                        <td style="font-size: 0.75rem;">${r.created_at ? escapeHtml(r.created_at.split(' ')[0]) : '-'}</td>
+                        <td style="font-size: 0.75rem;">${r.created_at ? r.created_at.split(' ')[0] : '-'}</td>
                         <td>
                             ${r.role !== 'super_admin' ? `<button class="btn-action btn-delete" onclick="deleteAdminRole(${r.id})"><i class="fas fa-trash"></i> ሹመት ሰርዝ</button>` : '-'}
                         </td>
@@ -752,7 +854,7 @@
         const role = document.getElementById('roleType').value;
 
         if (!telegramId || !fullName) {
-            showToast("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!", "error");
+            alert("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!");
             return;
         }
 
@@ -763,11 +865,11 @@
                 body: JSON.stringify({ telegram_id: telegramId, full_name: fullName, role: role })
             });
             const data = await res.json();
-            showToast(data.message || "ንኡስ አድሚኑ በስኬት ተሾሟል!", "success");
+            alert(data.message || "ንኡስ አድሚኑ በስኬት ተሾሟል!");
             document.getElementById('roleTelegramId').value = '';
             document.getElementById('roleFullName').value = '';
             loadAdminRoles();
-        } catch (e) { showToast("ንኡስ አድሚን ሲሾም ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("ንኡስ አድሚን ሲሾም ስህተት ተከሰቷል!"); }
     }
 
     async function deleteAdminRole(roleId) {
@@ -779,9 +881,9 @@
                 body: JSON.stringify({ role_id: roleId })
             });
             const data = await res.json();
-            showToast(data.message || "ሹመቱ ተሰርዟል!", "success");
+            alert(data.message || "ሹመቱ ተሰርዟል!");
             loadAdminRoles();
-        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     // Modal Operations for Financials
@@ -809,11 +911,11 @@
                 body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
             });
             const data = await res.json();
-            showToast(data.message || "መረጃው ተዘምኗል!", "success");
+            alert(data.message || "መረጃው ተዘምኗል!");
             closeDeductModal();
             loadMembers();
             loadAnalytics();
-        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     function openModal(id, seriesNo, paid, approved, paidLoan) {
@@ -846,11 +948,11 @@
                 })
             });
             const data = await res.json();
-            showToast(data.message || "መረጃው ተዘምኗል!", "success");
+            alert(data.message || "መረጃው ተዘምኗል!");
             closeModal();
             loadMembers();
             loadAnalytics();
-        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     async function updateStatus(id, status) {
@@ -862,24 +964,27 @@
                 body: JSON.stringify({ member_id: id, status: status })
             });
             const data = await res.json();
-            showToast(data.message || "ሁኔታው ተቀይሯል!", "success");
+            alert(data.message || "ሁኔታው ተቀይሯል!");
             loadMembers();
             loadAnalytics();
-        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
     function filterMembers() {
         const q = document.getElementById('searchInput').value.toLowerCase().trim();
+        const statusVal = document.getElementById('statusFilter').value;
+
         const filtered = allMembersData.filter(m => {
             const firstName = (m.first_name || '').toLowerCase();
             const fatherName = (m.father_name || '').toLowerCase();
-            const fullName = `${firstName} ${fatherName}`;
             const phone = (m.phone_number || '').toLowerCase();
             const refNo = (m.ref_no || '').toLowerCase();
             const seriesNo = (m.loan_series_no || '').toLowerCase();
-            const tin = (m.tin_number || '').toLowerCase();
 
-            return fullName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q) || tin.includes(q);
+            const matchesQuery = firstName.includes(q) || fatherName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q);
+            const matchesStatus = statusVal === 'all' || m.status === statusVal;
+
+            return matchesQuery && matchesStatus;
         });
         renderTable(filtered);
     }
