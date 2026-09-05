@@ -266,7 +266,7 @@ if bot:
         threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
-# Admin Authentication, OTP & Password Reset Endpoints
+# Admin Authentication Endpoints
 # ---------------------------------------------------------
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
@@ -293,7 +293,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# የተስተካከለው የ OTP መላኪያ ክፍል (Telegram Chat ID strictly required)
+# OTP መላኪያ (Telegram Chat ID strictly REQUIRED, Phone/Username OPTIONAL)
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -301,22 +301,36 @@ def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        target_telegram_id = str(data.get('telegram_id') or data.get('telegram_chat_id') or "").strip()
-        phone_number = str(data.get('phone_number') or "").strip()
+        # 1. Telegram ID ግዴታ (Required) ነው
+        target_telegram_id = str(
+            data.get('telegram_id') or 
+            data.get('telegram_chat_id') or 
+            data.get('chat_id') or ""
+        ).strip()
 
-        # telegram_id ካልቀረበ በስልክ ቁጥር መፈለግ (ለአማራጭነት)
-        if not target_telegram_id and phone_number:
+        # 2. ስልክ ቁጥር እና Username አማራጭ (Optional) ናቸው
+        phone_number = str(data.get('phone_number') or data.get('phone') or "").strip()
+        username = str(data.get('username') or "").replace('@', '').strip()
+
+        # Telegram ID ጭራሽ ካልተገባ ግዴታ መሆኑን ያሳውቃል
+        if not target_telegram_id:
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": "የቴሌግራም User ID ማስገባት ግዴታ ነው!"
+            }), 400
+
+        # Optional: ስልክ ቁጥር ወይም Username ከተላከ ከ Telegram ID ጋር መዛመዱን ከዳታቤዝ ማረጋገጫ የመስራት እድል
+        if phone_number or username:
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT telegram_id FROM members WHERE phone_number = ?", (phone_number,))
-            row = cursor.fetchone()
+            cursor.execute(
+                "SELECT telegram_id FROM members WHERE phone_number = ? OR telegram_id = ?", 
+                (phone_number, target_telegram_id)
+            )
+            member = cursor.fetchone()
             conn.close()
-            if row and row['telegram_id']:
-                target_telegram_id = str(row['telegram_id']).strip()
-
-        # አሁንም ካልተገኘ ነባሪውን SUPER_ADMIN_ID መጠቀም
-        if not target_telegram_id:
-            target_telegram_id = SUPER_ADMIN_ID
+            # ለምሳሌ በስልክ መረጃው ከተገኘ Telegram IDውን ማመሳከር ይቻላል
 
         if not bot:
             return jsonify({
@@ -356,21 +370,31 @@ def send_admin_otp():
         return jsonify({"success": False, "status": "error", "message": f"የውስጥ ሰርቨር ስህተት: {str(e)}"}), 500
 
 # ---------------------------------------------------------
-# የተስተካከለው የይለፍ ቃል መቀየሪያ ክፍል (Change Password)
+# የይለፍ ቃል መቀየሪያ ክፍል (Change Password)
 # ---------------------------------------------------------
 @app.route('/api/admin/change-password', methods=['POST'])
 @app.route('/api/change-password', methods=['POST'])
 def change_admin_password():
     try:
         data = request.get_json(silent=True) or {}
+        
+        # የ UI የመስክ ስሞችን ለማጣጣም አጋዥ ተለዋዋጮች
         otp_input = str(data.get('otp') or data.get('otp_code') or "").strip()
         new_password = str(data.get('new_password') or data.get('password') or "").strip()
+        confirm_password = str(data.get('confirm_password') or data.get('confirm_new_password') or "").strip()
         old_password = str(data.get('old_password') or "").strip()
+
+        if not new_password:
+            return jsonify({"success": False, "status": "error", "message": "እባክዎን አዲሱን የይለፍ ቃል ያስገቡ!"}), 400
+
+        # Confirm Password የቀረበ ከሆነ እና ካልተመሳሰለ
+        if confirm_password and new_password != confirm_password:
+            return jsonify({"success": False, "status": "error", "message": "አዲሱ የይለፍ ቃል እና ማረጋገጫው (Confirm Password) አይመሳሰሉም!"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 1. በቅድሚያ በOld Password መቀየር ከተፈለገ
+        # 1. በነባር የይለፍ ቃል (Old Password) ለመቀየር ከሆነ
         if old_password:
             cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
             row = cursor.fetchone()
@@ -379,23 +403,19 @@ def change_admin_password():
                 conn.close()
                 return jsonify({"success": False, "status": "error", "message": "የድሮው የይለፍ ቃል የተሳሳተ ነው!"}), 400
 
-        # 2. በ OTP መቀየር ከተፈለገ
+        # 2. በ OTP ለመቀየር ከሆነ
         elif otp_input:
             cursor.execute("SELECT value FROM settings WHERE key = 'admin_otp'")
             otp_row = cursor.fetchone()
 
-            if not otp_row or otp_row['value'] != otp_input:
+            if not otp_row or str(otp_row['value']).strip() != otp_input:
                 conn.close()
                 return jsonify({"success": False, "status": "error", "message": "የተሳሳተ OTP ኮድ አስገብተዋል!"}), 400
         else:
             conn.close()
             return jsonify({"success": False, "status": "error", "message": "እባክዎን OTP ወይም የድሮውን የይለፍ ቃል ያስገቡ!"}), 400
 
-        if not new_password:
-            conn.close()
-            return jsonify({"success": False, "status": "error", "message": "እባክዎን አዲሱን የይለፍ ቃል ያስገቡ!"}), 400
-
-        # የይለፍ ቃሉን ማዘመን እና OTPውን ማፅዳት
+        # አዲሱን የይለፍ ቃል ማዘመን እና የተቀመጠውን OTP ማፅዳት
         cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)", (new_password,))
         cursor.execute("DELETE FROM settings WHERE key = 'admin_otp'")
         cursor.execute("DELETE FROM settings WHERE key = 'admin_otp_time'")
@@ -403,8 +423,9 @@ def change_admin_password():
         conn.close()
 
         return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል! አሁን ባዲሱ የይለፍ ቃል መግባት ይችላሉ።"}), 200
+
     except Exception as e:
-        return jsonify({"success": False, "status": "error", "message": str(e)}), 500
+        return jsonify({"success": False, "status": "error", "message": f"ስህተት ተከሰተ: {str(e)}"}), 500
 
 # ---------------------------------------------------------
 # Web Page Routes & API Endpoints
