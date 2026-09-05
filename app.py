@@ -26,7 +26,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
-SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "")).strip()
+# SUPER_ADMIN_ID በ .env ካልተገኘ በቋሚነት 5351353727 ይጠቀማል
+SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 DEFAULT_ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin123").strip()
 
@@ -293,21 +294,25 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# የተስተካከለው የ OTP መላኪያ ክፍል ብቻ (የተቀየረ/የተስተካከለ)
+# የተስተካከለው የ OTP መላኪያ ክፍል (ID 5351353727 በነባሪነት ተተክቷል)
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        # 1. ከጥያቄው የመጣውን ወይም ከ .env ላይ ያለውን ID ማግኘት
+        # 1. ከጥያቄው የመጣውን ወይም በቋሚነት 5351353727 ማግኘት
         target_telegram_id = str(data.get('telegram_id') or SUPER_ADMIN_ID).strip()
 
-        if not bot:
-            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተጀመረም! (BOT_TOKEN ማረጋገጥ ያስፈልጋል)"}), 400
+        if not target_telegram_id or target_telegram_id == "":
+            target_telegram_id = "5351353727"
 
-        if not target_telegram_id:
-            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ID አልተገኘም! እባክዎን በቦቱ በኩል ይክፈቱት።"}), 400
+        if not bot:
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": "የቴሌግራም ቦት አልተጀመረም! እባክዎን በ Render ላይ BOT_TOKEN መዋቀሩን ያረጋግጡ።"
+            }), 400
 
         # 2. የ 6 ዲጂት OTP ኮድ ማመንጨት
         otp_code = str(random.randint(100000, 999999))
@@ -319,7 +324,7 @@ def send_admin_otp():
         conn.commit()
         conn.close()
 
-        # 4. OTP ወደ ቴሌግራም መላክ (በ try-except ጥንቃቄ ተደርጎበታል)
+        # 4. OTP ወደ ቴሌግራም መላክ
         msg = f"🔐 <b>የአድሚን የይለፍ ቃል መቀየሪያ OTP ኮድ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ ለማንም አያጋሩ!"
         
         try:
@@ -329,7 +334,7 @@ def send_admin_otp():
             return jsonify({
                 "success": False, 
                 "status": "error", 
-                "message": "OTP መላክ አልተቻለም! እባክዎን ቦቱን በቴሌግራም ላይ /start ማድረጎትን ያረጋግጡ።"
+                "message": f"OTP መላክ አልተቻለም! እባክዎን ቦቱን በቴሌግራም ላይ /start ማድረጎትን ያረጋግጡ። (ID: {target_telegram_id})"
             }), 400
 
         return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!"}), 200
@@ -758,9 +763,6 @@ def update_financials():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# Admin Delete Option (አድሚኑ በገዛ ፈቃዱ መረጃዎችን ለመሰረዝ)
-# ---------------------------------------------------------
 @app.route('/api/admin/delete_member', methods=['POST'])
 def delete_member():
     try:
@@ -773,7 +775,6 @@ def delete_member():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # የተያያዙ ደረሰኞችን እና መልእክቶችን ማጽዳት
         cursor.execute("SELECT ref_no FROM members WHERE id = ?", (member_id,))
         row = cursor.fetchone()
         if row:
