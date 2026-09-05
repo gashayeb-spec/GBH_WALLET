@@ -66,15 +66,26 @@
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: var(--card); padding: 22px; border-radius: 12px; width: 95%; max-width: 480px; border: 1px solid var(--gold); }
         .modal-content h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
-        .input-group { margin-bottom: 12px; }
+        .input-group { margin-bottom: 12px; position: relative; }
         .input-group label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
         .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 8px 10px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        
+        /* Eye Icon Toggle Styling */
+        .password-wrapper { position: relative; width: 100%; }
+        .password-wrapper input { width: 100%; padding-right: 35px; }
+        .toggle-password-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); z-index: 5; }
+        .toggle-password-icon:hover { color: var(--gold); }
+
         .modal-btns { display: flex; justify-content: space-between; margin-top: 18px; }
         .hidden { display: none !important; }
 
         /* Announcement & Admin Roles Section */
         .broadcast-card, .role-card { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
         .broadcast-card h3, .role-card h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
+        
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .btn-header { background: #334155; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; }
+        .btn-header:hover { background: var(--gold); color: #000; }
     </style>
 </head>
 <body>
@@ -82,6 +93,10 @@
 <div class="container">
     <div class="header">
         <h2><i class="fas fa-users-cog"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h2>
+        <div class="header-actions">
+            <button class="btn-header" onclick="openChangePasswordModal()"><i class="fas fa-key"></i> ፓስወርድ ቀይር</button>
+            <button class="btn-header" style="background: var(--danger);" onclick="logoutAdmin()"><i class="fas fa-sign-out-alt"></i> ውጣ</button>
+        </div>
     </div>
 
     <!-- Analytics Dashboard Cards -->
@@ -282,6 +297,96 @@
 
 </div>
 
+<!-- Modal for Admin Login -->
+<div id="loginModal" class="modal">
+    <div class="modal-content">
+        <h3><i class="fas fa-lock"></i> የአድሚን መግቢያ (Admin Login)</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">የአድሚን ፓናሉን ለመጠቀም እባክዎን ፓስወርድዎን ያስገቡ።</p>
+
+        <div class="input-group">
+            <label>የአድሚን ፓስወርድ (Password)</label>
+            <div class="password-wrapper">
+                <input type="password" id="loginPassword" placeholder="ፓስወርድ ያስገቡ...">
+                <i class="fas fa-eye toggle-password-icon" onclick="togglePasswordVisibility('loginPassword', this)"></i>
+            </div>
+        </div>
+
+        <div style="text-align: right; margin-bottom: 15px;">
+            <a href="javascript:void(0)" onclick="openForgotPasswordModal()" style="color: var(--gold); font-size: 0.8rem; text-decoration: none;">ፓስወርድ ረሱ? (Forgot Password)</a>
+        </div>
+
+        <div class="modal-btns">
+            <button class="btn-action btn-approve" style="padding: 8px 20px; width: 100%; font-size: 0.9rem;" onclick="adminLogin()"><i class="fas fa-sign-in-alt"></i> ግባ (Login)</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Change Password -->
+<div id="changePasswordModal" class="modal hidden">
+    <div class="modal-content">
+        <h3><i class="fas fa-key"></i> የይለፍ ቃል መቀየሪያ</h3>
+        
+        <div class="input-group">
+            <label>ነባር ፓስወርድ (Old Password)</label>
+            <div class="password-wrapper">
+                <input type="password" id="oldPasswordInput" placeholder="ነባሩን ፓስወርድ ያስገቡ...">
+                <i class="fas fa-eye toggle-password-icon" onclick="togglePasswordVisibility('oldPasswordInput', this)"></i>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>አዲስ ፓስወርድ (New Password)</label>
+            <div class="password-wrapper">
+                <input type="password" id="newPasswordInput" placeholder="አዲስ ፓስወርድ ያስገቡ...">
+                <i class="fas fa-eye toggle-password-icon" onclick="togglePasswordVisibility('newPasswordInput', this)"></i>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>አዲስ ፓስወርድ ያረጋግጡ (Confirm New Password)</label>
+            <div class="password-wrapper">
+                <input type="password" id="confirmNewPasswordInput" placeholder="አዲሱን ፓስወርድ ድጋሚ ያስገቡ...">
+                <i class="fas fa-eye toggle-password-icon" onclick="togglePasswordVisibility('confirmNewPasswordInput', this)"></i>
+            </div>
+        </div>
+
+        <div class="modal-btns">
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="saveNewPassword()"><i class="fas fa-save"></i> ቀይር</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeChangePasswordModal()">ዝጋ</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Forgot Password & OTP -->
+<div id="forgotPasswordModal" class="modal hidden">
+    <div class="modal-content">
+        <h3><i class="fas fa-shield-alt"></i> ፓስወርድ በቴሌግራም OTP ቀይር</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">OTP ኮድ ወደ ቴሌግራምዎ እንዲላክ አዝራሩን ይጫኑ።</p>
+
+        <div class="input-group">
+            <button class="btn-action btn-edit" style="width: 100%; padding: 8px;" onclick="sendTelegramOTP()"><i class="fab fa-telegram-plane"></i> OTP ወደ ቴሌግራም ላክ</button>
+        </div>
+
+        <div class="input-group">
+            <label>በቴሌግራም የመጣው 6 አሃዝ OTP</label>
+            <input type="text" id="otpInput" placeholder="123456">
+        </div>
+
+        <div class="input-group">
+            <label>አዲስ ፓስወርድ (New Password)</label>
+            <div class="password-wrapper">
+                <input type="password" id="resetNewPassword" placeholder="አዲስ ፓስወርድ ያስገቡ...">
+                <i class="fas fa-eye toggle-password-icon" onclick="togglePasswordVisibility('resetNewPassword', this)"></i>
+            </div>
+        </div>
+
+        <div class="modal-btns">
+            <button class="btn-action btn-approve" style="padding: 8px 15px;" onclick="resetPasswordWithOTP()"><i class="fas fa-check-circle"></i> ፓስወርድ አዲስ አድርግ</button>
+            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeForgotPasswordModal()">ዝጋ</button>
+        </div>
+    </div>
+</div>
+
 <!-- Modal for Deducting Amount Directly -->
 <div id="deductModal" class="modal hidden">
     <div class="modal-content">
@@ -359,10 +464,157 @@
     let currentTab = 'members'; // 'members', 'savings', 'loan', 'broadcast', 'roles'
 
     window.addEventListener('DOMContentLoaded', () => {
-        loadAnalytics();
-        loadBankAccount();
-        loadMembers();
+        checkAdminAuth();
     });
+
+    // Toggle Eye Icon Password Show/Hide
+    function togglePasswordVisibility(inputId, icon) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    // Admin Auth Check
+    function checkAdminAuth() {
+        const loggedIn = sessionStorage.getItem('adminLoggedIn');
+        if (loggedIn === 'true') {
+            document.getElementById('loginModal').classList.add('hidden');
+            loadAnalytics();
+            loadBankAccount();
+            loadMembers();
+        } else {
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+    }
+
+    async function adminLogin() {
+        const pwd = document.getElementById('loginPassword').value.trim();
+        if (!pwd) {
+            alert("እባክዎን ፓስወርድ ያስገቡ!");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pwd })
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+                sessionStorage.setItem('adminLoggedIn', 'true');
+                document.getElementById('loginModal').classList.add('hidden');
+                loadAnalytics();
+                loadBankAccount();
+                loadMembers();
+            } else {
+                alert(data.message || "ተሳስተዋል! የተሳሳተ ፓስወርድ።");
+            }
+        } catch (e) {
+            alert("የመግቢያ ጥያቄ ላይ ስህተት ተከሰቷል!");
+        }
+    }
+
+    function logoutAdmin() {
+        sessionStorage.removeItem('adminLoggedIn');
+        location.reload();
+    }
+
+    // Password Change Operations
+    function openChangePasswordModal() {
+        document.getElementById('oldPasswordInput').value = '';
+        document.getElementById('newPasswordInput').value = '';
+        document.getElementById('confirmNewPasswordInput').value = '';
+        document.getElementById('changePasswordModal').classList.remove('hidden');
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.add('hidden');
+    }
+
+    async function saveNewPassword() {
+        const oldPwd = document.getElementById('oldPasswordInput').value.trim();
+        const newPwd = document.getElementById('newPasswordInput').value.trim();
+        const confirmPwd = document.getElementById('confirmNewPasswordInput').value.trim();
+
+        if (!oldPwd || !newPwd || !confirmPwd) {
+            alert("እባክዎን ሁሉንም ሳጥኖች ይሙሉ!");
+            return;
+        }
+
+        if (newPwd !== confirmPwd) {
+            alert("አዲሱ ፓስወርድ እና ማረጋገጫው አይመሳሰሉም!");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/change_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+                alert(data.message || "ፓስወርዱ በስኬት ተቀይሯል!");
+                closeChangePasswordModal();
+            } else {
+                alert(data.message || "ስህተት ተከሰቷል!");
+            }
+        } catch (e) { alert("ፓስወርድ ሲቀየር ስህተት ተከሰቷል!"); }
+    }
+
+    // Forgot Password & Telegram OTP Operations
+    function openForgotPasswordModal() {
+        document.getElementById('loginModal').classList.add('hidden');
+        document.getElementById('otpInput').value = '';
+        document.getElementById('resetNewPassword').value = '';
+        document.getElementById('forgotPasswordModal').classList.remove('hidden');
+    }
+
+    function closeForgotPasswordModal() {
+        document.getElementById('forgotPasswordModal').classList.add('hidden');
+        document.getElementById('loginModal').classList.remove('hidden');
+    }
+
+    async function sendTelegramOTP() {
+        try {
+            const res = await fetch('/api/admin/send_otp', { method: 'POST' });
+            const data = await res.json();
+            alert(data.message || "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!");
+        } catch (e) { alert("OTP ሲላክ ስህተት ተከሰቷል!"); }
+    }
+
+    async function resetPasswordWithOTP() {
+        const otp = document.getElementById('otpInput').value.trim();
+        const newPwd = document.getElementById('resetNewPassword').value.trim();
+
+        if (!otp || !newPwd) {
+            alert("እባክዎን OTP እና አዲስ ፓስወርድ ያስገቡ!");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/admin/reset_password_otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ otp: otp, new_password: newPwd })
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+                alert(data.message || "ፓስወርዱ አዲስ ሆኖ ተስተካክሏል! አሁን መግባት ይችላሉ።");
+                closeForgotPasswordModal();
+            } else {
+                alert(data.message || "የተሳሳተ OTP ኮድ!");
+            }
+        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+    }
 
     function escapeHtml(str) {
         if (!str) return '';
