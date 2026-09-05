@@ -997,7 +997,7 @@
         });
     }
 
-    // 5. Direct Individual Message Logic
+    // 5. Direct Individual Message Logic (Sends directly to index.html member dashboard)
     function openDirectMsgModal(refNo, name, seriesNo) {
         document.getElementById('directMsgRefNo').value = refNo;
         document.getElementById('directMsgMemberInfo').innerText = currentLang === 'am'
@@ -1024,15 +1024,24 @@
             const res = await fetch('/api/messages/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ref_no: refNo, sender: 'admin', message_text: msg })
+                body: JSON.stringify({ 
+                    ref_no: refNo, 
+                    sender: 'admin', 
+                    title: currentLang === 'am' ? 'የአድሚን መልእክት' : 'Admin Message',
+                    message_text: msg 
+                })
             });
             const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "መልእክቱ ለአባሉ ገጽ (Index) በስኬት ተላክዋል!" : "Message sent to member's dashboard!"));
-            closeDirectMsgModal();
+            if (data.status === "success") {
+                alert(data.message || (currentLang === 'am' ? "መልእክቱ ለአባሉ ገጽ (Index) በስኬት ተላክዋል!" : "Message sent to member's dashboard!"));
+                closeDirectMsgModal();
+            } else {
+                alert(data.message || "ስህተት ተከሰቷል!");
+            }
         } catch (e) { alert("Error sending message!"); }
     }
 
-    // 6. Broadcast Announcement Logic
+    // 6. Broadcast Announcement Logic (Broadcasts to index.html)
     function fillTemplate() {
         const target = document.getElementById('broadcastTarget').value;
         const titleInput = document.getElementById('broadcastTitle');
@@ -1098,7 +1107,14 @@
                 })
             });
             const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "መልእክቱ በስኬት ተላክዋል!" : "Broadcast sent successfully!"));
+            if (data.status === "success") {
+                alert(data.message || (currentLang === 'am' ? "መልእክቱ በስኬት ተላክዋል!" : "Broadcast sent successfully!"));
+                document.getElementById('broadcastTitle').value = '';
+                document.getElementById('broadcastBody').value = '';
+                document.getElementById('targetMemberIdentifier').value = '';
+            } else {
+                alert(data.message || "ስህተት ተከሰቷል!");
+            }
         } catch (e) { alert("Error sending broadcast!"); }
     }
 
