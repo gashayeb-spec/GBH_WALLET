@@ -196,7 +196,7 @@
     <!-- TAB 4: BROADCAST / ANNOUNCEMENT CENTER -->
     <div id="broadcastTabSection" class="hidden">
         <div class="broadcast-card">
-            <h3><i class="fas fa-paper-plane"></i> አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል</h3>
+            <h3><i class="fas fa-paper-plane"></i> አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል (ወደ Index ይላካል)</h3>
             
             <div class="input-group">
                 <label>የመልእክቱ ተቀባዮች (Target Audience)</label>
@@ -331,7 +331,7 @@
 <!-- Modal for Direct Individual Message -->
 <div id="directMsgModal" class="modal hidden">
     <div class="modal-content">
-        <h3><i class="fas fa-envelope"></i> ለአባል ቀጥታ መልእክት መላኪያ</h3>
+        <h3><i class="fas fa-envelope"></i> ለአባል ቀጥታ መልእክት መላኪያ (ወደ Index ይሄዳል)</h3>
         <input type="hidden" id="directMsgRefNo">
         <p id="directMsgMemberInfo" style="color: var(--gold); font-weight: bold; margin-bottom: 12px; font-size: 0.9rem;"></p>
         
@@ -384,7 +384,7 @@
         } catch (e) { console.error("Error loading analytics:", e); }
     }
 
-    // 2. Bank Account Management
+    // 2. Bank Account Management (Direct link to index.html settings)
     async function loadBankAccount() {
         try {
             const res = await fetch('/api/settings/bank');
@@ -404,7 +404,7 @@
                 body: JSON.stringify({ bank_account: bankInfo })
             });
             const data = await res.json();
-            alert(data.message || "የባንክ መረጃው ተቀምጧል!");
+            alert(data.message || "የባንክ መረጃው በስኬት ተቀምጧል! ወደ index.html ተዘምኗል።");
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
@@ -472,9 +472,9 @@
             const tr = document.createElement('tr');
             
             let docsHtml = '';
-            if (m.national_id_path) docsHtml += `<a class="doc-link" href="${m.national_id_path}" target="_blank">🆔 መታወቂያ</a> `;
-            if (m.photo_path) docsHtml += `<a class="doc-link" href="${m.photo_path}" target="_blank">🖼️ ፎቶ</a> `;
-            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${m.trade_license_path}" target="_blank">📜 ፈቃድ</a>`;
+            if (m.national_id_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.national_id_path)}" target="_blank">🆔 መታወቂያ</a> `;
+            if (m.photo_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.photo_path)}" target="_blank">🖼️ ፎቶ</a> `;
+            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.trade_license_path)}" target="_blank">📜 ፈቃድ</a>`;
 
             let badgeClass = m.status === 'approved' ? 'badge-approved' : (m.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
             const dateStr = m.created_at ? m.created_at.split(' ')[0] : '-';
@@ -483,7 +483,7 @@
             const seriesNo = m.loan_series_no || '-';
 
             tr.innerHTML = `
-                <td style="font-size: 0.75rem;">${dateStr}</td>
+                <td style="font-size: 0.75rem;">${escapeHtml(dateStr)}</td>
                 <td><b>${escapeHtml(refNo)}</b></td>
                 <td style="color: var(--gold); font-weight: bold;">${escapeHtml(seriesNo)}</td>
                 <td><b>${escapeHtml(fullName)}</b></td>
@@ -515,7 +515,7 @@
         });
     }
 
-    // 5. Direct Individual Message Logic
+    // 5. Direct Individual Message Logic (Sends directly to member's index.html interface)
     function openDirectMsgModal(refNo, name, seriesNo) {
         document.getElementById('directMsgRefNo').value = refNo;
         document.getElementById('directMsgMemberInfo').innerText = `ተቀባይ፦ ${name} (የቁጠባ No: ${refNo} | ሴሪ: ${seriesNo})`;
@@ -543,12 +543,12 @@
                 body: JSON.stringify({ ref_no: refNo, sender: 'admin', message_text: msg })
             });
             const data = await res.json();
-            alert(data.message || "መልእክቱ ለአባሉ በስኬት ተላክዋል!");
+            alert(data.message || "መልእክቱ ለአባሉ ገጽ (Index) በስኬት ተላክዋል!");
             closeDirectMsgModal();
         } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
     }
 
-    // 6. Broadcast Announcement Logic
+    // 6. Broadcast Announcement Logic (Publishes messages for index.html)
     function fillTemplate() {
         const target = document.getElementById('broadcastTarget').value;
         const titleInput = document.getElementById('broadcastTitle');
@@ -576,7 +576,7 @@
             return;
         }
 
-        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት በጅምላ መላክ ይፈልጋሉ?`)) return;
+        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት ገጽ (Index) በጅምላ መላክ ይፈልጋሉ?`)) return;
 
         try {
             const res = await fetch('/api/admin/announcement', {
@@ -625,12 +625,12 @@
                     const fullName = `${r.first_name || ''} ${r.father_name || ''}`.trim() || 'ስም የለም';
 
                     tr.innerHTML = `
-                        <td style="font-size: 0.75rem;">${dateStr}</td>
+                        <td style="font-size: 0.75rem;">${escapeHtml(dateStr)}</td>
                         <td><b>${escapeHtml(r.ref_no || '-')}</b></td>
                         <td><b>${escapeHtml(fullName)}</b></td>
                         <td>${escapeHtml(r.phone_number || '-')}</td>
                         <td style="color: var(--success); font-weight: bold;">${(r.amount || 0).toLocaleString()} ብር</td>
-                        <td><a class="doc-link" href="${r.receipt_path}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
+                        <td><a class="doc-link" href="${escapeHtml(r.receipt_path)}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
                         <td><span class="badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
                         <td class="action-cell">-</td>
                     `;
@@ -707,7 +707,7 @@
                         <td>${escapeHtml(r.full_name || '-')}</td>
                         <td><span class="badge badge-approved">${roleLabels[r.role] || escapeHtml(r.role)}</span></td>
                         <td>${escapeHtml(r.assigned_by || '-')}</td>
-                        <td style="font-size: 0.75rem;">${r.created_at ? r.created_at.split(' ')[0] : '-'}</td>
+                        <td style="font-size: 0.75rem;">${r.created_at ? escapeHtml(r.created_at.split(' ')[0]) : '-'}</td>
                         <td>
                             ${r.role !== 'super_admin' ? `<button class="btn-action btn-delete" onclick="deleteAdminRole(${r.id})"><i class="fas fa-trash"></i> ሹመት ሰርዝ</button>` : '-'}
                         </td>
