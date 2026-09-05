@@ -292,29 +292,51 @@ def admin_login():
     except Exception as e:
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
+# ---------------------------------------------------------
+# የተስተካከለው የ OTP መላኪያ ክፍል ብቻ (የተቀየረ/የተስተካከለ)
+# ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
-        telegram_id = data.get('telegram_id') or SUPER_ADMIN_ID
+        
+        # 1. ከጥያቄው የመጣውን ወይም ከ .env ላይ ያለውን ID ማግኘት
+        target_telegram_id = str(data.get('telegram_id') or SUPER_ADMIN_ID).strip()
 
-        if not telegram_id or not bot:
-            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተዘጋጀም ወይም Telegram ID አልተገኘም!"}), 400
+        if not bot:
+            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተጀመረም! (BOT_TOKEN ማረጋገጥ ያስፈልጋል)"}), 400
 
+        if not target_telegram_id:
+            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ID አልተገኘም! እባክዎን በቦቱ በኩል ይክፈቱት።"}), 400
+
+        # 2. የ 6 ዲጂት OTP ኮድ ማመንጨት
         otp_code = str(random.randint(100000, 999999))
 
+        # 3. OTP በዳታቤዝ ውስጥ ማስቀመጥ
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_otp', ?)", (otp_code,))
         conn.commit()
         conn.close()
 
+        # 4. OTP ወደ ቴሌግራም መላክ (በ try-except ጥንቃቄ ተደርጎበታል)
         msg = f"🔐 <b>የአድሚን የይለፍ ቃል መቀየሪያ OTP ኮድ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ ለማንም አያጋሩ!"
-        bot.send_message(telegram_id, msg, parse_mode="HTML")
+        
+        try:
+            bot.send_message(chat_id=target_telegram_id, text=msg, parse_mode="HTML")
+        except Exception as telegram_err:
+            print(f"Telegram Send Message Error: {telegram_err}")
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": "OTP መላክ አልተቻለም! እባክዎን ቦቱን በቴሌግራም ላይ /start ማድረጎትን ያረጋግጡ።"
+            }), 400
 
         return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!"}), 200
+
     except Exception as e:
-        return jsonify({"success": False, "status": "error", "message": f"OTP መላክ አልተቻለም: {str(e)}"}), 500
+        print(f"General Send OTP Error: {e}")
+        return jsonify({"success": False, "status": "error", "message": f"የውስጥ ሰርቨር ስህተት: {str(e)}"}), 500
 
 @app.route('/api/admin/change-password', methods=['POST'])
 def change_admin_password():
