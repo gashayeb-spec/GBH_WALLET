@@ -35,7 +35,7 @@
         .tab-btn.active { background: var(--gold); color: #000; }
 
         .top-controls { display: flex; gap: 10px; width: 100%; max-width: 600px; }
-        .search-box, .date-box, .select-box, .textarea-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
+        .search-box, .date-box, .select-box, .textarea-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; width: 100%; }
         .search-box { flex: 1; }
         .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
         .btn-refresh:hover { background: #475569; }
@@ -204,7 +204,14 @@
                     <option value="all">📢 ለሁሉም አባላት (የበዓላት/የስብሰባ ማስታወቂያ)</option>
                     <option value="unpaid">⚠️ ላልከፈሉ/እዳ ላለባቸው አባላት (የክፍያ ማስታወሻ)</option>
                     <option value="paid">✅ ለከፈሉ አባላት (የምስጋና መልእክት)</option>
+                    <option value="single">👤 ለአንድ አባል (በመዝገብ ቁጥር፣ በስልክ፣ በስም ወይም በሴሪ ቁጥር)</option>
                 </select>
+            </div>
+
+            <!-- Single Member Identifier Input Field (Show only if "single" is selected) -->
+            <div class="input-group hidden" id="singleMemberInputGroup">
+                <label style="color: var(--gold);">የአባሉ መለያ (የመዝገብ/ቁጠባ No፣ ስልክ፣ ስም ወይም የብድር ሴሪ No)</label>
+                <input type="text" id="targetMemberIdentifier" placeholder="ምሳሌ፦ 0012 ወይም 0916... ወይም አበበ ወይም SR-102">
             </div>
 
             <div class="input-group">
@@ -218,7 +225,7 @@
             </div>
 
             <button class="btn-action btn-approve" style="padding: 10px 20px; font-size: 0.9rem;" onclick="sendBroadcast()">
-                <i class="fas fa-broadcast-tower"></i> መልእክቱን በጅምላ ላክ (Send Broadcast)
+                <i class="fas fa-broadcast-tower"></i> መልእክቱን ላክ (Send Message)
             </button>
         </div>
     </div>
@@ -548,21 +555,29 @@
         } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
     }
 
-    // 6. Broadcast Announcement Logic
+    // 6. Broadcast Announcement & Single Member Message Logic
     function fillTemplate() {
         const target = document.getElementById('broadcastTarget').value;
         const titleInput = document.getElementById('broadcastTitle');
         const bodyInput = document.getElementById('broadcastBody');
+        const singleGroup = document.getElementById('singleMemberInputGroup');
 
-        if (target === 'unpaid') {
-            titleInput.value = "⚠️ የክፍያ ማስታወሻ - ተራመድ ሳኮ";
-            bodyInput.value = "ውድ የአበላችን፣ የወርሃዊ ቁጠባ ወይም የብድር ክፍያዎ ያልተከፈለ መሆኑን እናሳውቃለን። እባክዎን እስከተወሰነው ቀን ድረስ ክፍያውን ፈጽመው ደረሰኙን በአፑ በኩል ይላኩ። አመሰግናለሁ!";
-        } else if (target === 'paid') {
-            titleInput.value = "🎉 የምስጋና መልእክት - ተራመድ ሳኮ";
-            bodyInput.value = "ውድ የአበላችን፣ ወቅታዊ ክፍያዎን ስለፈፀሙ እናመሰግናለን! የቁጠባ ሂሳብዎ በአግባቡ ተዘምኗል።";
+        if (target === 'single') {
+            singleGroup.classList.remove('hidden');
+            titleInput.value = "📩 የግል መልእክት / ማስታወሻ";
+            bodyInput.value = "ውድ አባል፣ ";
         } else {
-            titleInput.value = "📢 እንኳን ለበዓል አደረሳችሁ / አጠቃላይ ማስታወቂያ";
-            bodyInput.value = "ውድ የተራመድ ሳኮ አባላት፣ እንኳን ለአዲሱ ዓመት በሰላም አደረሳችሁ! መልካም የቁጠባና የሥራ ጊዜ እንዲሆንልዎ እንመኛለን።";
+            singleGroup.classList.add('hidden');
+            if (target === 'unpaid') {
+                titleInput.value = "⚠️ የክፍያ ማስታወሻ - ተራመድ ሳኮ";
+                bodyInput.value = "ውድ የአበላችን፣ የወርሃዊ ቁጠባ ወይም የብድር ክፍያዎ ያልተከፈለ መሆኑን እናሳውቃለን። እባክዎን እስከተወሰነው ቀን ድረስ ክፍያውን ፈጽመው ደረሰኙን በአፑ በኩል ይላኩ። አመሰግናለሁ!";
+            } else if (target === 'paid') {
+                titleInput.value = "🎉 የምስጋና መልእክት - ተራመድ ሳኮ";
+                bodyInput.value = "ውድ የአበላችን፣ ወቅታዊ ክፍያዎን ስለፈፀሙ እናመሰግናለን! የቁጠባ ሂሳብዎ በአግባቡ ተዘምኗል።";
+            } else {
+                titleInput.value = "📢 እንኳን ለበዓል አደረሳችሁ / አጠቃላይ ማስታወቂያ";
+                bodyInput.value = "ውድ የተራመድ ሳኮ አባላት፣ እንኳን ለአዲሱ ዓመት በሰላም አደረሳችሁ! መልካም የቁጠባና የሥራ ጊዜ እንዲሆንልዎ እንመኛለን።";
+            }
         }
     }
 
@@ -570,23 +585,38 @@
         const target = document.getElementById('broadcastTarget').value;
         const title = document.getElementById('broadcastTitle').value.trim();
         const body = document.getElementById('broadcastBody').value.trim();
+        const identifier = document.getElementById('targetMemberIdentifier').value.trim();
+
+        if (target === 'single' && !identifier) {
+            alert("እባክዎን የአባሉን መለያ (መዝገብ ቁጥር፣ ስልክ፣ ስም ወይም ሴሪ ቁጥር) ያስገቡ!");
+            return;
+        }
 
         if (!title || !body) {
             alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
             return;
         }
 
-        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት ገጽ (Index) በጅምላ መላክ ይፈልጋሉ?`)) return;
+        const confirmMsg = target === 'single' 
+            ? `እርግጠኛ ነዎት ይህንን መልእክት ለተጠቀሰው አባል መላክ ይፈልጋሉ?`
+            : `እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት ገጽ (Index) በጅምላ መላክ ይፈልጋሉ?`;
+
+        if (!confirm(confirmMsg)) return;
 
         try {
             const res = await fetch('/api/admin/announcement', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target_audience: target, title: title, message: body })
+                body: JSON.stringify({ 
+                    target_audience: target, 
+                    title: title, 
+                    message: body,
+                    member_identifier: identifier 
+                })
             });
             const data = await res.json();
-            alert(data.message || "ማስታወቂያው በስኬት ተሰራጭቷል!");
-        } catch (e) { alert("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!"); }
+            alert(data.message || "መልእክቱ በስኬት ተላክዋል!");
+        } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
     }
 
     // 7. Delete Member Function
