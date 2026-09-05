@@ -10,7 +10,7 @@
         :root {
             --bg: #0f172a; --card: #1e293b; --gold: #f59e0b;
             --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
-            --success: #10b981; --danger: #ef4444; --blue: #3b82f6; --purple: #8b5cf6;
+            --success: #10b981; --danger: #ef4444; --blue: #3b82f6;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: var(--bg); color: var(--text); padding: 15px; -webkit-tap-highlight-color: transparent; }
@@ -72,16 +72,6 @@
             line-height: 1.6; 
             color: #f1f5f9; 
             white-space: pre-line;
-        }
-
-        /* ✉️ ለአባል ቀጥታ የተላከ አድሚን መልእክት ሳጥን */
-        .direct-msg-card {
-            background: linear-gradient(135deg, #2e1065, #4c1d95);
-            border: 2px solid var(--purple);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 18px;
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25);
         }
 
         .tab-container { display: flex; gap: 10px; margin-bottom: 15px; }
@@ -147,22 +137,13 @@
         <i class="fas fa-user-shield"></i> <span id="txtAdminBtn">ወደ አድሚን ፓናል ሂድ (Admin Dashboard)</span>
     </a>
 
-    <!-- 📢 ከአድሚኑ የሚላክ አጠቃላይ ማስታወቂያ (የበዓል/የስብሰባ/የክፍያ ማስታወሻ) -->
+    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ -->
     <div id="announcementBox" class="announcement-card hidden">
         <div class="announcement-title">
             <i class="fas fa-bullhorn fa-lg"></i>
             <span id="announcementHeader">የአድሚን ማስታወቂያ</span>
         </div>
         <div id="announcementContent" class="announcement-text"></div>
-    </div>
-
-    <!-- ✉️ ከአድሚኑ በቀጥታ ለዚህ አባል የተላከ የግል መልእክት (Direct Admin Message) -->
-    <div id="directMsgBox" class="direct-msg-card hidden">
-        <div class="announcement-title" style="color: #c084fc; border-bottom-color: rgba(192, 132, 252, 0.3);">
-            <i class="fas fa-envelope-open-text fa-lg"></i>
-            <span id="directMsgHeader">የአድሚን መልእክት</span>
-        </div>
-        <div id="directMsgContent" class="announcement-text"></div>
     </div>
 
     <!-- የምዝገባ ማጣሪያ ገጽ (Pending) -->
@@ -312,7 +293,6 @@
             langBtn: "English",
             adminBtn: "ወደ አድሚን ፓናል ሂድ (Admin Dashboard)",
             announcementHeader: "የአድሚን ማስታወቂያ",
-            directMsgHeader: "የአድሚን መልእክት",
             pendingTitle: "ምዝገባዎ በማጣራት ላይ ይገኛል!",
             pendingDesc: "አድሚኑ መረጃዎን አይቶ ሲያጸድቀው የቁጠባ እና የብድር ደብተሮችዎ ይከፈታሉ።",
             savingsTab: "የቁጠባ ደብተር",
@@ -353,7 +333,6 @@
             langBtn: "አማርኛ",
             adminBtn: "Go to Admin Dashboard",
             announcementHeader: "Admin Announcement",
-            directMsgHeader: "Direct Admin Message",
             pendingTitle: "Your registration is under review!",
             pendingDesc: "Your savings and loan passbooks will open once the admin reviews and approves your information.",
             savingsTab: "Savings Book",
@@ -403,7 +382,6 @@
         document.getElementById('langBtnText').innerText = t.langBtn;
         document.getElementById('txtAdminBtn').innerText = t.adminBtn;
         document.getElementById('announcementHeader').innerText = t.announcementHeader;
-        document.getElementById('directMsgHeader').innerText = t.directMsgHeader;
         document.getElementById('txtPendingTitle').innerText = t.pendingTitle;
         document.getElementById('txtPendingDesc').innerText = t.pendingDesc;
         document.getElementById('txtSavingsTab').innerText = t.savingsTab;
@@ -495,45 +473,21 @@
         }
     }
 
-    /* 📢 አድሚኑ ሴት የሚያደርገውን አጠቃላይ ማስታወቂያ መጫኛ */
     async function loadAnnouncement() {
         try {
             const res = await fetch('/api/announcement');
             const data = await res.json();
 
-            if (data && (data.text || data.content || data.message || data.title)) {
+            if (data && (data.text || data.content || data.message)) {
                 const headerText = data.title || translations[currentLang].announcementHeader;
-                const bodyText = data.text || data.content || data.message || '';
+                const bodyText = data.text || data.content || data.message;
 
-                if(bodyText || headerText) {
-                    document.getElementById('announcementHeader').innerText = headerText;
-                    document.getElementById('announcementContent').innerText = bodyText;
-                    document.getElementById('announcementBox').classList.remove('hidden');
-                }
+                document.getElementById('announcementHeader').innerText = headerText;
+                document.getElementById('announcementContent').innerText = bodyText;
+                document.getElementById('announcementBox').classList.remove('hidden');
             }
         } catch (e) {
             console.error("Announcement load error:", e);
-        }
-    }
-
-    /* ✉️ ለአባሉ ቀጥታ ከአድሚኑ የተላኩ መልእክቶችን መጫኛ */
-    async function loadDirectMessages(refNo) {
-        if (!refNo) return;
-        try {
-            const res = await fetch(`/api/messages/get?ref_no=${refNo}`);
-            const data = await res.json();
-            
-            if (data.status === "success" && data.messages && data.messages.length > 0) {
-                // ከአድሚኑ የተላከውን የቅርብ ጊዜ መልእክት መውሰድ
-                const adminMsgs = data.messages.filter(m => m.sender === 'admin');
-                if (adminMsgs.length > 0) {
-                    const latestMsg = adminMsgs[adminMsgs.length - 1];
-                    document.getElementById('directMsgContent').innerText = latestMsg.message_text || latestMsg.text || '';
-                    document.getElementById('directMsgBox').classList.remove('hidden');
-                }
-            }
-        } catch(e) {
-            console.error("Direct messages load error:", e);
         }
     }
 
@@ -545,9 +499,6 @@
         document.getElementById('memberNameDisplay').innerText = `👤 ${fullName}`;
         document.getElementById('savingsRefNo').innerText = `${t.passbookNoText}${userRefNo}`;
         document.getElementById('savingsBalanceDisplay').innerText = `${Number(member.paid_amount || 0).toLocaleString()} ETB`;
-
-        // ለአባሉ የተላከ መልእክት ካለ መጫን
-        loadDirectMessages(userRefNo);
 
         if (member.approved_loan > 0 || member.loan_series_no) {
             document.getElementById('loanDetailsBox').classList.remove('hidden');
