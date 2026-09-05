@@ -18,15 +18,18 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .header h2 { color: var(--gold); font-size: 1.3rem; }
         
+        /* Dashboard Analytics Section */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
         .stat-card { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
         .stat-card h4 { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
         .stat-card .value { font-size: 1.2rem; font-weight: bold; color: var(--gold); }
         .stat-card .value.success { color: var(--success); }
 
+        /* Bank Account Section */
         .bank-section { background: var(--card); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .bank-section input { flex: 1; padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; min-width: 250px; }
 
+        /* Tabs Control */
         .tab-controls { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; }
         .tab-btn { background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .tab-btn.active { background: var(--gold); color: #000; }
@@ -35,6 +38,7 @@
         .search-box, .date-box, .select-box, .textarea-box { padding: 8px 12px; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; color: white; }
         .search-box { flex: 1; }
         .btn-refresh { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+        .btn-refresh:hover { background: #475569; }
         
         .table-responsive { overflow-x: auto; background: var(--card); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 1100px; }
@@ -58,6 +62,7 @@
         .btn-delete { background: var(--danger); color: white; }
         .btn-message { background: var(--purple); color: white; }
         
+        /* Modal Popup */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
         .modal-content { background: var(--card); padding: 22px; border-radius: 12px; width: 95%; max-width: 480px; border: 1px solid var(--gold); }
         .modal-content h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
@@ -67,6 +72,7 @@
         .modal-btns { display: flex; justify-content: space-between; margin-top: 18px; }
         .hidden { display: none !important; }
 
+        /* Announcement & Admin Roles Section */
         .broadcast-card, .role-card { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
         .broadcast-card h3, .role-card h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
     </style>
@@ -78,6 +84,7 @@
         <h2><i class="fas fa-users-cog"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h2>
     </div>
 
+    <!-- Analytics Dashboard Cards -->
     <div class="stats-grid">
         <div class="stat-card">
             <h4>ጠቅላላ አባላት</h4>
@@ -105,12 +112,14 @@
         </div>
     </div>
 
+    <!-- Bank Account Setting Section -->
     <div class="bank-section">
         <label style="font-weight: bold; color: var(--gold);"><i class="fas fa-university"></i> የባንክ ሂሳብ መቼት (Set Bank Account):</label>
         <input type="text" id="bankAccountInput" placeholder="1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)">
         <button class="btn-action btn-approve" style="padding: 9px 15px;" onclick="saveBankAccount()"><i class="fas fa-save"></i> አስቀምጥ</button>
     </div>
 
+    <!-- Main Navigation Tabs -->
     <div class="tab-controls">
         <button class="tab-btn active" id="tabMembersBtn" onclick="switchTab('members')"><i class="fas fa-users"></i> የአባላት መዝገብ</button>
         <button class="tab-btn" id="tabSavingsBtn" onclick="switchTab('savings')"><i class="fas fa-piggy-bank"></i> የቁጠባ ሪሲቶች</button>
@@ -119,7 +128,7 @@
         <button class="tab-btn" id="tabRolesBtn" onclick="switchTab('roles')"><i class="fas fa-user-shield"></i> ንኡስ አድሚኖች (Roles)</button>
     </div>
 
-    <!-- MEMBERS TAB -->
+    <!-- TAB 1: MEMBERS TABLE -->
     <div id="membersTabSection">
         <div class="header">
             <div class="top-controls">
@@ -142,7 +151,7 @@
                         <th>የተፈቀደ ብድር</th>
                         <th>የተከፈለ ብድር</th>
                         <th>ሁኔታ</th>
-                        <th>እርምጃዎች</th>
+                        <th>እርምጃዎች (Actions)</th>
                     </tr>
                 </thead>
                 <tbody id="membersTableBody">
@@ -152,7 +161,7 @@
         </div>
     </div>
 
-    <!-- RECEIPTS TAB -->
+    <!-- TAB 2 & 3: RECEIPTS TABLE (Savings / Loan Returns) -->
     <div id="receiptsTabSection" class="hidden">
         <div class="header">
             <h3 id="receiptSectionTitle" style="color: var(--gold);">የሪሲቶች መዝገብ</h3>
@@ -174,7 +183,7 @@
                         <th>የክፍያ መጠን</th>
                         <th>ደረሰኝ (Screenshot)</th>
                         <th>ሁኔታ</th>
-                        <th>እርምጃዎች</th>
+                        <th>እርምጃዎች (Actions)</th>
                     </tr>
                 </thead>
                 <tbody id="receiptsTableBody">
@@ -184,7 +193,7 @@
         </div>
     </div>
 
-    <!-- BROADCAST TAB -->
+    <!-- TAB 4: BROADCAST / ANNOUNCEMENT CENTER -->
     <div id="broadcastTabSection" class="hidden">
         <div class="broadcast-card">
             <h3><i class="fas fa-paper-plane"></i> አጠቃላይ የማስታወቂያ እና መልእክት መላኪያ ማእከል</h3>
@@ -214,7 +223,7 @@
         </div>
     </div>
 
-    <!-- ROLES TAB -->
+    <!-- TAB 5: SUB-ADMIN ROLES MANAGEMENT -->
     <div id="rolesTabSection" class="hidden">
         <div class="role-card">
             <h3><i class="fas fa-user-plus"></i> አዲስ ንኡስ አድሚን መሾሚያ (Assign Sub-Admin)</h3>
@@ -266,7 +275,7 @@
 
 </div>
 
-<!-- Modal Deduct -->
+<!-- Modal for Deducting Amount Directly -->
 <div id="deductModal" class="modal hidden">
     <div class="modal-content">
         <h3><i class="fas fa-minus-circle"></i> ከሰውየው ደብተር ብር ቀንስ / አዘምን</h3>
@@ -274,11 +283,11 @@
         <p id="deductMemberName" style="color: var(--gold); font-weight: bold; margin-bottom: 10px;"></p>
         
         <div class="input-group">
-            <label>ከቁጠባ ደብተሩ የሚቀነስ ብር</label>
+            <label>ከቁጠባ ደብተሩ የሚቀነስ ብር (Deduct Savings)</label>
             <input type="number" id="deductSavingsInput" placeholder="0.00" step="any">
         </div>
         <div class="input-group">
-            <label>ለብድር መክፈያ የሚጨመር ብር</label>
+            <label>ለብድር መክፈያ የሚቀነስ/የሚጨመር ብር (Add Loan Paid)</label>
             <input type="number" id="deductLoanInput" placeholder="0.00" step="any">
         </div>
 
@@ -289,14 +298,14 @@
     </div>
 </div>
 
-<!-- Modal Edit -->
+<!-- Modal for Full Financial Edit -->
 <div id="editModal" class="modal hidden">
     <div class="modal-content">
         <h3><i class="fas fa-edit"></i> የደብተር እና ሂሳብ ማስተካከያ</h3>
         <input type="hidden" id="editMemberId">
         
         <div class="input-group">
-            <label>የብድር ሴሪ ቁጥር</label>
+            <label>የብድር ሴሪ ቁጥር (Loan Series No)</label>
             <input type="text" id="editLoanSeriesNo">
         </div>
         <div class="input-group">
@@ -319,7 +328,7 @@
     </div>
 </div>
 
-<!-- Modal Direct Message -->
+<!-- Modal for Direct Individual Message -->
 <div id="directMsgModal" class="modal hidden">
     <div class="modal-content">
         <h3><i class="fas fa-envelope"></i> ለአባል ቀጥታ መልእክት መላኪያ</h3>
@@ -340,7 +349,7 @@
 
 <script>
     let allMembersData = [];
-    let currentTab = 'members';
+    let currentTab = 'members'; // 'members', 'savings', 'loan', 'broadcast', 'roles'
 
     window.addEventListener('DOMContentLoaded', () => {
         loadAnalytics();
@@ -350,9 +359,15 @@
 
     function escapeHtml(str) {
         if (!str) return '';
-        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
+    // 1. Analytics Load
     async function loadAnalytics() {
         try {
             const res = await fetch('/api/admin/analytics');
@@ -369,6 +384,7 @@
         } catch (e) { console.error("Error loading analytics:", e); }
     }
 
+    // 2. Bank Account Management
     async function loadBankAccount() {
         try {
             const res = await fetch('/api/settings/bank');
@@ -392,6 +408,7 @@
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
+    // 3. Tab Navigation Controller
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('tabMembersBtn').classList.remove('active');
@@ -430,6 +447,7 @@
         }
     }
 
+    // 4. Load & Render Members Table
     async function loadMembers() {
         try {
             const res = await fetch('/api/admin/members');
@@ -497,6 +515,7 @@
         });
     }
 
+    // 5. Direct Individual Message Logic
     function openDirectMsgModal(refNo, name, seriesNo) {
         document.getElementById('directMsgRefNo').value = refNo;
         document.getElementById('directMsgMemberInfo').innerText = `ተቀባይ፦ ${name} (የቁጠባ No: ${refNo} | ሴሪ: ${seriesNo})`;
@@ -512,7 +531,10 @@
         const refNo = document.getElementById('directMsgRefNo').value;
         const msg = document.getElementById('directMsgText').value.trim();
 
-        if (!msg) { alert("እባክዎን መልእክቱን ይጻፉ!"); return; }
+        if (!msg) {
+            alert("እባክዎን መልእክቱን ይጻፉ!");
+            return;
+        }
 
         try {
             const res = await fetch('/api/messages/send', {
@@ -526,6 +548,7 @@
         } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
     }
 
+    // 6. Broadcast Announcement Logic
     function fillTemplate() {
         const target = document.getElementById('broadcastTarget').value;
         const titleInput = document.getElementById('broadcastTitle');
@@ -533,12 +556,12 @@
 
         if (target === 'unpaid') {
             titleInput.value = "⚠️ የክፍያ ማስታወሻ - ተራመድ ሳኮ";
-            bodyInput.value = "ውድ የአበላችን፣ የወርሃዊ ቁጠባ ወይም የብድር ክፍያዎ ያልተከፈለ መሆኑን እናሳውቃለን። እባክዎን ክፍያውን ፈጽመው ደረሰኙን ይላኩ።";
+            bodyInput.value = "ውድ የአበላችን፣ የወርሃዊ ቁጠባ ወይም የብድር ክፍያዎ ያልተከፈለ መሆኑን እናሳውቃለን። እባክዎን እስከተወሰነው ቀን ድረስ ክፍያውን ፈጽመው ደረሰኙን በአፑ በኩል ይላኩ። አመሰግናለሁ!";
         } else if (target === 'paid') {
             titleInput.value = "🎉 የምስጋና መልእክት - ተራመድ ሳኮ";
             bodyInput.value = "ውድ የአበላችን፣ ወቅታዊ ክፍያዎን ስለፈፀሙ እናመሰግናለን! የቁጠባ ሂሳብዎ በአግባቡ ተዘምኗል።";
         } else {
-            titleInput.value = "📢 እንኳን ለአዲሱ ዓመት አደረሳችሁ / አጠቃላይ ማስታወቂያ";
+            titleInput.value = "📢 እንኳን ለበዓል አደረሳችሁ / አጠቃላይ ማስታወቂያ";
             bodyInput.value = "ውድ የተራመድ ሳኮ አባላት፣ እንኳን ለአዲሱ ዓመት በሰላም አደረሳችሁ! መልካም የቁጠባና የሥራ ጊዜ እንዲሆንልዎ እንመኛለን።";
         }
     }
@@ -548,9 +571,12 @@
         const title = document.getElementById('broadcastTitle').value.trim();
         const body = document.getElementById('broadcastBody').value.trim();
 
-        if (!title || !body) { alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!"); return; }
+        if (!title || !body) {
+            alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
+            return;
+        }
 
-        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ መላክ ይፈልጋሉ?`)) return;
+        if (!confirm(`እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት በጅምላ መላክ ይፈልጋሉ?`)) return;
 
         try {
             const res = await fetch('/api/admin/announcement', {
@@ -563,8 +589,9 @@
         } catch (e) { alert("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!"); }
     }
 
+    // 7. Delete Member Function
     async function deleteMember(id, name) {
-        if (!confirm(`⚠️ ማስጠንቀቂያ፦ አባል '${name}' ጨርሶ ከአሰራሩ ይሰረዛል! እርግጠኛ ነዎት?`)) return;
+        if (!confirm(`⚠️ ማስጠንቀቂያ፦ አባል '${name}' ጨርሶ ከአሰራሩ ይሰረዛል! ድጋሚ መመዝገብ ይችላል። እርግጠኛ ነዎት?`)) return;
 
         try {
             const res = await fetch('/api/admin/delete_member', {
@@ -579,6 +606,7 @@
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
+    // 8. Receipts Management
     async function loadReceipts() {
         const dateVal = document.getElementById('receiptDateFilter').value;
         const url = `/api/admin/receipts?type=${currentTab}&date=${dateVal}`;
@@ -652,6 +680,7 @@
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
+    // 9. Sub-Admin Role Operations
     async function loadAdminRoles() {
         try {
             const res = await fetch('/api/admin/roles/list');
@@ -696,7 +725,10 @@
         const fullName = document.getElementById('roleFullName').value.trim();
         const role = document.getElementById('roleType').value;
 
-        if (!telegramId || !fullName) { alert("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"); return; }
+        if (!telegramId || !fullName) {
+            alert("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!");
+            return;
+        }
 
         try {
             const res = await fetch('/api/admin/roles/add', {
@@ -726,6 +758,7 @@
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
+    // Modal Operations for Financials
     function openDeductModal(id, name) {
         document.getElementById('deductMemberId').value = id;
         document.getElementById('deductMemberName').innerText = `አባል፦ ${name}`;
