@@ -2,7 +2,7 @@
 <html lang="am">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ተራመድ - የቁጠባና የብድር ደብተሮች / TERAMED - Passbooks</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -12,9 +12,35 @@
             --text: #f8fafc; --text-muted: #94a3b8; --border: rgba(255, 255, 255, 0.1);
             --success: #10b981; --danger: #ef4444; --blue: #3b82f6;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 15px; -webkit-tap-highlight-color: transparent; }
-        .container { max-width: 500px; margin: 0 auto; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        }
+        
+        /* 🌐 Full Screen & Responsive Adjustments */
+        html, body {
+            width: 100%;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 12px;
+        }
+
+        .container { 
+            width: 100%;
+            max-width: 600px; /* ለትልልቅ ስክሪኖች ተስማሚ እንዲሆን */
+            margin: 0 auto; 
+        }
         
         /* 🌐 የቋንቋ መቆጣጠሪያ ማዕከል */
         .top-bar {
@@ -47,7 +73,7 @@
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
         }
 
-        /* 📢 ከአድሚን የሚላክ ማስታወቂያ ሳጥን (አሁን በግልፅ እንዲታይ ተደርጓል) */
+        /* 📢 ከአድሚን የሚላክ ማስታወቂያ ሳጥን */
         .announcement-card {
             background: linear-gradient(135deg, #1e1b4b, #311b92);
             border: 2px solid var(--gold);
@@ -473,7 +499,6 @@
         }
     }
 
-    /* 📢 በአድሚን የተላከውን ማስታወቂያ በትክክል የሚያነብ የስተካከለ የloadAnnouncement ተግባር */
     async function loadAnnouncement() {
         try {
             const res = await fetch('/api/announcements');
@@ -499,7 +524,6 @@
                 }
             }
 
-            // ማስታወቂያ ከሌለ የሚታይ ነባሪ መልእክት
             document.getElementById('announcementHeader').innerText = translations[currentLang].announcementHeader;
             document.getElementById('announcementContent').innerText = currentLang === 'am' ? "ከአድሚን የተላከ አዲስ ማስታወቂያ የለም።" : "No new announcements from admin.";
 
