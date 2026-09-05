@@ -47,7 +47,7 @@
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
         }
 
-        /* 📢 ከአድሚን የሚላክ ማስታወቂያ */
+        /* 📢 ከአድሚን የሚላክ ማስታወቂያ ሳጥን (አሁን በግልፅ እንዲታይ ተደርጓል) */
         .announcement-card {
             background: linear-gradient(135deg, #1e1b4b, #311b92);
             border: 2px solid var(--gold);
@@ -137,13 +137,13 @@
         <i class="fas fa-user-shield"></i> <span id="txtAdminBtn">ወደ አድሚን ፓናል ሂድ (Admin Dashboard)</span>
     </a>
 
-    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ -->
-    <div id="announcementBox" class="announcement-card hidden">
+    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ (ከደብተሩ አናት ላይ ሁልጊዜ ጎልቶ እንዲታይ hidden ክላሱ ተወግዷል) -->
+    <div id="announcementBox" class="announcement-card">
         <div class="announcement-title">
             <i class="fas fa-bullhorn fa-lg"></i>
             <span id="announcementHeader">የአድሚን ማስታወቂያ</span>
         </div>
-        <div id="announcementContent" class="announcement-text"></div>
+        <div id="announcementContent" class="announcement-text">ከአድሚን የተላከ አዲስ ማስታወቂያ የለም።</div>
     </div>
 
     <!-- የምዝገባ ማጣሪያ ገጽ (Pending) -->
@@ -475,16 +475,15 @@
 
     async function loadAnnouncement() {
         try {
-            const res = await fetch('/api/announcement');
+            const res = await fetch('/api/get-announcement');
             const data = await res.json();
 
-            if (data && (data.text || data.content || data.message)) {
+            if (data && (data.announcement || data.text || data.content || data.message)) {
                 const headerText = data.title || translations[currentLang].announcementHeader;
-                const bodyText = data.text || data.content || data.message;
+                const bodyText = data.announcement || data.text || data.content || data.message;
 
                 document.getElementById('announcementHeader').innerText = headerText;
                 document.getElementById('announcementContent').innerText = bodyText;
-                document.getElementById('announcementBox').classList.remove('hidden');
             }
         } catch (e) {
             console.error("Announcement load error:", e);
