@@ -3,6 +3,7 @@ import sqlite3
 import html
 import threading
 import time
+import random
 import telebot
 from telebot import types
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -13,7 +14,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+# CORS ሙሉ በሙሉ ለሁሉም የAPI routes እንዲሰራ የተደረገ
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # ---------------------------------------------------------
 # Configurations & Environment Paths (Render Persistent Storage)
@@ -26,6 +28,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
+DEFAULT_ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin123").strip()
 
 DB_NAME = os.path.join(DATA_DIR, "database.db")
 
@@ -146,6 +149,10 @@ def init_db():
         cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
                        ('1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)',))
 
+    cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
+    if not cursor.fetchone():
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (DEFAULT_ADMIN_PASS,))
+
     conn.commit()
     conn.close()
 
@@ -257,6 +264,85 @@ if bot:
 
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
         threading.Thread(target=run_bot_polling, daemon=True).start()
+
+# ---------------------------------------------------------
+# Admin Authentication, OTP & Password Reset Endpoints
+# ---------------------------------------------------------
+@app.route('/api/admin/login', methods=['POST'])
+def admin_login():
+    try:
+        data = request.get_json(silent=True) or {}
+        password = data.get('password', '').strip()
+
+        if not password:
+            return jsonify({"success": False, "status": "error", "message": "እባክዎን የይለፍ ቃል ያስገቡ!"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
+        row = cursor.fetchone()
+        conn.close()
+
+        stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
+
+        if password == stored_pass:
+            return jsonify({"success": True, "status": "success", "message": "በስኬት ገብተዋል!"}), 200
+        else:
+            return jsonify({"success": False, "status": "error", "message": "የተሳሳተ የይለፍ ቃል አስገብተዋል!"}), 401
+    except Exception as e:
+        return jsonify({"success": False, "status": "error", "message": str(e)}), 500
+
+@app.route('/api/admin/send-otp', methods=['POST'])
+def send_admin_otp():
+    try:
+        data = request.get_json(silent=True) or {}
+        telegram_id = data.get('telegram_id') or SUPER_ADMIN_ID
+
+        if not telegram_id or not bot:
+            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተዘጋጀም ወይም Telegram ID አልተገኘም!"}), 400
+
+        otp_code = str(random.randint(100000, 999999))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_otp', ?)", (otp_code,))
+        conn.commit()
+        conn.close()
+
+        msg = f"🔐 <b>የአድሚን የይለፍ ቃል መቀየሪያ OTP ኮድ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ ለማንም አያጋሩ!"
+        bot.send_message(telegram_id, msg, parse_mode="HTML")
+
+        return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ወደ ቴሌግራምዎ ተልኳል!"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "status": "error", "message": f"OTP መላክ አልተቻለም: {str(e)}"}), 500
+
+@app.route('/api/admin/change-password', methods=['POST'])
+def change_admin_password():
+    try:
+        data = request.get_json(silent=True) or {}
+        otp_input = data.get('otp', '').strip()
+        new_password = data.get('new_password', '').strip()
+
+        if not otp_input or not new_password:
+            return jsonify({"success": False, "status": "error", "message": "እባክዎን OTP እና አዲሱን የይለፍ ቃል ያስገቡ!"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = 'admin_otp'")
+        otp_row = cursor.fetchone()
+
+        if not otp_row or otp_row['value'] != otp_input:
+            conn.close()
+            return jsonify({"success": False, "status": "error", "message": "የተሳሳተ OTP ኮድ አስገብተዋል!"}), 400
+
+        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)", (new_password,))
+        cursor.execute("DELETE FROM settings WHERE key = 'admin_otp'")
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል! አሁን ባዲሱ የይለፍ ቃል መግባት ይችላሉ።"}), 200
+    except Exception as e:
+        return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
 # Web Page Routes & API Endpoints
