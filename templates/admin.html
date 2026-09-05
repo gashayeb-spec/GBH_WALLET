@@ -75,6 +75,13 @@
         /* Announcement & Admin Roles Section */
         .broadcast-card, .role-card { background: var(--card); padding: 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 25px; }
         .broadcast-card h3, .role-card h3 { color: var(--gold); margin-bottom: 15px; font-size: 1.1rem; }
+
+        /* Toast Notification System */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+        .toast { background: var(--card); color: #fff; border-left: 4px solid var(--gold); padding: 12px 20px; border-radius: 6px; margin-top: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-size: 0.85rem; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { border-left-color: var(--success); }
+        .toast.error { border-left-color: var(--danger); }
     </style>
 </head>
 <body>
@@ -275,6 +282,9 @@
 
 </div>
 
+<!-- Container for Toast Notifications -->
+<div id="toast-container"></div>
+
 <!-- Modal for Deducting Amount Directly -->
 <div id="deductModal" class="modal hidden">
     <div class="modal-content">
@@ -357,6 +367,22 @@
         loadMembers();
     });
 
+    // Helper: Toast Notifications
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerText = message;
+        container.appendChild(toast);
+
+        setTimeout(() => toast.classList.add('show'), 50);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
+    }
+
+    // Helper: XSS Protection
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -404,8 +430,8 @@
                 body: JSON.stringify({ bank_account: bankInfo })
             });
             const data = await res.json();
-            alert(data.message || "የባንክ መረጃው ተቀምጧል!");
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+            showToast(data.message || "የባንክ መረጃው ተቀምጧል!", "success");
+        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
     }
 
     // 3. Tab Navigation Controller
@@ -472,9 +498,9 @@
             const tr = document.createElement('tr');
             
             let docsHtml = '';
-            if (m.national_id_path) docsHtml += `<a class="doc-link" href="${m.national_id_path}" target="_blank">🆔 መታወቂያ</a> `;
-            if (m.photo_path) docsHtml += `<a class="doc-link" href="${m.photo_path}" target="_blank">🖼️ ፎቶ</a> `;
-            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${m.trade_license_path}" target="_blank">📜 ፈቃድ</a>`;
+            if (m.national_id_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.national_id_path)}" target="_blank">🆔 መታወቂያ</a> `;
+            if (m.photo_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.photo_path)}" target="_blank">🖼️ ፎቶ</a> `;
+            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.trade_license_path)}" target="_blank">📜 ፈቃድ</a>`;
 
             let badgeClass = m.status === 'approved' ? 'badge-approved' : (m.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
             const dateStr = m.created_at ? m.created_at.split(' ')[0] : '-';
@@ -483,7 +509,7 @@
             const seriesNo = m.loan_series_no || '-';
 
             tr.innerHTML = `
-                <td style="font-size: 0.75rem;">${dateStr}</td>
+                <td style="font-size: 0.75rem;">${escapeHtml(dateStr)}</td>
                 <td><b>${escapeHtml(refNo)}</b></td>
                 <td style="color: var(--gold); font-weight: bold;">${escapeHtml(seriesNo)}</td>
                 <td><b>${escapeHtml(fullName)}</b></td>
@@ -532,7 +558,7 @@
         const msg = document.getElementById('directMsgText').value.trim();
 
         if (!msg) {
-            alert("እባክዎን መልእክቱን ይጻፉ!");
+            showToast("እባክዎን መልእክቱን ይጻፉ!", "error");
             return;
         }
 
@@ -543,9 +569,9 @@
                 body: JSON.stringify({ ref_no: refNo, sender: 'admin', message_text: msg })
             });
             const data = await res.json();
-            alert(data.message || "መልእክቱ ለአባሉ በስኬት ተላክዋል!");
+            showToast(data.message || "መልእክቱ ለአባሉ በስኬት ተላክዋል!", "success");
             closeDirectMsgModal();
-        } catch (e) { alert("መልእክት ሲላክ ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("መልእክት ሲላክ ስህተት ተከሰቷል!", "error"); }
     }
 
     // 6. Broadcast Announcement Logic
@@ -572,7 +598,7 @@
         const body = document.getElementById('broadcastBody').value.trim();
 
         if (!title || !body) {
-            alert("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!");
+            showToast("እባክዎን ርዕስ እና የመልእክት ዝርዝር ይጻፉ!", "error");
             return;
         }
 
@@ -585,8 +611,8 @@
                 body: JSON.stringify({ target_audience: target, title: title, message: body })
             });
             const data = await res.json();
-            alert(data.message || "ማስታወቂያው በስኬት ተሰራጭቷል!");
-        } catch (e) { alert("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!"); }
+            showToast(data.message || "ማስታወቂያው በስኬት ተሰራጭቷል!", "success");
+        } catch (e) { showToast("ማስታወቂያ ሲላክ ስህተት ተከሰቷል!", "error"); }
     }
 
     // 7. Delete Member Function
@@ -600,10 +626,10 @@
                 body: JSON.stringify({ member_id: id })
             });
             const data = await res.json();
-            alert(data.message || "አባሉ ተሰርዟል!");
+            showToast(data.message || "አባሉ ተሰርዟል!", "success");
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
     }
 
     // 8. Receipts Management
@@ -625,12 +651,12 @@
                     const fullName = `${r.first_name || ''} ${r.father_name || ''}`.trim() || 'ስም የለም';
 
                     tr.innerHTML = `
-                        <td style="font-size: 0.75rem;">${dateStr}</td>
+                        <td style="font-size: 0.75rem;">${escapeHtml(dateStr)}</td>
                         <td><b>${escapeHtml(r.ref_no || '-')}</b></td>
                         <td><b>${escapeHtml(fullName)}</b></td>
                         <td>${escapeHtml(r.phone_number || '-')}</td>
                         <td style="color: var(--success); font-weight: bold;">${(r.amount || 0).toLocaleString()} ብር</td>
-                        <td><a class="doc-link" href="${r.receipt_path}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
+                        <td><a class="doc-link" href="${escapeHtml(r.receipt_path)}" target="_blank"><i class="fas fa-image"></i> ሪሲት ተመልከት</a></td>
                         <td><span class="badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
                         <td class="action-cell">-</td>
                     `;
@@ -674,10 +700,10 @@
                 body: JSON.stringify({ receipt_id: receiptId, action: action })
             });
             const data = await res.json();
-            alert(data.message || "ክወናው ተጠናቋል!");
+            showToast(data.message || "ክወናው ተጠናቋል!", "success");
             loadReceipts();
             loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
     }
 
     // 9. Sub-Admin Role Operations
@@ -707,7 +733,7 @@
                         <td>${escapeHtml(r.full_name || '-')}</td>
                         <td><span class="badge badge-approved">${roleLabels[r.role] || escapeHtml(r.role)}</span></td>
                         <td>${escapeHtml(r.assigned_by || '-')}</td>
-                        <td style="font-size: 0.75rem;">${r.created_at ? r.created_at.split(' ')[0] : '-'}</td>
+                        <td style="font-size: 0.75rem;">${r.created_at ? escapeHtml(r.created_at.split(' ')[0]) : '-'}</td>
                         <td>
                             ${r.role !== 'super_admin' ? `<button class="btn-action btn-delete" onclick="deleteAdminRole(${r.id})"><i class="fas fa-trash"></i> ሹመት ሰርዝ</button>` : '-'}
                         </td>
@@ -726,7 +752,7 @@
         const role = document.getElementById('roleType').value;
 
         if (!telegramId || !fullName) {
-            alert("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!");
+            showToast("እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!", "error");
             return;
         }
 
@@ -737,11 +763,11 @@
                 body: JSON.stringify({ telegram_id: telegramId, full_name: fullName, role: role })
             });
             const data = await res.json();
-            alert(data.message || "ንኡስ አድሚኑ በስኬት ተሾሟል!");
+            showToast(data.message || "ንኡስ አድሚኑ በስኬት ተሾሟል!", "success");
             document.getElementById('roleTelegramId').value = '';
             document.getElementById('roleFullName').value = '';
             loadAdminRoles();
-        } catch (e) { alert("ንኡስ አድሚን ሲሾም ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("ንኡስ አድሚን ሲሾም ስህተት ተከሰቷል!", "error"); }
     }
 
     async function deleteAdminRole(roleId) {
@@ -753,9 +779,9 @@
                 body: JSON.stringify({ role_id: roleId })
             });
             const data = await res.json();
-            alert(data.message || "ሹመቱ ተሰርዟል!");
+            showToast(data.message || "ሹመቱ ተሰርዟል!", "success");
             loadAdminRoles();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
     }
 
     // Modal Operations for Financials
@@ -783,11 +809,11 @@
                 body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
             });
             const data = await res.json();
-            alert(data.message || "መረጃው ተዘምኗል!");
+            showToast(data.message || "መረጃው ተዘምኗል!", "success");
             closeDeductModal();
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
     }
 
     function openModal(id, seriesNo, paid, approved, paidLoan) {
@@ -820,11 +846,11 @@
                 })
             });
             const data = await res.json();
-            alert(data.message || "መረጃው ተዘምኗል!");
+            showToast(data.message || "መረጃው ተዘምኗል!", "success");
             closeModal();
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
     }
 
     async function updateStatus(id, status) {
@@ -836,10 +862,10 @@
                 body: JSON.stringify({ member_id: id, status: status })
             });
             const data = await res.json();
-            alert(data.message || "ሁኔታው ተቀይሯል!");
+            showToast(data.message || "ሁኔታው ተቀይሯል!", "success");
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("ስህተት ተከሰቷል!"); }
+        } catch (e) { showToast("ስህተት ተከሰቷል!", "error"); }
     }
 
     function filterMembers() {
@@ -847,11 +873,13 @@
         const filtered = allMembersData.filter(m => {
             const firstName = (m.first_name || '').toLowerCase();
             const fatherName = (m.father_name || '').toLowerCase();
+            const fullName = `${firstName} ${fatherName}`;
             const phone = (m.phone_number || '').toLowerCase();
             const refNo = (m.ref_no || '').toLowerCase();
             const seriesNo = (m.loan_series_no || '').toLowerCase();
+            const tin = (m.tin_number || '').toLowerCase();
 
-            return firstName.includes(q) || fatherName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q);
+            return fullName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q) || tin.includes(q);
         });
         renderTable(filtered);
     }
