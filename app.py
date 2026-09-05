@@ -267,7 +267,7 @@ def get_member_status():
         member['trade_license_path'] = format_file_url(member.get('trade_license_path'))
         member['photo_path'] = format_file_url(member.get('photo_path'))
         
-        # የብድር ክፍያ ደረሰኝ ገና ያልጸደቀበት (Pending) መኖር አለመኖሩን ማረጋገጫ (በብድር ደብተር ላይ ብቻ ማሳወቂያ ለማሳየት)
+        # የብድር ክፍያ ደረሰኝ ገና ያልጸደቀበት (Pending) መኖር አለመኖሩን ማረጋገጫ
         cursor.execute("SELECT COUNT(*) FROM receipts WHERE member_id = ? AND pay_type = 'loan' AND status = 'pending'", (member['id'],))
         pending_loan_receipts = cursor.fetchone()[0]
         member['has_pending_loan_receipt'] = True if pending_loan_receipts > 0 else False
@@ -758,8 +758,11 @@ def create_announcement():
         title = data.get('title', '').strip()
         content = data.get('content', '').strip() or data.get('message', '').strip()
 
-        if not title or not content:
-            return jsonify({"status": "error", "message": "እባክዎን የማስታወቂያውን ርዕስ (Title) እና ዝርዝር መልእክት ያስገቡ!"}), 400
+        if not title:
+            title = "📢 ከአድሚን የተላከ ማስታወቂያ"
+
+        if not content:
+            return jsonify({"status": "error", "message": "እባክዎን የማስታወቂያውን ዝርዝር መልእክት ያስገቡ!"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -792,15 +795,30 @@ def create_announcement():
 
 @app.route('/api/announcements', methods=['GET'])
 @app.route('/api/get_announcements', methods=['GET'])
+@app.route('/api/announcement', methods=['GET'])
 def get_active_announcements():
+    """በ index.html ላይ በየጥቂት ሰከንዱ የሚጠየቁ የመልእክት/የማስታወቂያ ኤፒአዮች በሙሉ የሚሰሩበት ማስተካከያ"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM announcements WHERE status = 'active' ORDER BY id DESC LIMIT 5")
         rows = [dict(r) for r in cursor.fetchall()]
+        
+        if not rows:
+            cursor.execute("SELECT * FROM announcements ORDER BY id DESC LIMIT 1")
+            rows = [dict(r) for r in cursor.fetchall()]
+
         conn.close()
 
-        return jsonify({"status": "success", "success": True, "announcements": rows}), 200
+        latest = rows[0] if rows else None
+
+        return jsonify({
+            "status": "success", 
+            "success": True, 
+            "announcements": rows,
+            "announcement": latest,
+            "data": latest
+        }), 200
     except Exception as e:
         return jsonify({"status": "error", "success": False, "message": str(e)}), 500
 
