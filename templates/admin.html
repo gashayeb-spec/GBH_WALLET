@@ -1328,38 +1328,6 @@
         });
     }
 
-    // Member Search / Filter
-    function filterMembers() {
-        const query = document.getElementById('searchInput').value.toLowerCase().trim();
-        if (!query) {
-            renderTable(allMembersData);
-            return;
-        }
-        const filtered = allMembersData.filter(m => {
-            const fullName = `${m.first_name || ''} ${m.father_name || ''}`.toLowerCase();
-            const phone = (m.phone_number || '').toLowerCase();
-            const refNo = (m.ref_no || '').toLowerCase();
-            const seriesNo = (m.loan_series_no || '').toLowerCase();
-            return fullName.includes(query) || phone.includes(query) || refNo.includes(query) || seriesNo.includes(query);
-        });
-        renderTable(filtered);
-    }
-
-    // Member Status Update (Approve / Reject)
-    async function updateStatus(memberId, status) {
-        try {
-            const res = await fetch('/api/admin/member/status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: memberId, status: status })
-            });
-            const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "ሁኔታው ተቀይሯል!" : "Status updated!"));
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("Error updating status!"); }
-    }
-
     // Member Printable Statement Ledger
     function printMemberLedger(member) {
         const printWindow = window.open('', '', 'height=600,width=800');
@@ -1745,33 +1713,29 @@
 
     async function saveDeduction() {
         const id = document.getElementById('deductMemberId').value;
-        const deductSavings = parseFloat(document.getElementById('deductSavingsInput').value) || 0;
-        const deductLoan = parseFloat(document.getElementById('deductLoanInput').value) || 0;
+        const deductSavings = document.getElementById('deductSavingsInput').value || 0;
+        const deductLoan = document.getElementById('deductLoanInput').value || 0;
 
         try {
-            const res = await fetch('/api/admin/member/deduct', {
+            const res = await fetch('/api/admin/update_financials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    member_id: id,
-                    deduct_savings: deductSavings,
-                    add_loan_paid: deductLoan
-                })
+                body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
             });
             const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "ሂሳቡ ተስተካክሏል!" : "Balance updated successfully!"));
+            alert(data.message || "Ledger updated!");
             closeDeductModal();
             loadMembers();
             loadAnalytics();
-        } catch (e) { alert("Error updating deduction!"); }
+        } catch (e) { alert("Error saving deduction!"); }
     }
 
-    function openModal(id, seriesNo, paidAmount, approvedLoan, paidLoan) {
+    function openModal(id, seriesNo, paid, approved, paidLoan) {
         document.getElementById('editMemberId').value = id;
-        document.getElementById('editLoanSeriesNo').value = seriesNo || '';
-        document.getElementById('editPaidAmount').value = paidAmount || 0;
-        document.getElementById('editApprovedLoan').value = approvedLoan || 0;
-        document.getElementById('editPaidLoan').value = paidLoan || 0;
+        document.getElementById('editLoanSeriesNo').value = seriesNo;
+        document.getElementById('editPaidAmount').value = paid;
+        document.getElementById('editApprovedLoan').value = approved;
+        document.getElementById('editPaidLoan').value = paidLoan;
         document.getElementById('editModal').classList.remove('hidden');
     }
 
@@ -1781,29 +1745,55 @@
 
     async function saveFinancials() {
         const id = document.getElementById('editMemberId').value;
-        const seriesNo = document.getElementById('editLoanSeriesNo').value.trim();
-        const paidAmount = parseFloat(document.getElementById('editPaidAmount').value) || 0;
-        const approvedLoan = parseFloat(document.getElementById('editApprovedLoan').value) || 0;
-        const paidLoan = parseFloat(document.getElementById('editPaidLoan').value) || 0;
+        const seriesNo = document.getElementById('editLoanSeriesNo').value;
+        const paid_amount = document.getElementById('editPaidAmount').value;
+        const approved_loan = document.getElementById('editApprovedLoan').value;
+        const paid_loan = document.getElementById('editPaidLoan').value;
 
         try {
-            const res = await fetch('/api/admin/member/update_financials', {
+            const res = await fetch('/api/admin/update_financials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    member_id: id,
-                    loan_series_no: seriesNo,
-                    paid_amount: paidAmount,
-                    approved_loan: approvedLoan,
-                    paid_loan: paidLoan
+                    member_id: id, loan_series_no: seriesNo,
+                    paid_amount: paid_amount, approved_loan: approved_loan, paid_loan: paid_loan
                 })
             });
             const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "መረጃው በስኬት ተስተካክሏል!" : "Financials updated successfully!"));
+            alert(data.message || "Ledger updated!");
             closeModal();
             loadMembers();
             loadAnalytics();
         } catch (e) { alert("Error saving financials!"); }
+    }
+
+    async function updateStatus(id, status) {
+        if (!confirm(currentLang === 'am' ? `እርግጠኛ ነዎት የአባሉን ሁኔታ መቀየር ይፈልጋሉ?` : `Are you sure you want to update member status?`)) return;
+        try {
+            const res = await fetch('/api/admin/update_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: id, status: status })
+            });
+            const data = await res.json();
+            alert(data.message || "Status updated!");
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("Error updating status!"); }
+    }
+
+    function filterMembers() {
+        const q = document.getElementById('searchInput').value.toLowerCase().trim();
+        const filtered = allMembersData.filter(m => {
+            const firstName = (m.first_name || '').toLowerCase();
+            const fatherName = (m.father_name || '').toLowerCase();
+            const phone = (m.phone_number || '').toLowerCase();
+            const refNo = (m.ref_no || '').toLowerCase();
+            const seriesNo = (m.loan_series_no || '').toLowerCase();
+
+            return firstName.includes(q) || fatherName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q);
+        });
+        renderTable(filtered);
     }
 </script>
 </body>
