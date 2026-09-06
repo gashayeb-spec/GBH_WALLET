@@ -17,9 +17,12 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # ---------------------------------------------------------
-# Configurations & Environment Paths (Render Persistent Storage)
+# Configurations & Persistent Paths (Render Storage Safe)
 # ---------------------------------------------------------
-DATA_DIR = os.environ.get("DATA_DIR", ".")
+# Render ላይ Persistent Disk Attach ከተደረገ Path ው /var/data ነው
+DATA_DIR = os.environ.get("DATA_DIR", "/var/data" if os.path.exists("/var/data") else ".")
+os.makedirs(DATA_DIR, exist_ok=True)
+
 UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -29,7 +32,9 @@ SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 DEFAULT_ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin123").strip()
 
+# SQLite Database path inside Persistent Directory
 DB_NAME = os.path.join(DATA_DIR, "database.db")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 bot = telebot.TeleBot(BOT_TOKEN) if BOT_TOKEN else None
 
@@ -56,21 +61,33 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ---------------------------------------------------------
-# Database Setup & Connection
+# Database Connection Manager (Supports SQLite & PostgreSQL)
 # ---------------------------------------------------------
 def get_db_connection():
-    conn = sqlite3.connect(DB_NAME, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL;")
-    return conn
+    if DATABASE_URL:
+        import psycopg2
+        import psycopg2.extras
+        # Fix Render dialect name if needed (postgres:// -> postgresql://)
+        pg_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        conn = psycopg2.connect(pg_url, cursor_factory=psycopg2.extras.DictCursor)
+        return conn
+    else:
+        conn = sqlite3.connect(DB_NAME, timeout=30)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL;")
+        return conn
 
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute('''
+    is_postgres = bool(DATABASE_URL)
+    auto_inc = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    timestamp_type = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+
+    cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {auto_inc},
             ref_no TEXT UNIQUE,
             loan_series_no TEXT DEFAULT '',
             first_name TEXT,
@@ -87,20 +104,20 @@ def init_db():
             approved_loan REAL DEFAULT 0.0,
             paid_loan REAL DEFAULT 0.0,
             telegram_id TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at {timestamp_type}
         )
     ''')
 
-    cursor.execute('''
+    cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS receipts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {auto_inc},
             member_id INTEGER,
             ref_no TEXT,
             pay_type TEXT,
             amount REAL,
             receipt_path TEXT,
             status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at {timestamp_type},
             FOREIGN KEY (member_id) REFERENCES members (id)
         )
     ''')
@@ -112,49 +129,55 @@ def init_db():
         )
     ''')
 
-    cursor.execute('''
+    cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {auto_inc},
             ref_no TEXT,
             sender TEXT,
             message_text TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at {timestamp_type}
         )
     ''')
 
-    cursor.execute('''
+    cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS announcements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {auto_inc},
             title TEXT,
             content TEXT,
             status TEXT DEFAULT 'active',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at {timestamp_type}
         )
     ''')
 
-    cursor.execute('''
+    cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS admins (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {auto_inc},
             telegram_id TEXT UNIQUE,
             full_name TEXT,
             role_sector TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at {timestamp_type}
         )
     ''')
 
     cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
     if not cursor.fetchone():
-        cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
                        ('1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)',))
 
     cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
     if not cursor.fetchone():
-        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (DEFAULT_ADMIN_PASS,))
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (DEFAULT_ADMIN_PASS,))
 
     conn.commit()
     conn.close()
 
 init_db()
+
+# Helper for SQL Parameter Substitution
+def q(query):
+    if DATABASE_URL:
+        return query.replace('?', '%s')
+    return query
 
 # ---------------------------------------------------------
 # TELEGRAM BOT HANDLERS
@@ -176,7 +199,7 @@ if bot:
             else:
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("SELECT id FROM admins WHERE telegram_id = ?", (user_id,))
+                cursor.execute(q("SELECT id FROM admins WHERE telegram_id = ?"), (user_id,))
                 if cursor.fetchone():
                     is_admin = True
                 conn.close()
@@ -207,7 +230,7 @@ if bot:
                 
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("UPDATE members SET status = ? WHERE id = ?", (new_status, member_id))
+                cursor.execute(q("UPDATE members SET status = ? WHERE id = ?"), (new_status, member_id))
                 conn.commit()
                 conn.close()
                 
@@ -221,26 +244,25 @@ if bot:
 
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM receipts WHERE id = ?", (receipt_id,))
+                cursor.execute(q("SELECT * FROM receipts WHERE id = ?"), (receipt_id,))
                 receipt = cursor.fetchone()
 
                 if receipt and receipt['status'] == 'pending':
                     try:
-                        conn.execute("BEGIN TRANSACTION")
                         if action == "approve_pay":
                             if receipt['pay_type'] == "savings":
-                                cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                                cursor.execute(q("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?"), (receipt['amount'], receipt['member_id']))
                             else:
-                                cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                                cursor.execute(q("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?"), (receipt['amount'], receipt['member_id']))
                             
-                            cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
+                            cursor.execute(q("UPDATE receipts SET status = 'approved' WHERE id = ?"), (receipt_id,))
                             conn.commit()
                             bot.answer_callback_query(call.id, "✅ ክፍያው ተቀባይነት አግኝቶ ደብተሩ ተዘምኗል!")
                             bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
                                                      caption=f"{call.message.caption}\n\n<b>ውሳኔ:</b> ✅ ክፍያው ጸድቋል (ደብተሩ ተዘምኗል)", parse_mode="HTML")
                         
                         elif action == "cancel_pay":
-                            cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
+                            cursor.execute(q("UPDATE receipts SET status = 'rejected' WHERE id = ?"), (receipt_id,))
                             conn.commit()
                             bot.answer_callback_query(call.id, "❌ ክፍያው ውድቅ ተደርጓል!")
                             bot.edit_message_caption(chat_id=call.message.chat.id, message_id=call.message.message_id, 
@@ -277,7 +299,7 @@ def admin_login():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
+        cursor.execute(q("SELECT value FROM settings WHERE key = 'admin_password'"))
         row = cursor.fetchone()
         conn.close()
 
@@ -291,7 +313,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Direct OTP Sending API (Only Requires Telegram User ID)
+# Direct OTP Sending API
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -299,7 +321,6 @@ def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        # ከ Frontend የሚመጣውን Telegram User ID ማግኘት (የስልክ ቁጥር እና Username ፍላጎት ተወግዷል)
         target_telegram_id = str(
             data.get('telegram_id') or 
             data.get('admin_id') or 
@@ -322,18 +343,22 @@ def send_admin_otp():
                 "message": "የቴሌግራም ቦት አልተጀመረም! BOT_TOKEN መዋቀሩን ያረጋግጡ።"
             }), 400
 
-        # የ 6 አሃዝ OTP ማመንጨት
         otp_code = str(random.randint(100000, 999999))
 
-        # OTP በዳታቤዝ ውስጥ ማስቀመጥ
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_otp', ?)", (otp_code,))
-        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_otp_time', ?)", (str(int(time.time())),))
+        
+        upsert_query = (
+            "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+            if DATABASE_URL else
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"
+        )
+        
+        cursor.execute(upsert_query, ('admin_otp', otp_code))
+        cursor.execute(upsert_query, ('admin_otp_time', str(int(time.time()))))
         conn.commit()
         conn.close()
 
-        # መልእክት አዘጋጅቶ ቀጥታ ወደ Telegram መላክ
         msg = f"🔑 <b>የአድሚን ማረጋገጫ OTP ኮድ:</b>\n\n<code>{otp_code}</code>\n\nይህንን ኮድ በመጠቀም የይለፍ ቃልዎን መቀየር ይችላሉ።"
         
         try:
@@ -375,18 +400,16 @@ def change_admin_password():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 1. በድሮ የይለፍ ቃል ለመቀየር ከሆነ
         if old_password:
-            cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
+            cursor.execute(q("SELECT value FROM settings WHERE key = 'admin_password'"))
             row = cursor.fetchone()
             stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
             if old_password != stored_pass:
                 conn.close()
                 return jsonify({"success": False, "status": "error", "message": "የድሮው የይለፍ ቃል የተሳሳተ ነው!"}), 400
 
-        # 2. በ OTP ለመቀየር ከሆነ
         elif otp_input:
-            cursor.execute("SELECT value FROM settings WHERE key = 'admin_otp'")
+            cursor.execute(q("SELECT value FROM settings WHERE key = 'admin_otp'"))
             otp_row = cursor.fetchone()
 
             if not otp_row or str(otp_row['value']).strip() != otp_input:
@@ -396,10 +419,14 @@ def change_admin_password():
             conn.close()
             return jsonify({"success": False, "status": "error", "message": "እባክዎን የተላከልዎትን OTP ኮድ ያስገቡ!"}), 400
 
-        # የይለፍ ቃሉን ማዘመን
-        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_password', ?)", (new_password,))
-        cursor.execute("DELETE FROM settings WHERE key = 'admin_otp'")
-        cursor.execute("DELETE FROM settings WHERE key = 'admin_otp_time'")
+        upsert_query = (
+            "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+            if DATABASE_URL else
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"
+        )
+        cursor.execute(upsert_query, ('admin_password', new_password))
+        cursor.execute(q("DELETE FROM settings WHERE key = 'admin_otp'"))
+        cursor.execute(q("DELETE FROM settings WHERE key = 'admin_otp_time'"))
         conn.commit()
         conn.close()
 
@@ -427,7 +454,7 @@ def get_member_status():
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members WHERE telegram_id = ?", (telegram_id,))
+    cursor.execute(q("SELECT * FROM members WHERE telegram_id = ?"), (telegram_id,))
     row = cursor.fetchone()
 
     if row:
@@ -436,7 +463,7 @@ def get_member_status():
         member['trade_license_path'] = format_file_url(member.get('trade_license_path'))
         member['photo_path'] = format_file_url(member.get('photo_path'))
         
-        cursor.execute("SELECT COUNT(*) FROM receipts WHERE member_id = ? AND pay_type = 'loan' AND status = 'pending'", (member['id'],))
+        cursor.execute(q("SELECT COUNT(*) FROM receipts WHERE member_id = ? AND pay_type = 'loan' AND status = 'pending'"), (member['id'],))
         pending_loan_receipts = cursor.fetchone()[0]
         member['has_pending_loan_receipt'] = True if pending_loan_receipts > 0 else False
 
@@ -450,7 +477,7 @@ def get_member_status():
 def get_bank_account():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
+    cursor.execute(q("SELECT value FROM settings WHERE key = 'bank_account'"))
     row = cursor.fetchone()
     conn.close()
     bank_info = row['value'] if row else "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)"
@@ -464,7 +491,12 @@ def set_bank_account():
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('bank_account', ?)", (bank_info,))
+        upsert_query = (
+            "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+            if DATABASE_URL else
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"
+        )
+        cursor.execute(upsert_query, ('bank_account', bank_info))
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": "የባንክ ሂሳብ መረጃው ተዘምኗል!"}), 200
@@ -483,7 +515,7 @@ def submit_payment():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM members WHERE ref_no = ?", (ref_no,))
+        cursor.execute(q("SELECT * FROM members WHERE ref_no = ?"), (ref_no,))
         member = cursor.fetchone()
 
         if not member:
@@ -503,12 +535,16 @@ def submit_payment():
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         receipt_file.save(save_path)
 
-        cursor.execute('''
+        cursor.execute(q('''
             INSERT INTO receipts (member_id, ref_no, pay_type, amount, receipt_path, status)
             VALUES (?, ?, ?, ?, ?, 'pending')
-        ''', (member['id'], ref_no, pay_type, amount, save_path))
+        '''), (member['id'], ref_no, pay_type, amount, save_path))
         
-        receipt_id = cursor.lastrowid
+        receipt_id = cursor.lastrowid if not DATABASE_URL else None
+        if DATABASE_URL:
+            cursor.execute("SELECT LASTVAL()")
+            receipt_id = cursor.fetchone()[0]
+
         conn.commit()
         conn.close()
 
@@ -548,7 +584,7 @@ def register_member():
         
         telegram_id = sanitize_input(req.get('telegram_id'))
         if telegram_id:
-            cursor.execute("SELECT id FROM members WHERE telegram_id = ?", (telegram_id,))
+            cursor.execute(q("SELECT id FROM members WHERE telegram_id = ?"), (telegram_id,))
             if cursor.fetchone():
                 conn.close()
                 return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
@@ -580,20 +616,24 @@ def register_member():
                 trade_lic_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(trade_lic_path)
 
-        cursor.execute('''
+        cursor.execute(q('''
             INSERT INTO members (
                 ref_no, first_name, father_name, grand_name, country, 
                 phone_number, tin_number, national_id_path, trade_license_path, 
                 photo_path, telegram_id, status
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-        ''', (
+        '''), (
             ref_no, sanitize_input(req.get('first_name')), sanitize_input(req.get('father_name')),
             sanitize_input(req.get('grand_name')), sanitize_input(req.get('country')),
             sanitize_input(req.get('phone_number')), sanitize_input(req.get('tin_number')),
             nat_id_path, trade_lic_path, photo_path, telegram_id
         ))
 
-        new_id = cursor.lastrowid
+        new_id = cursor.lastrowid if not DATABASE_URL else None
+        if DATABASE_URL:
+            cursor.execute("SELECT LASTVAL()")
+            new_id = cursor.fetchone()[0]
+
         conn.commit()
         conn.close()
 
@@ -647,11 +687,11 @@ def get_admin_receipts():
     params = []
 
     if pay_type:
-        query += " AND r.pay_type = ?"
+        query += " AND r.pay_type = " + ("%s" if DATABASE_URL else "?")
         params.append(pay_type)
     
     if date_str:
-        query += " AND DATE(r.created_at) = DATE(?)"
+        query += " AND DATE(r.created_at) = DATE(" + ("%s" if DATABASE_URL else "?") + ")"
         params.append(date_str)
 
     query += " ORDER BY r.id DESC"
@@ -676,7 +716,7 @@ def process_receipt_action():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT * FROM receipts WHERE id = ?", (receipt_id,))
+        cursor.execute(q("SELECT * FROM receipts WHERE id = ?"), (receipt_id,))
         receipt = cursor.fetchone()
 
         if not receipt:
@@ -688,17 +728,16 @@ def process_receipt_action():
             return jsonify({"status": "error", "message": "ይህ ደረሰኝ ቀደም ብሎ ውሳኔ አግኝቷል!"}), 400
 
         try:
-            conn.execute("BEGIN TRANSACTION")
             if action == 'approve':
                 if receipt['pay_type'] == 'savings':
-                    cursor.execute("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                    cursor.execute(q("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?"), (receipt['amount'], receipt['member_id']))
                 else:
-                    cursor.execute("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?", (receipt['amount'], receipt['member_id']))
+                    cursor.execute(q("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?"), (receipt['amount'], receipt['member_id']))
                 
-                cursor.execute("UPDATE receipts SET status = 'approved' WHERE id = ?", (receipt_id,))
+                cursor.execute(q("UPDATE receipts SET status = 'approved' WHERE id = ?"), (receipt_id,))
                 msg = "ክፍያው በስኬት ጸድቋል፤ የደብተር ሂሳቡ ተዘምኗል!"
             else:
-                cursor.execute("UPDATE receipts SET status = 'rejected' WHERE id = ?", (receipt_id,))
+                cursor.execute(q("UPDATE receipts SET status = 'rejected' WHERE id = ?"), (receipt_id,))
                 msg = "ክፍያው ውድቅ ተደርጓል!"
 
             conn.commit()
@@ -723,16 +762,18 @@ def get_admin_analytics():
     cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
     pending_members = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) = DATE('now')")
+    date_fn = "CURRENT_DATE" if DATABASE_URL else "DATE('now')"
+
+    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) = {date_fn}")
     daily_income = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', '-7 days')")
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= CURRENT_DATE - INTERVAL '7 days'" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', '-7 days')")
     weekly_income = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of month')")
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('month', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of month')")
     monthly_income = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of year')")
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('year', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of year')")
     yearly_income = cursor.fetchone()[0]
 
     conn.close()
@@ -755,7 +796,7 @@ def update_status():
         data = request.get_json(silent=True) or {}
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE members SET status = ? WHERE id = ?", (data.get('status'), data.get('member_id')))
+        cursor.execute(q("UPDATE members SET status = ? WHERE id = ?"), (data.get('status'), data.get('member_id')))
         conn.commit()
         conn.close()
         return jsonify({"status": "success", "message": "የአባሉ ሁኔታ በስኬት ተቀይሯል!"}), 200
@@ -775,18 +816,18 @@ def update_financials():
         deduct_loan = float(data.get('deduct_loan', 0))
 
         if deduct_savings > 0 or deduct_loan > 0:
-            cursor.execute('''
+            cursor.execute(q('''
                 UPDATE members 
-                SET paid_amount = MAX(0, paid_amount - ?),
+                SET paid_amount = CASE WHEN paid_amount - ? < 0 THEN 0 ELSE paid_amount - ? END,
                     paid_loan = paid_loan + ?
                 WHERE id = ?
-            ''', (deduct_savings, deduct_loan, member_id))
+            '''), (deduct_savings, deduct_savings, deduct_loan, member_id))
         else:
-            cursor.execute('''
+            cursor.execute(q('''
                 UPDATE members 
                 SET paid_amount = ?, approved_loan = ?, paid_loan = ?, loan_series_no = ?
                 WHERE id = ?
-            ''', (
+            '''), (
                 float(data.get('paid_amount', 0)), 
                 float(data.get('approved_loan', 0)), 
                 float(data.get('paid_loan', 0)),
@@ -812,13 +853,13 @@ def delete_member():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT ref_no FROM members WHERE id = ?", (member_id,))
+        cursor.execute(q("SELECT ref_no FROM members WHERE id = ?"), (member_id,))
         row = cursor.fetchone()
         if row:
             ref_no = row['ref_no']
-            cursor.execute("DELETE FROM receipts WHERE member_id = ?", (member_id,))
-            cursor.execute("DELETE FROM messages WHERE ref_no = ?", (ref_no,))
-            cursor.execute("DELETE FROM members WHERE id = ?", (member_id,))
+            cursor.execute(q("DELETE FROM receipts WHERE member_id = ?"), (member_id,))
+            cursor.execute(q("DELETE FROM messages WHERE ref_no = ?"), (ref_no,))
+            cursor.execute(q("DELETE FROM members WHERE id = ?"), (member_id,))
             conn.commit()
             conn.close()
             return jsonify({"status": "success", "message": "አባሉና የተያያዙ ፋይሎቹ ሙሉ በሙሉ ተሰርዘዋል!"}), 200
@@ -842,14 +883,14 @@ def send_message():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(q('''
             INSERT INTO messages (ref_no, sender, message_text)
             VALUES (?, ?, ?)
-        ''', (ref_no, sender, msg_text))
+        '''), (ref_no, sender, msg_text))
         conn.commit()
 
         if sender == 'admin' and bot:
-            cursor.execute("SELECT telegram_id, first_name FROM members WHERE ref_no = ?", (ref_no,))
+            cursor.execute(q("SELECT telegram_id, first_name FROM members WHERE ref_no = ?"), (ref_no,))
             mem = cursor.fetchone()
             if mem and mem['telegram_id']:
                 try:
@@ -875,7 +916,7 @@ def get_messages():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM messages WHERE ref_no = ? ORDER BY id ASC", (ref_no,))
+        cursor.execute(q("SELECT * FROM messages WHERE ref_no = ? ORDER BY id ASC"), (ref_no,))
         messages = [dict(row) for row in cursor.fetchall()]
         conn.close()
 
@@ -931,10 +972,13 @@ def assign_sub_admin_role():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO admins (telegram_id, full_name, role_sector)
-            VALUES (?, ?, ?)
-        ''', (telegram_id, full_name, role_sector))
+        
+        upsert_query = (
+            "INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (%s, %s, %s) ON CONFLICT (telegram_id) DO UPDATE SET full_name = EXCLUDED.full_name, role_sector = EXCLUDED.role_sector"
+            if DATABASE_URL else
+            "INSERT OR REPLACE INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"
+        )
+        cursor.execute(upsert_query, (telegram_id, full_name, role_sector))
         conn.commit()
         conn.close()
 
@@ -959,7 +1003,7 @@ def create_announcement():
         cursor = conn.cursor()
         
         cursor.execute("UPDATE announcements SET status = 'disabled'")
-        cursor.execute("INSERT INTO announcements (title, content, status) VALUES (?, ?, 'active')", (title, content))
+        cursor.execute(q("INSERT INTO announcements (title, content, status) VALUES (?, ?, 'active')"), (title, content))
         conn.commit()
 
         if bot:
