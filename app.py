@@ -19,7 +19,6 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 # ---------------------------------------------------------
 # Configurations & Persistent Paths (Render Storage Safe)
 # ---------------------------------------------------------
-# Render ላይ Persistent Disk Attach ከተደረገ Path ው /var/data ነው
 DATA_DIR = os.environ.get("DATA_DIR", "/var/data" if os.path.exists("/var/data") else ".")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -32,7 +31,6 @@ SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 DEFAULT_ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin123").strip()
 
-# SQLite Database path inside Persistent Directory
 DB_NAME = os.path.join(DATA_DIR, "database.db")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -67,7 +65,6 @@ def get_db_connection():
     if DATABASE_URL:
         import psycopg2
         import psycopg2.extras
-        # Fix Render dialect name if needed (postgres:// -> postgresql://)
         pg_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         conn = psycopg2.connect(pg_url, cursor_factory=psycopg2.extras.DictCursor)
         return conn
@@ -173,7 +170,6 @@ def init_db():
 
 init_db()
 
-# Helper for SQL Parameter Substitution
 def q(query):
     if DATABASE_URL:
         return query.replace('?', '%s')
@@ -959,16 +955,12 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# Sub-Admin Role Assignment Endpoint (Fixed & Flexible)
-# ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
 @app.route('/assign-sub-admin', methods=['POST'])
 def assign_sub_admin_role():
     try:
         data = request.get_json(silent=True) or {}
         
-        # Frontend በልዩ ልዩ ስም ቢልካቸው እንኳን በአንድ ላይ ማስተናገድ
         telegram_id = sanitize_input(data.get('telegram_id') or data.get('admin_id') or data.get('user_id'))
         full_name = sanitize_input(data.get('full_name') or data.get('name'))
         role_sector = sanitize_input(data.get('role_sector') or data.get('role') or data.get('sector'))
@@ -997,7 +989,7 @@ def assign_sub_admin_role():
             if exists:
                 cursor.execute(q("UPDATE admins SET full_name = ?, role_sector = ? WHERE telegram_id = ?"), (full_name, role_sector, telegram_id))
             else:
-                cursor.execute(q("INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"), (telegram_id, full_name, role_sector))
+                cursor.execute(q("INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"), (full_name, role_sector, telegram_id))
 
         conn.commit()
         conn.close()
