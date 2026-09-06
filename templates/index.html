@@ -188,6 +188,12 @@
 
         <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 12px;"></h3>
 
+        <!-- 🔹 የተመደበው አድሚን/የቅርብ ኃላፊ መረጃ ማሳያ ካርድ -->
+        <div id="assignedAdminCard" class="bank-info hidden" style="border-left-color: var(--blue); background: #1e293b; margin-bottom: 12px;">
+            <strong style="color: var(--blue);"><i class="fas fa-user-shield"></i> <span id="txtAssignedAdminLbl">የእርስዎ ኃላፊ / Support Admin፦</span></strong>
+            <p id="assignedAdminDisplay" style="font-weight: bold; color: #f8fafc; margin-top: 4px;">-</p>
+        </div>
+
         <!-- ደብተሮች (የቁጠባና የብድር ታቦች) -->
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
@@ -353,7 +359,8 @@
             loanPaidBadge: "<i class='fas fa-check-circle'></i> የብድር ክፍያ፡ ሙሉ በሙሉ ተከፍሏል",
             loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)",
             seriesText: "ሴሪ፡ ",
-            passbookNoText: "ደብተር No: "
+            passbookNoText: "ደብተር No: ",
+            assignedAdminLbl: "የእርስዎ ኃላፊ / Support Admin፦"
         },
         en: {
             langBtn: "አማርኛ",
@@ -393,7 +400,8 @@
             loanPaidBadge: "<i class='fas fa-check-circle'></i> Loan Status: Fully Paid",
             loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> Loan Status: Unpaid (Has Balance)",
             seriesText: "Series: ",
-            passbookNoText: "Passbook No: "
+            passbookNoText: "Passbook No: ",
+            assignedAdminLbl: "Your Supervisor / Support Admin:"
         }
     };
 
@@ -438,6 +446,10 @@
         document.getElementById('lblTin').innerText = t.lblTin;
         document.getElementById('lblUserPhoto').innerText = t.lblUserPhoto;
         document.getElementById('submitBtn').innerText = t.btnRegSubmit;
+        
+        if (document.getElementById('txtAssignedAdminLbl')) {
+            document.getElementById('txtAssignedAdminLbl').innerText = t.assignedAdminLbl;
+        }
 
         if (globalMemberData) {
             renderMemberDetails(globalMemberData);
@@ -541,6 +553,17 @@
         document.getElementById('savingsRefNo').innerText = `${t.passbookNoText}${userRefNo}`;
         document.getElementById('savingsBalanceDisplay').innerText = `${Number(member.paid_amount || 0).toLocaleString()} ETB`;
 
+        // 🔹 ሮል አድሚን ከተጠቃሚው ጋር ተያይዞ ካለ በደብተሩ ላይ ማሳያ ሎጂክ
+        const assignedCard = document.getElementById('assignedAdminCard');
+        const assignedDisplay = document.getElementById('assignedAdminDisplay');
+        if (member.assigned_admin_name || member.assigned_admin_role) {
+            const roleInfo = member.assigned_admin_role ? ` (${member.assigned_admin_role})` : '';
+            assignedDisplay.innerText = `${member.assigned_admin_name || 'Admin'}${roleInfo}`;
+            assignedCard.classList.remove('hidden');
+        } else {
+            assignedCard.classList.add('hidden');
+        }
+
         if (member.approved_loan > 0 || member.loan_series_no) {
             document.getElementById('loanDetailsBox').classList.remove('hidden');
             document.getElementById('noLoanMsg').classList.add('hidden');
@@ -575,7 +598,8 @@
             const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
             const data = await res.json();
 
-            if (telegramId && data.admin_id && telegramId === data.admin_id.toString()) {
+            // 🔹 ሱፐር አድሚን ወይም ሮል አድሚን ከሆነ የአድሚን ዳሽቦርድ ቁልፍን ማሳየት
+            if (telegramId && (data.is_admin || data.is_role_admin || (data.admin_id && telegramId === data.admin_id.toString()))) {
                 document.getElementById('adminLinkBtn').classList.remove('hidden');
             }
 
