@@ -959,32 +959,61 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ---------------------------------------------------------
+# Sub-Admin Role Assignment Endpoint (Fixed & Flexible)
+# ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
+@app.route('/assign-sub-admin', methods=['POST'])
 def assign_sub_admin_role():
     try:
         data = request.get_json(silent=True) or {}
-        telegram_id = sanitize_input(data.get('telegram_id'))
-        full_name = sanitize_input(data.get('full_name'))
-        role_sector = sanitize_input(data.get('role_sector'))
+        
+        # Frontend በልዩ ልዩ ስም ቢልካቸው እንኳን በአንድ ላይ ማስተናገድ
+        telegram_id = sanitize_input(data.get('telegram_id') or data.get('admin_id') or data.get('user_id'))
+        full_name = sanitize_input(data.get('full_name') or data.get('name'))
+        role_sector = sanitize_input(data.get('role_sector') or data.get('role') or data.get('sector'))
 
         if not telegram_id or not full_name:
-            return jsonify({"status": "error", "message": "እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"}), 400
+            return jsonify({
+                "success": False,
+                "status": "error", 
+                "message": "እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"
+            }), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        upsert_query = (
-            "INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (%s, %s, %s) ON CONFLICT (telegram_id) DO UPDATE SET full_name = EXCLUDED.full_name, role_sector = EXCLUDED.role_sector"
-            if DATABASE_URL else
-            "INSERT OR REPLACE INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"
-        )
-        cursor.execute(upsert_query, (telegram_id, full_name, role_sector))
+        if DATABASE_URL:
+            upsert_query = """
+                INSERT INTO admins (telegram_id, full_name, role_sector) 
+                VALUES (%s, %s, %s) 
+                ON CONFLICT (telegram_id) 
+                DO UPDATE SET full_name = EXCLUDED.full_name, role_sector = EXCLUDED.role_sector
+            """
+            cursor.execute(upsert_query, (telegram_id, full_name, role_sector))
+        else:
+            cursor.execute(q("SELECT id FROM admins WHERE telegram_id = ?"), (telegram_id,))
+            exists = cursor.fetchone()
+            if exists:
+                cursor.execute(q("UPDATE admins SET full_name = ?, role_sector = ? WHERE telegram_id = ?"), (full_name, role_sector, telegram_id))
+            else:
+                cursor.execute(q("INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"), (telegram_id, full_name, role_sector))
+
         conn.commit()
         conn.close()
 
-        return jsonify({"status": "success", "message": f"{full_name} በስኬት ንኡስ አድሚን ሆነው ተሾመዋል!"}), 200
+        return jsonify({
+            "success": True,
+            "status": "success", 
+            "message": f"{full_name} በስኬት ንኡስ አድሚን ሆነው ተሾመዋል!"
+        }), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print(f"Error in assign_sub_admin_role: {e}")
+        return jsonify({
+            "success": False,
+            "status": "error", 
+            "message": f"ስህተት ተከሰተ: {str(e)}"
+        }), 500
 
 @app.route('/api/admin/announcement', methods=['POST'])
 def create_announcement():
