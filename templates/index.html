@@ -19,7 +19,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
         }
         
-        /* 🌐 Full Screen & Responsive Adjustments */
         html, body {
             width: 100%;
             min-height: 100vh;
@@ -38,11 +37,10 @@
 
         .container { 
             width: 100%;
-            max-width: 600px; /* ለትልልቅ ስክሪኖች ተስማሚ እንዲሆን */
+            max-width: 600px;
             margin: 0 auto; 
         }
         
-        /* 🌐 የቋንቋ መቆጣጠሪያ ማዕከል */
         .top-bar {
             display: flex;
             justify-content: flex-end;
@@ -73,7 +71,6 @@
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
         }
 
-        /* 📢 ከአድሚን የሚላክ ማስታወቂያ ሳጥን */
         .announcement-card {
             background: linear-gradient(135deg, #1e1b4b, #311b92);
             border: 2px solid var(--gold);
@@ -151,19 +148,16 @@
 
 <div class="container">
 
-    <!-- 🌐 የቋንቋ መቀየሪያ ቁልፍ -->
     <div class="top-bar">
         <button class="lang-switch-btn" onclick="toggleLanguage()">
             <i class="fas fa-globe"></i> <span id="langBtnText">English</span>
         </button>
     </div>
 
-    <!-- ወደ አድሚን ዳሽቦርድ መሄጃ -->
     <a id="adminLinkBtn" href="/admin" class="admin-nav-btn hidden">
         <i class="fas fa-user-shield"></i> <span id="txtAdminBtn">ወደ አድሚን ፓናል ሂድ (Admin Dashboard)</span>
     </a>
 
-    <!-- 📢 ከአድሚኑ የሚላክ ማስታወቂያ -->
     <div id="announcementBox" class="announcement-card">
         <div class="announcement-title">
             <i class="fas fa-bullhorn fa-lg"></i>
@@ -172,7 +166,6 @@
         <div id="announcementContent" class="announcement-text">ከአድሚን የተላከ አዲስ ማስታወቂያ የለም።</div>
     </div>
 
-    <!-- የምዝገባ ማጣሪያ ገጽ (Pending) -->
     <div id="pendingSection" class="card hidden">
         <div class="status-banner pending">
             <i class="fas fa-user-clock fa-3x"></i><br><br>
@@ -183,18 +176,15 @@
         </div>
     </div>
 
-    <!-- ዋናው የደብተር ገጽ (Passbook Section) -->
     <div id="passbookSection" class="hidden">
 
         <h3 id="memberNameDisplay" style="color: var(--gold); text-align: center; margin-bottom: 12px;"></h3>
 
-        <!-- 🔹 የተመደበው አድሚን/የቅርብ ኃላፊ መረጃ ማሳያ ካርድ -->
         <div id="assignedAdminCard" class="bank-info hidden" style="border-left-color: var(--blue); background: #1e293b; margin-bottom: 12px;">
             <strong style="color: var(--blue);"><i class="fas fa-user-shield"></i> <span id="txtAssignedAdminLbl">የእርስዎ ኃላፊ / Support Admin፦</span></strong>
             <p id="assignedAdminDisplay" style="font-weight: bold; color: #f8fafc; margin-top: 4px;">-</p>
         </div>
 
-        <!-- ደብተሮች (የቁጠባና የብድር ታቦች) -->
         <div class="tab-container">
             <button id="btnSavingsTab" class="tab-btn active-savings" onclick="switchTab('savings')">
                 <i class="fas fa-piggy-bank"></i> <span id="txtSavingsTab">የቁጠባ ደብተር</span>
@@ -314,9 +304,10 @@
 </div>
 
 <script>
-    let currentLang = 'am'; // Default Amharic
+    let currentLang = 'am';
     let tg = window.Telegram ? window.Telegram.WebApp : null;
     let telegramId = "";
+    let initData = "";
     let userRefNo = "";
     let globalMemberData = null;
 
@@ -405,6 +396,17 @@
         }
     };
 
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        if (tg.initData) {
+            initData = tg.initData;
+        }
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            telegramId = tg.initDataUnsafe.user.id.toString();
+        }
+    }
+
     function toggleLanguage() {
         currentLang = currentLang === 'am' ? 'en' : 'am';
         applyLanguage();
@@ -453,14 +455,6 @@
 
         if (globalMemberData) {
             renderMemberDetails(globalMemberData);
-        }
-    }
-
-    if (tg) {
-        tg.ready();
-        tg.expand();
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            telegramId = tg.initDataUnsafe.user.id.toString();
         }
     }
 
@@ -553,7 +547,6 @@
         document.getElementById('savingsRefNo').innerText = `${t.passbookNoText}${userRefNo}`;
         document.getElementById('savingsBalanceDisplay').innerText = `${Number(member.paid_amount || 0).toLocaleString()} ETB`;
 
-        // 🔹 ሮል አድሚን ከተጠቃሚው ጋር ተያይዞ ካለ በደብተሩ ላይ ማሳያ ሎጂክ
         const assignedCard = document.getElementById('assignedAdminCard');
         const assignedDisplay = document.getElementById('assignedAdminDisplay');
         if (member.assigned_admin_name || member.assigned_admin_role) {
@@ -595,10 +588,9 @@
 
     async function checkMemberStatus() {
         try {
-            const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
+            const res = await fetch(`/api/member/status?telegram_id=${telegramId}&init_data=${encodeURIComponent(initData)}`);
             const data = await res.json();
 
-            // 🔹 ሱፐር አድሚን ወይም ሮል አድሚን ከሆነ የአድሚን ዳሽቦርድ ቁልፍን ማሳየት
             if (telegramId && (data.is_admin || data.is_role_admin || (data.admin_id && telegramId === data.admin_id.toString()))) {
                 document.getElementById('adminLinkBtn').classList.remove('hidden');
             }
@@ -609,14 +601,30 @@
                 
                 if (data.member.status === 'pending') {
                     document.getElementById('pendingSection').classList.remove('hidden');
+                    document.getElementById('passbookSection').classList.add('hidden');
                 } else if (data.member.status === 'approved') {
+                    document.getElementById('pendingSection').classList.add('hidden');
                     document.getElementById('passbookSection').classList.remove('hidden');
                     renderMemberDetails(data.member);
                 }
+            } else {
+                document.getElementById('registerSection').classList.remove('hidden');
+                document.getElementById('pendingSection').classList.add('hidden');
+                document.getElementById('passbookSection').classList.add('hidden');
             }
         } catch (e) {
             console.error("Status check error:", e);
         }
+    }
+
+    // የፋይል መጠን ማረጋገጫ (Max 5MB)
+    function validateFile(file) {
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file && file.size > maxSize) {
+            alert(currentLang === 'am' ? "የፋይሉ መጠን ከ 5MB መብለጥ የለበትም!" : "File size should not exceed 5MB!");
+            return false;
+        }
+        return true;
     }
 
     async function handlePaymentSubmit(event, type) {
@@ -631,6 +639,8 @@
             return;
         }
 
+        if (!validateFile(receiptInput.files[0])) return;
+
         submitBtn.disabled = true;
         submitBtn.innerText = currentLang === 'am' ? "መረጃው በመላክ ላይ..." : "Sending data...";
 
@@ -639,6 +649,7 @@
         formData.append('amount', amount);
         formData.append('receipt', receiptInput.files[0]);
         formData.append('telegram_id', telegramId);
+        formData.append('init_data', initData);
         formData.append('ref_no', userRefNo);
 
         try {
@@ -648,7 +659,14 @@
             if (result.success) {
                 if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
                 alert(result.message || (currentLang === 'am' ? "ክፍያው በተሳካ ሁኔታ ተልኳል!" : "Payment sent successfully!"));
-                location.reload();
+                
+                // Form reset
+                document.getElementById(type === 'savings' ? 'savingsForm' : 'loanForm').reset();
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="fas fa-paper-plane"></i> <span>${type === 'savings' ? t.savingsSubmit : t.loanSubmit}</span>`;
+                
+                // Refresh data without full page reload
+                checkMemberStatus();
             } else {
                 alert(result.message || (currentLang === 'am' ? "ስህተት ተከሰቷል!" : "An error occurred!"));
                 submitBtn.disabled = false;
@@ -664,6 +682,15 @@
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
+
+        const nationalIdFile = document.getElementById('nationalId').files[0];
+        const userPhotoFile = document.getElementById('userPhoto').files[0];
+        const tradeLicFile = document.getElementById('tradeLicense').files[0];
+
+        if (!validateFile(nationalIdFile) || !validateFile(userPhotoFile) || (tradeLicFile && !validateFile(tradeLicFile))) {
+            return;
+        }
+
         btn.disabled = true;
         btn.innerText = currentLang === 'am' ? "መረጃው በመላክ ላይ..." : "Sending data...";
 
@@ -675,12 +702,11 @@
         formData.append('phone_number', document.getElementById('phoneNumber').value);
         formData.append('tin_number', document.getElementById('tinNumber').value);
         formData.append('telegram_id', telegramId);
+        formData.append('init_data', initData);
         
-        formData.append('national_id', document.getElementById('nationalId').files[0]);
-        formData.append('user_photo', document.getElementById('userPhoto').files[0]);
-        
-        const tradeLic = document.getElementById('tradeLicense').files[0];
-        if (tradeLic) formData.append('trade_license', tradeLic);
+        formData.append('national_id', nationalIdFile);
+        formData.append('user_photo', userPhotoFile);
+        if (tradeLicFile) formData.append('trade_license', tradeLicFile);
 
         try {
             const res = await fetch('/api/register', { method: 'POST', body: formData });
