@@ -19,7 +19,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
         }
         
-        /* 🌐 Full Screen & Responsive Adjustments */
         html, body {
             width: 100%;
             min-height: 100vh;
@@ -38,11 +37,10 @@
 
         .container { 
             width: 100%;
-            max-width: 600px; /* ለትልልቅ ስክሪኖች ተስማሚ እንዲሆን */
+            max-width: 600px; 
             margin: 0 auto; 
         }
         
-        /* 🌐 የቋንቋ መቆጣጠሪያ ማዕከል */
         .top-bar {
             display: flex;
             justify-content: flex-end;
@@ -73,7 +71,6 @@
             box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
         }
 
-        /* 📢 ከአድሚን የሚላክ ማስታወቂያ ሳጥን */
         .announcement-card {
             background: linear-gradient(135deg, #1e1b4b, #311b92);
             border: 2px solid var(--gold);
@@ -308,17 +305,20 @@
 </div>
 
 <script>
-    let currentLang = 'am'; // Default Amharic
+    let currentLang = 'am';
     let tg = window.Telegram ? window.Telegram.WebApp : null;
     let telegramId = "";
     let userRefNo = "";
     let globalMemberData = null;
+
+    const MAX_FILE_SIZE_MB = 5; // የፋይል ከፍተኛ መጠን (5MB)
 
     const translations = {
         am: {
             langBtn: "English",
             adminBtn: "ወደ አድሚን ፓናል ሂድ (Admin Dashboard)",
             announcementHeader: "የአድሚን ማስታወቂያ",
+            noAnnouncement: "ከአድሚን የተላከ አዲስ ማስታወቂያ የለም።",
             pendingTitle: "ምዝገባዎ በማጣራት ላይ ይገኛል!",
             pendingDesc: "አድሚኑ መረጃዎን አይቶ ሲያጸድቀው የቁጠባ እና የብድር ደብተሮችዎ ይከፈታሉ።",
             savingsTab: "የቁጠባ ደብተር",
@@ -353,12 +353,15 @@
             loanPaidBadge: "<i class='fas fa-check-circle'></i> የብድር ክፍያ፡ ሙሉ በሙሉ ተከፍሏል",
             loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> የብድር ክፍያ፡ አልተከፈለም (ዕዳ አለበት)",
             seriesText: "ሴሪ፡ ",
-            passbookNoText: "ደብተር No: "
+            passbookNoText: "ደብተር No: ",
+            fileTooLarge: "የመረጡት ፋይል መጠን ከ 5MB መብለጥ የለበትም!",
+            selectFileErr: "እባክዎን የደረሰኝ ፎቶ ያያይዙ!"
         },
         en: {
             langBtn: "አማርኛ",
             adminBtn: "Go to Admin Dashboard",
             announcementHeader: "Admin Announcement",
+            noAnnouncement: "No new announcements from admin.",
             pendingTitle: "Your registration is under review!",
             pendingDesc: "Your savings and loan passbooks will open once the admin reviews and approves your information.",
             savingsTab: "Savings Book",
@@ -393,7 +396,9 @@
             loanPaidBadge: "<i class='fas fa-check-circle'></i> Loan Status: Fully Paid",
             loanUnpaidBadge: "<i class='fas fa-exclamation-circle'></i> Loan Status: Unpaid (Has Balance)",
             seriesText: "Series: ",
-            passbookNoText: "Passbook No: "
+            passbookNoText: "Passbook No: ",
+            fileTooLarge: "File size must not exceed 5MB!",
+            selectFileErr: "Please attach a receipt photo!"
         }
     };
 
@@ -525,7 +530,7 @@
             }
 
             document.getElementById('announcementHeader').innerText = translations[currentLang].announcementHeader;
-            document.getElementById('announcementContent').innerText = currentLang === 'am' ? "ከአድሚን የተላከ አዲስ ማስታወቂያ የለም።" : "No new announcements from admin.";
+            document.getElementById('announcementContent').innerText = translations[currentLang].noAnnouncement;
 
         } catch (e) {
             console.error("Announcement load error:", e);
@@ -595,6 +600,13 @@
         }
     }
 
+    // የፋይል መጠን ማጣሪያ (File Size Validator Helper)
+    function validateFile(file) {
+        if (!file) return false;
+        const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+        return file.size <= maxBytes;
+    }
+
     async function handlePaymentSubmit(event, type) {
         event.preventDefault();
         const t = translations[currentLang];
@@ -602,8 +614,15 @@
         const amount = document.getElementById(type === 'savings' ? 'savingsAmount' : 'loanAmount').value;
         const receiptInput = document.getElementById(type === 'savings' ? 'savingsReceipt' : 'loanReceipt');
 
-        if (!receiptInput.files[0]) {
-            alert(currentLang === 'am' ? "እባክዎን የደረሰኝ ፎቶ ያያይዙ!" : "Please attach a receipt photo!");
+        const file = receiptInput.files[0];
+
+        if (!file) {
+            alert(t.selectFileErr);
+            return;
+        }
+
+        if (!validateFile(file)) {
+            alert(t.fileTooLarge);
             return;
         }
 
@@ -613,7 +632,7 @@
         const formData = new FormData();
         formData.append('type', type);
         formData.append('amount', amount);
-        formData.append('receipt', receiptInput.files[0]);
+        formData.append('receipt', file);
         formData.append('telegram_id', telegramId);
         formData.append('ref_no', userRefNo);
 
@@ -639,7 +658,21 @@
 
     document.getElementById('registrationForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const t = translations[currentLang];
         const btn = document.getElementById('submitBtn');
+
+        const nationalIdFile = document.getElementById('nationalId').files[0];
+        const userPhotoFile = document.getElementById('userPhoto').files[0];
+        const tradeLicFile = document.getElementById('tradeLicense').files[0];
+
+        // የፋይል መጠኖችን ማረጋገጥ
+        if ((nationalIdFile && !validateFile(nationalIdFile)) || 
+            (userPhotoFile && !validateFile(userPhotoFile)) || 
+            (tradeLicFile && !validateFile(tradeLicFile))) {
+            alert(t.fileTooLarge);
+            return;
+        }
+
         btn.disabled = true;
         btn.innerText = currentLang === 'am' ? "መረጃው በመላክ ላይ..." : "Sending data...";
 
@@ -652,11 +685,10 @@
         formData.append('tin_number', document.getElementById('tinNumber').value);
         formData.append('telegram_id', telegramId);
         
-        formData.append('national_id', document.getElementById('nationalId').files[0]);
-        formData.append('user_photo', document.getElementById('userPhoto').files[0]);
+        formData.append('national_id', nationalIdFile);
+        formData.append('user_photo', userPhotoFile);
         
-        const tradeLic = document.getElementById('tradeLicense').files[0];
-        if (tradeLic) formData.append('trade_license', tradeLic);
+        if (tradeLicFile) formData.append('trade_license', tradeLicFile);
 
         try {
             const res = await fetch('/api/register', { method: 'POST', body: formData });
