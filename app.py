@@ -4,9 +4,13 @@ import html
 import threading
 import time
 import random
+import urllib.parse
+import hmac
+import hashlib
+import json
 import telebot
 from telebot import types
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, abort, session
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
@@ -14,6 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "teramed_super_secret_key_2026")
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # ---------------------------------------------------------
@@ -22,7 +27,8 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 DATA_DIR = os.environ.get("DATA_DIR", "/var/data" if os.path.exists("/var/data") else ".")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
+# ደህንነታቸው ለተጠበቁ ፋይሎች ማስቀመጫ Protected Folder
+UPLOAD_FOLDER = os.path.join(DATA_DIR, 'protected_uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -53,10 +59,39 @@ def sanitize_input(text):
     return html.escape(str(text).strip())
 
 # ---------------------------------------------------------
-# Route for Serving Uploaded Files
+# Telegram WebApp InitData Validation Function
+# ---------------------------------------------------------
+def verify_telegram_data(init_data: str) -> dict | None:
+    """
+    ከ Telegram Mini App የመጣውን initData HMAC-SHA256 በመጠቀም ትክክለኛነቱን ያረጋግጣል።
+    """
+    if not init_data or not BOT_TOKEN:
+        return None
+    try:
+        parsed_data = dict(urllib.parse.parse_qsl(init_data))
+        if 'hash' not in parsed_data:
+            return None
+        
+        received_hash = parsed_data.pop('hash')
+        data_check_string = "\n".join([f"{k}={v}" for k, v in sorted(parsed_data.items())])
+        
+        secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+        
+        if calculated_hash == received_hash:
+            user_info = json.loads(parsed_data.get('user', '{}'))
+            return user_info
+        return None
+    except Exception as e:
+        print(f"Telegram Validation Error: {e}")
+        return None
+
+# ---------------------------------------------------------
+# Secure Static/Uploaded File Serving Route
 # ---------------------------------------------------------
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
+    # ጥበቃ የተደረገባቸውን የአባላት ደረሰኞችና መታወቂያዎች ከሕዝብ እይታ ይከላከላል
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ---------------------------------------------------------
@@ -82,7 +117,6 @@ def init_db():
     is_postgres = bool(DATABASE_URL)
     auto_inc = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
     timestamp_type = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-    bool_type = "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"
 
     cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS members (
@@ -103,6 +137,7 @@ def init_db():
             approved_loan REAL DEFAULT 0.0,
             paid_loan REAL DEFAULT 0.0,
             telegram_id TEXT,
+            budget_year TEXT DEFAULT '2018',
             created_at {timestamp_type}
         )
     ''')
@@ -116,17 +151,11 @@ def init_db():
             amount REAL,
             receipt_path TEXT,
             status TEXT DEFAULT 'pending',
-            is_archived {bool_type},
+            budget_year TEXT DEFAULT '2018',
             created_at {timestamp_type},
             FOREIGN KEY (member_id) REFERENCES members (id)
         )
     ''')
-
-    # Migration for existing database if is_archived doesn't exist
-    try:
-        cursor.execute(f"ALTER TABLE receipts ADD COLUMN is_archived {bool_type}")
-    except Exception:
-        pass
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
@@ -164,6 +193,11 @@ def init_db():
             created_at {timestamp_type}
         )
     ''')
+
+    # ነባሪ የበጀት ዓመት መመዝገቢያ
+    cursor.execute("SELECT value FROM settings WHERE key = 'current_budget_year'")
+    if not cursor.fetchone():
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('current_budget_year', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('current_budget_year', ?)", ('2018',))
 
     cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
     if not cursor.fetchone():
@@ -312,11 +346,41 @@ def admin_login():
         stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
 
         if password == stored_pass:
+            session['is_admin'] = True
             return jsonify({"success": True, "status": "success", "message": "በስኬት ገብተዋል!"}), 200
         else:
             return jsonify({"success": False, "status": "error", "message": "የተሳሳተ የይለፍ ቃል አስገብተዋል!"}), 401
     except Exception as e:
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
+
+# ---------------------------------------------------------
+# Budget Year Management Endpoints (የበጀት ዓመት መቆጣጠሪያ)
+# ---------------------------------------------------------
+@app.route('/api/admin/budget-year', methods=['GET', 'POST'])
+def handle_budget_year():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        new_year = str(data.get('budget_year', '2018')).strip()
+
+        upsert_query = (
+            "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+            if DATABASE_URL else
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"
+        )
+        cursor.execute(upsert_query, ('current_budget_year', new_year))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "budget_year": new_year, "message": f"የበጀት ዓመቱ ወደ {new_year} ተቀይሯል!"}), 200
+
+    else:
+        cursor.execute(q("SELECT value FROM settings WHERE key = 'current_budget_year'"))
+        row = cursor.fetchone()
+        conn.close()
+        current_year = row['value'] if row else '2018'
+        return jsonify({"success": True, "budget_year": current_year})
 
 # ---------------------------------------------------------
 # Direct OTP Sending API
@@ -455,6 +519,14 @@ def admin_page():
 @app.route('/api/member/status', methods=['GET'])
 def get_member_status():
     telegram_id = request.args.get('telegram_id')
+    init_data = request.args.get('init_data')
+
+    # Telegram InitData ካለ ደህንነቱን አረጋግጥ
+    if init_data:
+        tg_user = verify_telegram_data(init_data)
+        if tg_user:
+            telegram_id = str(tg_user.get('id'))
+
     if not telegram_id:
         return jsonify({"exists": False, "admin_id": SUPER_ADMIN_ID})
 
@@ -518,9 +590,22 @@ def submit_payment():
         pay_type = req.get('type')
         amount = float(req.get('amount', 0))
         ref_no = req.get('ref_no')
+        init_data = req.get('init_data')
 
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        # የቴሌግራም initData ካለ ደህንነቱን አረጋግጥ
+        if init_data:
+            tg_user = verify_telegram_data(init_data)
+            if not tg_user:
+                conn.close()
+                return jsonify({"success": False, "message": "ህገወጥ ወይም ያልተረጋገጠ የቴሌግራም ጥያቄ ነው!"}), 401
+
+        cursor.execute(q("SELECT value FROM settings WHERE key = 'current_budget_year'"))
+        b_year_row = cursor.fetchone()
+        current_b_year = b_year_row['value'] if b_year_row else '2018'
+
         cursor.execute(q("SELECT * FROM members WHERE ref_no = ?"), (ref_no,))
         member = cursor.fetchone()
 
@@ -542,9 +627,9 @@ def submit_payment():
         receipt_file.save(save_path)
 
         cursor.execute(q('''
-            INSERT INTO receipts (member_id, ref_no, pay_type, amount, receipt_path, status, is_archived)
-            VALUES (?, ?, ?, ?, ?, 'pending', FALSE)
-        '''), (member['id'], ref_no, pay_type, amount, save_path))
+            INSERT INTO receipts (member_id, ref_no, pay_type, amount, receipt_path, status, budget_year)
+            VALUES (?, ?, ?, ?, ?, 'pending', ?)
+        '''), (member['id'], ref_no, pay_type, amount, save_path, current_b_year))
         
         receipt_id = cursor.lastrowid if not DATABASE_URL else None
         if DATABASE_URL:
@@ -563,7 +648,8 @@ def submit_payment():
                 f"🆔 <b>የቁጠባ No:</b> {member['ref_no']}\n"
                 f"🔢 <b>የብድር ሴሪ:</b> {member['loan_series_no'] or 'የለውም'}\n"
                 f"💵 <b>የተከፈለው መጠን:</b> {amount} ETB\n"
-                f"📌 <b>ዓይነት:</b> {type_str}"
+                f"📌 <b>ዓይነት:</b> {type_str}\n"
+                f"📅 <b>የበጀት ዓመት:</b> {current_b_year}"
             )
             
             markup = types.InlineKeyboardMarkup()
@@ -588,12 +674,23 @@ def register_member():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        init_data = req.get('init_data')
         telegram_id = sanitize_input(req.get('telegram_id'))
+
+        if init_data:
+            tg_user = verify_telegram_data(init_data)
+            if tg_user:
+                telegram_id = str(tg_user.get('id'))
+
         if telegram_id:
             cursor.execute(q("SELECT id FROM members WHERE telegram_id = ?"), (telegram_id,))
             if cursor.fetchone():
                 conn.close()
                 return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
+
+        cursor.execute(q("SELECT value FROM settings WHERE key = 'current_budget_year'"))
+        b_year_row = cursor.fetchone()
+        current_b_year = b_year_row['value'] if b_year_row else '2018'
 
         cursor.execute("SELECT COUNT(*) FROM members")
         count = cursor.fetchone()[0]
@@ -626,13 +723,13 @@ def register_member():
             INSERT INTO members (
                 ref_no, first_name, father_name, grand_name, country, 
                 phone_number, tin_number, national_id_path, trade_license_path, 
-                photo_path, telegram_id, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                photo_path, telegram_id, status, budget_year
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
         '''), (
             ref_no, sanitize_input(req.get('first_name')), sanitize_input(req.get('father_name')),
             sanitize_input(req.get('grand_name')), sanitize_input(req.get('country')),
             sanitize_input(req.get('phone_number')), sanitize_input(req.get('tin_number')),
-            nat_id_path, trade_lic_path, photo_path, telegram_id
+            nat_id_path, trade_lic_path, photo_path, telegram_id, current_b_year
         ))
 
         new_id = cursor.lastrowid if not DATABASE_URL else None
@@ -648,7 +745,8 @@ def register_member():
                 f"🆕 <b>አዲስ የአባልነት ምዝገባ!</b>\n\n"
                 f"<b>የቁጠባ ደብተር No:</b> {ref_no}\n"
                 f"<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n"
-                f"<b>ስልክ:</b> {req.get('phone_number')}"
+                f"<b>ስልክ:</b> {req.get('phone_number')}\n"
+                f"<b>የበጀት ዓመት:</b> {current_b_year}"
             )
             markup = types.InlineKeyboardMarkup()
             markup.add(
@@ -663,9 +761,16 @@ def register_member():
 
 @app.route('/api/admin/members', methods=['GET'])
 def get_admin_members():
+    budget_year = request.args.get('budget_year')
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members ORDER BY id DESC")
+
+    if budget_year:
+        cursor.execute(q("SELECT * FROM members WHERE budget_year = ? ORDER BY id DESC"), (budget_year,))
+    else:
+        cursor.execute("SELECT * FROM members ORDER BY id DESC")
+
     members = []
     for row in cursor.fetchall():
         m = dict(row)
@@ -674,12 +779,13 @@ def get_admin_members():
         m['photo_path'] = format_file_url(m.get('photo_path'))
         members.append(m)
     conn.close()
-    return jsonify({"status": "success", "members": members}), 200
+    return jsonify({"status": "success", "members": members, "total_members": len(members)}), 200
 
 @app.route('/api/admin/receipts', methods=['GET'])
 def get_admin_receipts():
     pay_type = request.args.get('type')
     date_str = request.args.get('date')
+    budget_year = request.args.get('budget_year')
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -688,7 +794,7 @@ def get_admin_receipts():
         SELECT r.*, m.first_name, m.father_name, m.phone_number 
         FROM receipts r
         JOIN members m ON r.member_id = m.id
-        WHERE (r.is_archived IS FALSE OR r.is_archived IS NULL OR r.is_archived = 0)
+        WHERE 1=1
     '''
     params = []
 
@@ -699,6 +805,10 @@ def get_admin_receipts():
     if date_str:
         query += " AND DATE(r.created_at) = DATE(" + ("%s" if DATABASE_URL else "?") + ")"
         params.append(date_str)
+
+    if budget_year:
+        query += " AND r.budget_year = " + ("%s" if DATABASE_URL else "?")
+        params.append(budget_year)
 
     query += " ORDER BY r.id DESC"
 
@@ -757,88 +867,37 @@ def process_receipt_action():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# NEW FEATURE: Void / Delete Receipt (በስህተት የገባ ደረሰኝ መሰረዣ)
-# ---------------------------------------------------------
-@app.route('/api/admin/void-receipt/<int:receipt_id>', methods=['POST'])
-def void_receipt(receipt_id):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(q("SELECT * FROM receipts WHERE id = ?"), (receipt_id,))
-        receipt = cursor.fetchone()
-
-        if not receipt:
-            conn.close()
-            return jsonify({"status": "error", "message": "ደረሰኙ አልተገኘም!"}), 404
-
-        # ቀደም ብሎ Approved ከሆነ የገባውን ሂሳብ ከአባሉ ደብተር ላይ መቀነስ
-        if receipt['status'] == 'approved':
-            if receipt['pay_type'] == 'savings':
-                cursor.execute(q("UPDATE members SET paid_amount = CASE WHEN paid_amount - ? < 0 THEN 0 ELSE paid_amount - ? END WHERE id = ?"), 
-                               (receipt['amount'], receipt['amount'], receipt['member_id']))
-            elif receipt['pay_type'] == 'loan':
-                cursor.execute(q("UPDATE members SET paid_loan = CASE WHEN paid_loan - ? < 0 THEN 0 ELSE paid_loan - ? END WHERE id = ?"), 
-                               (receipt['amount'], receipt['amount'], receipt['member_id']))
-
-        cursor.execute(q("UPDATE receipts SET status = 'rejected' WHERE id = ?"), (receipt_id,))
-        conn.commit()
-        conn.close()
-
-        return jsonify({"status": "success", "message": "ደረሰኙ በስኬት ተሰርዟል! ገቢውም ተቀንሷል።"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-# ---------------------------------------------------------
-# NEW FEATURE: Fiscal Year Reset (የበጀት ዓመት ገቢ ማስተካከያ)
-# ---------------------------------------------------------
-@app.route('/api/admin/reset-fiscal-year', methods=['POST'])
-def reset_fiscal_year():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # ሁሉንም የነበሩ የጸደቁ ደረሰኞች Archive ማድረግ (ወደ 0 Reset እንዲል)
-        if DATABASE_URL:
-            cursor.execute("UPDATE receipts SET is_archived = TRUE WHERE status = 'approved'")
-        else:
-            cursor.execute("UPDATE receipts SET is_archived = 1 WHERE status = 'approved'")
-
-        conn.commit()
-        conn.close()
-
-        return jsonify({"status": "success", "message": "የበጀት ዓመቱ ገቢ በስኬት Reset ተደርጓል!"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-# ---------------------------------------------------------
-# Analytics Endpoint (በጀት ዓመቱንና የተሰረዙ ደረሰኞችን ግምት ውስጥ ያገባ)
-# ---------------------------------------------------------
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
+    budget_year = request.args.get('budget_year')
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM members")
-    total_members = cursor.fetchone()[0]
+    if budget_year:
+        cursor.execute(q("SELECT COUNT(*) FROM members WHERE budget_year = ?"), (budget_year,))
+        total_members = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
-    pending_members = cursor.fetchone()[0]
+        cursor.execute(q("SELECT COUNT(*) FROM members WHERE status = 'pending' AND budget_year = ?"), (budget_year,))
+        pending_members = cursor.fetchone()[0]
+    else:
+        cursor.execute("SELECT COUNT(*) FROM members")
+        total_members = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
+        pending_members = cursor.fetchone()[0]
 
     date_fn = "CURRENT_DATE" if DATABASE_URL else "DATE('now')"
-    archive_cond = "(is_archived IS FALSE OR is_archived IS NULL OR is_archived = 0)"
 
-    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) = {date_fn}")
+    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) = {date_fn}")
     daily_income = cursor.fetchone()[0]
 
-    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND created_at >= CURRENT_DATE - INTERVAL '7 days'" if DATABASE_URL else f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) >= DATE('now', '-7 days')")
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= CURRENT_DATE - INTERVAL '7 days'" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', '-7 days')")
     weekly_income = cursor.fetchone()[0]
 
-    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND created_at >= DATE_TRUNC('month', CURRENT_DATE)" if DATABASE_URL else f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) >= DATE('now', 'start of month')")
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('month', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of month')")
     monthly_income = cursor.fetchone()[0]
 
-    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND created_at >= DATE_TRUNC('year', CURRENT_DATE)" if DATABASE_URL else f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) >= DATE('now', 'start of year')")
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('year', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of year')")
     yearly_income = cursor.fetchone()[0]
 
     conn.close()
@@ -1061,7 +1120,7 @@ def assign_sub_admin_role():
             if exists:
                 cursor.execute(q("UPDATE admins SET full_name = ?, role_sector = ? WHERE telegram_id = ?"), (full_name, role_sector, telegram_id))
             else:
-                cursor.execute(q("INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"), (full_name, role_sector, telegram_id))
+                cursor.execute(q("INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"), (telegram_id, full_name, role_sector))
 
         conn.commit()
         conn.close()
