@@ -226,7 +226,6 @@
             text-decoration: none;
             font-size: 0.8rem;
             margin-right: 5px;
-            cursor: pointer;
         }
 
         .doc-link:hover {
@@ -382,19 +381,6 @@
             font-weight: bold;
             cursor: pointer;
         }
-
-        /* Image Viewer Modal Styles */
-        .img-modal-content {
-            max-width: 700px;
-            text-align: center;
-        }
-        .img-modal-content img {
-            max-width: 100%;
-            max-height: 70vh;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            margin-top: 10px;
-        }
     </style>
 </head>
 <body>
@@ -403,6 +389,7 @@
     <div class="header">
         <h2 id="pageTitle"><i class="fas fa-users-cog"></i> ተራመድ ሳኮ - አድሚን ማኔጅመንት</h2>
         <div class="header-actions">
+            <!-- Language Switcher Option -->
             <select id="langSwitcher" class="lang-select" onchange="changeLanguage(this.value)">
                 <option value="am">🇪🇹 አማርኛ</option>
                 <option value="en">🇬🇧 English</option>
@@ -537,6 +524,7 @@
                 </select>
             </div>
 
+            <!-- Single Member Identifier Input Field -->
             <div class="input-group hidden" id="singleMemberInputGroup">
                 <label id="lblTargetMemberIdentifier" style="color: var(--gold);">የአባሉ መለያ (የመዝገብ/ቁጠባ No፣ ስልክ፣ ስም ወይም የብድር ሴሪ No)</label>
                 <input type="text" id="targetMemberIdentifier" placeholder="ምሳሌ፦ 0012 ወይም 0916... ወይም አበበ ወይም SR-102">
@@ -782,18 +770,6 @@
     </div>
 </div>
 
-<!-- Modal for Viewing Documents & Screenshots -->
-<div id="imgViewModal" class="modal hidden">
-    <div class="modal-content img-modal-content">
-        <h3 id="imgModalTitle"><i class="fas fa-image"></i> የሰነድ እይታ</h3>
-        <img id="imgModalPreview" src="" alt="Document Preview">
-        <div class="modal-btns" style="justify-content: center; margin-top: 15px;">
-            <a id="imgModalDownloadLink" href="" target="_blank" class="btn-action btn-edit" style="text-decoration: none; padding: 8px 15px;"><i class="fas fa-external-link-alt"></i> በሙሉ ገጽ ክፈት</a>
-            <button class="btn-action btn-delete" style="padding: 8px 15px;" onclick="closeImgModal()">ዝጋ</button>
-        </div>
-    </div>
-</div>
-
 <script>
     let currentLang = 'am';
     let allMembersData = [];
@@ -1021,6 +997,7 @@
         checkAdminAuth();
     });
 
+    // Toggle Eye Icon Password Show/Hide
     function togglePasswordVisibility(inputId, icon) {
         const input = document.getElementById(inputId);
         if (input.type === 'password') {
@@ -1034,6 +1011,7 @@
         }
     }
 
+    // Admin Auth Check
     function checkAdminAuth() {
         const loggedIn = sessionStorage.getItem('adminLoggedIn');
         if (loggedIn === 'true') {
@@ -1079,6 +1057,7 @@
         location.reload();
     }
 
+    // Password Change Operations
     function openChangePasswordModal() {
         document.getElementById('oldPasswordInput').value = '';
         document.getElementById('newPasswordInput').value = '';
@@ -1121,6 +1100,7 @@
         } catch (e) { alert(currentLang === 'am' ? "ፓስወርድ ሲቀየር ስህተት ተከሰቷል!" : "Error updating password!"); }
     }
 
+    // Forgot Password & Telegram OTP Operations
     function openForgotPasswordModal() {
         document.getElementById('loginModal').classList.add('hidden');
         document.getElementById('otpTelegramIdInput').value = '';
@@ -1195,18 +1175,7 @@
             .replace(/'/g, "&#039;");
     }
 
-    // Modal Image Preview Functionality
-    function viewDocumentImage(url, title) {
-        document.getElementById('imgModalTitle').innerText = title;
-        document.getElementById('imgModalPreview').src = url;
-        document.getElementById('imgModalDownloadLink').href = url;
-        document.getElementById('imgViewModal').classList.remove('hidden');
-    }
-
-    function closeImgModal() {
-        document.getElementById('imgViewModal').classList.add('hidden');
-    }
-
+    // 1. Analytics Load
     async function loadAnalytics() {
         const curr = translations[currentLang].currency;
         try {
@@ -1224,6 +1193,7 @@
         } catch (e) { console.error("Error loading analytics:", e); }
     }
 
+    // 2. Bank Account Management
     async function loadBankAccount() {
         try {
             const res = await fetch('/api/settings/bank');
@@ -1243,10 +1213,11 @@
                 body: JSON.stringify({ bank_account: bankInfo })
             });
             const data = await res.json();
-            alert(data.message || (currentLang === 'am' ? "የባንክ መረጃው በስኬት ተቀምጧል!" : "Bank account information updated successfully!"));
+            alert(data.message || (currentLang === 'am' ? "የባንክ መረጃው በስኬት ተቀምጧል! ወደ index.html ተዘምኗል።" : "Bank account information updated successfully!"));
         } catch (e) { alert("ስህተት ተከሰቷል!"); }
     }
 
+    // 3. Tab Navigation Controller
     function switchTab(tab) {
         currentTab = tab;
         const t = translations[currentLang];
@@ -1286,6 +1257,7 @@
         }
     }
 
+    // 4. Load & Render Members Table
     async function loadMembers() {
         try {
             const res = await fetch('/api/admin/members');
@@ -1295,6 +1267,23 @@
                 renderTable(allMembersData);
             }
         } catch (e) { console.error("Error loading members:", e); }
+    }
+
+    function filterMembers() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        if (!query) {
+            renderTable(allMembersData);
+            return;
+        }
+        const filtered = allMembersData.filter(m => {
+            const fullName = `${m.first_name || ''} ${m.father_name || ''}`.toLowerCase();
+            const phone = (m.phone_number || '').toLowerCase();
+            const refNo = (m.ref_no || '').toLowerCase();
+            const seriesNo = (m.loan_series_no || '').toLowerCase();
+
+            return fullName.includes(query) || phone.includes(query) || refNo.includes(query) || seriesNo.includes(query);
+        });
+        renderTable(filtered);
     }
 
     function renderTable(members) {
@@ -1311,9 +1300,9 @@
             const tr = document.createElement('tr');
             
             let docsHtml = '';
-            if (m.national_id_path) docsHtml += `<span class="doc-link" onclick="viewDocumentImage('${escapeHtml(m.national_id_path)}', 'መታወቂያ (National ID)')">${currentLang==='am'?'🆔 መታወቂያ':'🆔 ID'}</span> `;
-            if (m.photo_path) docsHtml += `<span class="doc-link" onclick="viewDocumentImage('${escapeHtml(m.photo_path)}', 'ፎቶ (Photo)')">${currentLang==='am'?'🖼️ ፎቶ':'🖼️ Photo'}</span> `;
-            if (m.trade_license_path) docsHtml += `<span class="doc-link" onclick="viewDocumentImage('${escapeHtml(m.trade_license_path)}', 'ንግድ ፈቃድ (Trade License)')">${currentLang==='am'?'📜 ፈቃድ':'📜 License'}</span>`;
+            if (m.national_id_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.national_id_path)}" target="_blank">${currentLang==='am'?'🆔 መታወቂያ':'🆔 ID'}</a> `;
+            if (m.photo_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.photo_path)}" target="_blank">${currentLang==='am'?'🖼️ ፎቶ':'🖼️ Photo'}</a> `;
+            if (m.trade_license_path) docsHtml += `<a class="doc-link" href="${escapeHtml(m.trade_license_path)}" target="_blank">${currentLang==='am'?'📜 ፈቃድ':'📜 License'}</a>`;
 
             let badgeClass = m.status === 'approved' ? 'badge-approved' : (m.status === 'rejected' ? 'badge-rejected' : 'badge-pending');
             const dateStr = m.created_at ? m.created_at.split(' ')[0] : '-';
@@ -1356,6 +1345,97 @@
         });
     }
 
+    async function updateStatus(memberId, status) {
+        try {
+            const res = await fetch('/api/admin/member/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: memberId, status: status })
+            });
+            const data = await res.json();
+            alert(data.message || "Status updated!");
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("Error updating status!"); }
+    }
+
+    // Modal Opening Helpers
+    function openModal(id, seriesNo, paid, approved, paidLoan) {
+        document.getElementById('editMemberId').value = id;
+        document.getElementById('editLoanSeriesNo').value = seriesNo || '';
+        document.getElementById('editPaidAmount').value = paid || 0;
+        document.getElementById('editApprovedLoan').value = approved || 0;
+        document.getElementById('editPaidLoan').value = paidLoan || 0;
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    async function saveFinancials() {
+        const id = document.getElementById('editMemberId').value;
+        const seriesNo = document.getElementById('editLoanSeriesNo').value.trim();
+        const paid = parseFloat(document.getElementById('editPaidAmount').value) || 0;
+        const approved = parseFloat(document.getElementById('editApprovedLoan').value) || 0;
+        const paidLoan = parseFloat(document.getElementById('editPaidLoan').value) || 0;
+
+        try {
+            const res = await fetch('/api/admin/member/update_financials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    member_id: id,
+                    loan_series_no: seriesNo,
+                    paid_amount: paid,
+                    approved_loan: approved,
+                    paid_loan: paidLoan
+                })
+            });
+            const data = await res.json();
+            alert(data.message || (currentLang === 'am' ? "መረጃው ተስተካክሏል!" : "Financials updated successfully!"));
+            closeModal();
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("Error saving financials!"); }
+    }
+
+    function openDeductModal(id, name) {
+        document.getElementById('deductMemberId').value = id;
+        document.getElementById('deductMemberName').innerText = `${currentLang==='am'?'አባል፦':'Member:'} ${name}`;
+        document.getElementById('deductSavingsInput').value = '';
+        document.getElementById('deductLoanInput').value = '';
+        document.getElementById('deductModal').classList.remove('hidden');
+    }
+
+    function closeDeductModal() {
+        document.getElementById('deductModal').classList.add('hidden');
+    }
+
+    async function saveDeduction() {
+        const id = document.getElementById('deductMemberId').value;
+        const deductSavings = parseFloat(document.getElementById('deductSavingsInput').value) || 0;
+        const deductLoan = parseFloat(document.getElementById('deductLoanInput').value) || 0;
+
+        try {
+            const res = await fetch('/api/admin/member/deduct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    member_id: id,
+                    deduct_savings: deductSavings,
+                    deduct_loan: deductLoan
+                })
+            });
+            const data = await res.json();
+            alert(data.message || (currentLang === 'am' ? "ሂሳቡ ተስተካክሏል!" : "Deduction applied successfully!"));
+            closeDeductModal();
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("Error applying deduction!"); }
+    }
+
+    // Member Printable Statement Ledger
     function printMemberLedger(member) {
         const printWindow = window.open('', '', 'height=600,width=800');
         const curr = translations[currentLang].currency;
@@ -1406,6 +1486,7 @@
         printWindow.print();
     }
 
+    // Export Data to CSV (Excel)
     function exportMembersToCSV() {
         if (!allMembersData || allMembersData.length === 0) {
             alert(currentLang === 'am' ? "የሚወርድ መረጃ አልተገኘም!" : "No data available to export!");
@@ -1430,6 +1511,7 @@
         document.body.removeChild(link);
     }
 
+    // 5. Direct Individual Message Logic
     function openDirectMsgModal(refNo, name, seriesNo) {
         document.getElementById('directMsgRefNo').value = refNo;
         document.getElementById('directMsgMemberInfo').innerText = currentLang === 'am'
@@ -1465,7 +1547,7 @@
             });
             const data = await res.json();
             if (data.status === "success") {
-                alert(data.message || (currentLang === 'am' ? "መልእክቱ ለአባሉ ገጽ በስኬት ተላክዋል!" : "Message sent to member's dashboard!"));
+                alert(data.message || (currentLang === 'am' ? "መልእክቱ ለአባሉ ገጽ (Index) በስኬት ተላክዋል!" : "Message sent to member's dashboard!"));
                 closeDirectMsgModal();
             } else {
                 alert(data.message || "ስህተት ተከሰቷል!");
@@ -1473,6 +1555,7 @@
         } catch (e) { alert("Error sending message!"); }
     }
 
+    // 6. Broadcast Announcement Logic
     function fillTemplate() {
         const target = document.getElementById('broadcastTarget').value;
         const titleInput = document.getElementById('broadcastTitle');
@@ -1522,7 +1605,7 @@
 
         const confirmMsg = target === 'single' 
             ? (currentLang === 'am' ? `እርግጠኛ ነዎት ይህንን መልእክት ለተጠቀሰው አባል መላክ ይፈልጋሉ?` : `Are you sure you want to send this message to the specified member?`)
-            : (currentLang === 'am' ? `እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት ገጽ በጅምላ መላክ ይፈልጋሉ?` : `Are you sure you want to broadcast this announcement to all targeted member dashboards?`);
+            : (currentLang === 'am' ? `እርግጠኛ ነዎት ይህንን ማስታወቂያ ለተመረጡት አባላት ገጽ (Index) በጅምላ መላክ ይፈልጋሉ?` : `Are you sure you want to broadcast this announcement to all targeted member dashboards?`);
 
         if (!confirm(confirmMsg)) return;
 
@@ -1549,6 +1632,7 @@
         } catch (e) { alert("Error sending broadcast!"); }
     }
 
+    // 7. Delete Member Function
     async function deleteMember(id, name) {
         const warning = currentLang === 'am'
             ? `⚠️ ማስጠንቀቂያ፦ አባል '${name}' ጨርሶ ከአሰራሩ ይሰረዛል! ድጋሚ መመዝገብ ይችላል። እርግጠኛ ነዎት?`
@@ -1568,6 +1652,7 @@
         } catch (e) { alert("Error deleting member!"); }
     }
 
+    // 8. Receipts Management
     async function loadReceipts() {
         const dateVal = document.getElementById('receiptDateFilter').value;
         const url = `/api/admin/receipts?type=${currentTab}&date=${dateVal}`;
@@ -1592,7 +1677,7 @@
                         <td><b>${escapeHtml(fullName)}</b></td>
                         <td>${escapeHtml(r.phone_number || '-')}</td>
                         <td style="color: var(--success); font-weight: bold;">${(r.amount || 0).toLocaleString()} ${curr}</td>
-                        <td><span class="doc-link" onclick="viewDocumentImage('${escapeHtml(r.receipt_path)}', 'የደረሰኝ ፎቶ (Receipt Screenshot)')"><i class="fas fa-image"></i> ${currentLang==='am'?'ሪሲት ተመልከት':'View Receipt'}</span></td>
+                        <td><a class="doc-link" href="${escapeHtml(r.receipt_path)}" target="_blank"><i class="fas fa-image"></i> ${currentLang==='am'?'ሪሲት ተመልከት':'View Receipt'}</a></td>
                         <td><span class="badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
                         <td class="action-cell">-</td>
                     `;
@@ -1642,6 +1727,7 @@
         } catch (e) { alert("Error updating receipt!"); }
     }
 
+    // 9. Sub-Admin Role Operations
     async function loadAdminRoles() {
         try {
             const res = await fetch('/api/admin/roles/list');
@@ -1714,106 +1800,9 @@
                 body: JSON.stringify({ role_id: roleId })
             });
             const data = await res.json();
-            alert(data.message || "Role revoked!");
+            alert(data.message || (currentLang === 'am' ? "ሹመቱ ተሰርዟል!" : "Sub-admin revoked successfully!"));
             loadAdminRoles();
-        } catch (e) { alert("Error revoking role!"); }
-    }
-
-    function openDeductModal(id, name) {
-        document.getElementById('deductMemberId').value = id;
-        document.getElementById('deductMemberName').innerText = `${currentLang==='am'?'አባል፦':'Member:'} ${name}`;
-        document.getElementById('deductSavingsInput').value = '';
-        document.getElementById('deductLoanInput').value = '';
-        document.getElementById('deductModal').classList.remove('hidden');
-    }
-
-    function closeDeductModal() {
-        document.getElementById('deductModal').classList.add('hidden');
-    }
-
-    async function saveDeduction() {
-        const id = document.getElementById('deductMemberId').value;
-        const deductSavings = document.getElementById('deductSavingsInput').value || 0;
-        const deductLoan = document.getElementById('deductLoanInput').value || 0;
-
-        try {
-            const res = await fetch('/api/admin/update_financials', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
-            });
-            const data = await res.json();
-            alert(data.message || "Ledger updated!");
-            closeDeductModal();
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("Error saving deduction!"); }
-    }
-
-    function openModal(id, seriesNo, paid, approved, paidLoan) {
-        document.getElementById('editMemberId').value = id;
-        document.getElementById('editLoanSeriesNo').value = seriesNo;
-        document.getElementById('editPaidAmount').value = paid;
-        document.getElementById('editApprovedLoan').value = approved;
-        document.getElementById('editPaidLoan').value = paidLoan;
-        document.getElementById('editModal').classList.remove('hidden');
-    }
-
-    function closeModal() {
-        document.getElementById('editModal').classList.add('hidden');
-    }
-
-    async function saveFinancials() {
-        const id = document.getElementById('editMemberId').value;
-        const seriesNo = document.getElementById('editLoanSeriesNo').value;
-        const paid_amount = document.getElementById('editPaidAmount').value;
-        const approved_loan = document.getElementById('editApprovedLoan').value;
-        const paid_loan = document.getElementById('editPaidLoan').value;
-
-        try {
-            const res = await fetch('/api/admin/update_financials', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    member_id: id, loan_series_no: seriesNo,
-                    paid_amount: paid_amount, approved_loan: approved_loan, paid_loan: paid_loan
-                })
-            });
-            const data = await res.json();
-            alert(data.message || "Ledger updated!");
-            closeModal();
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("Error saving financials!"); }
-    }
-
-    async function updateStatus(id, status) {
-        if (!confirm(currentLang === 'am' ? `እርግጠኛ ነዎት የአባሉን ሁኔታ መቀየር ይፈልጋሉ?` : `Are you sure you want to update member status?`)) return;
-        try {
-            const res = await fetch('/api/admin/update_status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: id, status: status })
-            });
-            const data = await res.json();
-            alert(data.message || "Status updated!");
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("Error updating status!"); }
-    }
-
-    function filterMembers() {
-        const q = document.getElementById('searchInput').value.toLowerCase().trim();
-        const filtered = allMembersData.filter(m => {
-            const firstName = (m.first_name || '').toLowerCase();
-            const fatherName = (m.father_name || '').toLowerCase();
-            const phone = (m.phone_number || '').toLowerCase();
-            const refNo = (m.ref_no || '').toLowerCase();
-            const seriesNo = (m.loan_series_no || '').toLowerCase();
-
-            return firstName.includes(q) || fatherName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q);
-        });
-        renderTable(filtered);
+        } catch (e) { alert("Error revoking sub-admin!"); }
     }
 </script>
 </body>
