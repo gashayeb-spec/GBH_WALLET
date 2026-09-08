@@ -19,7 +19,6 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 # ---------------------------------------------------------
 # Configurations & Persistent Paths (Render Storage Safe)
 # ---------------------------------------------------------
-# Render ላይ Persistent Disk Attach ከተደረገ Path ው /var/data ነው
 DATA_DIR = os.environ.get("DATA_DIR", "/var/data" if os.path.exists("/var/data") else ".")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -67,7 +66,6 @@ def get_db_connection():
     if DATABASE_URL:
         import psycopg2
         import psycopg2.extras
-        # Fix Render dialect name if needed (postgres:// -> postgresql://)
         pg_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         conn = psycopg2.connect(pg_url, cursor_factory=psycopg2.extras.DictCursor)
         return conn
@@ -84,6 +82,7 @@ def init_db():
     is_postgres = bool(DATABASE_URL)
     auto_inc = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
     timestamp_type = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+    bool_type = "BOOLEAN DEFAULT FALSE" if is_postgres else "INTEGER DEFAULT 0"
 
     cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS members (
@@ -117,10 +116,17 @@ def init_db():
             amount REAL,
             receipt_path TEXT,
             status TEXT DEFAULT 'pending',
+            is_archived {bool_type},
             created_at {timestamp_type},
             FOREIGN KEY (member_id) REFERENCES members (id)
         )
     ''')
+
+    # Migration for existing database if is_archived doesn't exist
+    try:
+        cursor.execute(f"ALTER TABLE receipts ADD COLUMN is_archived {bool_type}")
+    except Exception:
+        pass
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS settings (
@@ -536,8 +542,8 @@ def submit_payment():
         receipt_file.save(save_path)
 
         cursor.execute(q('''
-            INSERT INTO receipts (member_id, ref_no, pay_type, amount, receipt_path, status)
-            VALUES (?, ?, ?, ?, ?, 'pending')
+            INSERT INTO receipts (member_id, ref_no, pay_type, amount, receipt_path, status, is_archived)
+            VALUES (?, ?, ?, ?, ?, 'pending', FALSE)
         '''), (member['id'], ref_no, pay_type, amount, save_path))
         
         receipt_id = cursor.lastrowid if not DATABASE_URL else None
@@ -682,7 +688,7 @@ def get_admin_receipts():
         SELECT r.*, m.first_name, m.father_name, m.phone_number 
         FROM receipts r
         JOIN members m ON r.member_id = m.id
-        WHERE 1=1
+        WHERE (r.is_archived IS FALSE OR r.is_archived IS NULL OR r.is_archived = 0)
     '''
     params = []
 
@@ -751,6 +757,64 @@ def process_receipt_action():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ---------------------------------------------------------
+# NEW FEATURE: Void / Delete Receipt (በስህተት የገባ ደረሰኝ መሰረዣ)
+# ---------------------------------------------------------
+@app.route('/api/admin/void-receipt/<int:receipt_id>', methods=['POST'])
+def void_receipt(receipt_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(q("SELECT * FROM receipts WHERE id = ?"), (receipt_id,))
+        receipt = cursor.fetchone()
+
+        if not receipt:
+            conn.close()
+            return jsonify({"status": "error", "message": "ደረሰኙ አልተገኘም!"}), 404
+
+        # ቀደም ብሎ Approved ከሆነ የገባውን ሂሳብ ከአባሉ ደብተር ላይ መቀነስ
+        if receipt['status'] == 'approved':
+            if receipt['pay_type'] == 'savings':
+                cursor.execute(q("UPDATE members SET paid_amount = CASE WHEN paid_amount - ? < 0 THEN 0 ELSE paid_amount - ? END WHERE id = ?"), 
+                               (receipt['amount'], receipt['amount'], receipt['member_id']))
+            elif receipt['pay_type'] == 'loan':
+                cursor.execute(q("UPDATE members SET paid_loan = CASE WHEN paid_loan - ? < 0 THEN 0 ELSE paid_loan - ? END WHERE id = ?"), 
+                               (receipt['amount'], receipt['amount'], receipt['member_id']))
+
+        cursor.execute(q("UPDATE receipts SET status = 'rejected' WHERE id = ?"), (receipt_id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success", "message": "ደረሰኙ በስኬት ተሰርዟል! ገቢውም ተቀንሷል።"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ---------------------------------------------------------
+# NEW FEATURE: Fiscal Year Reset (የበጀት ዓመት ገቢ ማስተካከያ)
+# ---------------------------------------------------------
+@app.route('/api/admin/reset-fiscal-year', methods=['POST'])
+def reset_fiscal_year():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # ሁሉንም የነበሩ የጸደቁ ደረሰኞች Archive ማድረግ (ወደ 0 Reset እንዲል)
+        if DATABASE_URL:
+            cursor.execute("UPDATE receipts SET is_archived = TRUE WHERE status = 'approved'")
+        else:
+            cursor.execute("UPDATE receipts SET is_archived = 1 WHERE status = 'approved'")
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success", "message": "የበጀት ዓመቱ ገቢ በስኬት Reset ተደርጓል!"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# ---------------------------------------------------------
+# Analytics Endpoint (በጀት ዓመቱንና የተሰረዙ ደረሰኞችን ግምት ውስጥ ያገባ)
+# ---------------------------------------------------------
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
     conn = get_db_connection()
@@ -763,17 +827,18 @@ def get_admin_analytics():
     pending_members = cursor.fetchone()[0]
 
     date_fn = "CURRENT_DATE" if DATABASE_URL else "DATE('now')"
+    archive_cond = "(is_archived IS FALSE OR is_archived IS NULL OR is_archived = 0)"
 
-    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) = {date_fn}")
+    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) = {date_fn}")
     daily_income = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= CURRENT_DATE - INTERVAL '7 days'" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', '-7 days')")
+    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND created_at >= CURRENT_DATE - INTERVAL '7 days'" if DATABASE_URL else f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) >= DATE('now', '-7 days')")
     weekly_income = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('month', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of month')")
+    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND created_at >= DATE_TRUNC('month', CURRENT_DATE)" if DATABASE_URL else f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) >= DATE('now', 'start of month')")
     monthly_income = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('year', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of year')")
+    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND created_at >= DATE_TRUNC('year', CURRENT_DATE)" if DATABASE_URL else f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND {archive_cond} AND DATE(created_at) >= DATE('now', 'start of year')")
     yearly_income = cursor.fetchone()[0]
 
     conn.close()
@@ -960,7 +1025,7 @@ def get_borrowers_status():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Sub-Admin Role Assignment Endpoint (Fixed & Flexible)
+# Sub-Admin Role Assignment Endpoint
 # ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
 @app.route('/assign-sub-admin', methods=['POST'])
@@ -968,7 +1033,6 @@ def assign_sub_admin_role():
     try:
         data = request.get_json(silent=True) or {}
         
-        # Frontend በልዩ ልዩ ስም ቢልካቸው እንኳን በአንድ ላይ ማስተናገድ
         telegram_id = sanitize_input(data.get('telegram_id') or data.get('admin_id') or data.get('user_id'))
         full_name = sanitize_input(data.get('full_name') or data.get('name'))
         role_sector = sanitize_input(data.get('role_sector') or data.get('role') or data.get('sector'))
@@ -997,7 +1061,7 @@ def assign_sub_admin_role():
             if exists:
                 cursor.execute(q("UPDATE admins SET full_name = ?, role_sector = ? WHERE telegram_id = ?"), (full_name, role_sector, telegram_id))
             else:
-                cursor.execute(q("INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"), (telegram_id, full_name, role_sector))
+                cursor.execute(q("INSERT INTO admins (telegram_id, full_name, role_sector) VALUES (?, ?, ?)"), (full_name, role_sector, telegram_id))
 
         conn.commit()
         conn.close()
