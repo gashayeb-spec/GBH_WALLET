@@ -19,6 +19,7 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 # ---------------------------------------------------------
 # Configurations & Persistent Paths (Render Storage Safe)
 # ---------------------------------------------------------
+# Render ላይ Persistent Disk Attach ከተደረገ Path ው /var/data ነው
 DATA_DIR = os.environ.get("DATA_DIR", "/var/data" if os.path.exists("/var/data") else ".")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -66,6 +67,7 @@ def get_db_connection():
     if DATABASE_URL:
         import psycopg2
         import psycopg2.extras
+        # Fix Render dialect name if needed (postgres:// -> postgresql://)
         pg_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         conn = psycopg2.connect(pg_url, cursor_factory=psycopg2.extras.DictCursor)
         return conn
@@ -165,11 +167,6 @@ def init_db():
     cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
     if not cursor.fetchone():
         cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (DEFAULT_ADMIN_PASS,))
-
-    # Default Fiscal Year Setup
-    cursor.execute("SELECT value FROM settings WHERE key = 'fiscal_year'")
-    if not cursor.fetchone():
-        cursor.execute("INSERT INTO settings (key, value) VALUES ('fiscal_year', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('fiscal_year', ?)", ('2018',))
 
     conn.commit()
     conn.close()
@@ -709,13 +706,12 @@ def get_admin_receipts():
 
     return jsonify({"status": "success", "receipts": receipts}), 200
 
-# --- የተሻሻለ/አዲስ የሪሲት Approve, Reject እና Delete (Rollback Logic) ---
 @app.route('/api/admin/receipt/action', methods=['POST'])
 def process_receipt_action():
     try:
         data = request.get_json(silent=True) or {}
         receipt_id = data.get('receipt_id')
-        action = data.get('action') # 'approve', 'reject', ወይም 'delete'
+        action = data.get('action')
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -727,51 +723,22 @@ def process_receipt_action():
             conn.close()
             return jsonify({"status": "error", "message": "ደረሰኙ አልተገኘም!"}), 404
 
-        current_status = receipt['status'].lower()
-        amount = float(receipt['amount'] or 0)
-        member_id = receipt['member_id']
-        pay_type = receipt['pay_type']
+        if receipt['status'] != 'pending':
+            conn.close()
+            return jsonify({"status": "error", "message": "ይህ ደረሰኝ ቀደም ብሎ ውሳኔ አግኝቷል!"}), 400
 
         try:
             if action == 'approve':
-                if current_status == 'approved':
-                    conn.close()
-                    return jsonify({"status": "error", "message": "ይህ ደረሰኝ ቀደም ብሎ ጽድቋል!"}), 400
-                
-                # ደብተሩን መጨመር
-                if pay_type == 'savings':
-                    cursor.execute(q("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?"), (amount, member_id))
+                if receipt['pay_type'] == 'savings':
+                    cursor.execute(q("UPDATE members SET paid_amount = paid_amount + ? WHERE id = ?"), (receipt['amount'], receipt['member_id']))
                 else:
-                    cursor.execute(q("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?"), (amount, member_id))
+                    cursor.execute(q("UPDATE members SET paid_loan = paid_loan + ? WHERE id = ?"), (receipt['amount'], receipt['member_id']))
                 
                 cursor.execute(q("UPDATE receipts SET status = 'approved' WHERE id = ?"), (receipt_id,))
                 msg = "ክፍያው በስኬት ጸድቋል፤ የደብተር ሂሳቡ ተዘምኗል!"
-
-            elif action == 'reject':
-                # ቀደም ብሎ Approved ተደርጎ ከነበረ Rollback (ከደብተር መቀነስ)
-                if current_status == 'approved':
-                    if pay_type == 'savings':
-                        cursor.execute(q("UPDATE members SET paid_amount = CASE WHEN paid_amount - ? < 0 THEN 0 ELSE paid_amount - ? END WHERE id = ?"), (amount, amount, member_id))
-                    else:
-                        cursor.execute(q("UPDATE members SET paid_loan = CASE WHEN paid_loan - ? < 0 THEN 0 ELSE paid_loan - ? END WHERE id = ?"), (amount, amount, member_id))
-                
-                cursor.execute(q("UPDATE receipts SET status = 'rejected' WHERE id = ?"), (receipt_id,))
-                msg = "ክፍያው ውድቅ ተደርጓል (ገቢውና የደብተር ሂሳቡ አስተካክሏል)!"
-
-            elif action == 'delete':
-                # ቀደም ብሎ Approved ተደርጎ ከነበረ Rollback አድርጎ ከዳታቤዝ ይሰርዛል
-                if current_status == 'approved':
-                    if pay_type == 'savings':
-                        cursor.execute(q("UPDATE members SET paid_amount = CASE WHEN paid_amount - ? < 0 THEN 0 ELSE paid_amount - ? END WHERE id = ?"), (amount, amount, member_id))
-                    else:
-                        cursor.execute(q("UPDATE members SET paid_loan = CASE WHEN paid_loan - ? < 0 THEN 0 ELSE paid_loan - ? END WHERE id = ?"), (amount, amount, member_id))
-                
-                cursor.execute(q("DELETE FROM receipts WHERE id = ?"), (receipt_id,))
-                msg = "ሪሲቱ ሙሉ በሙሉ ከዳታቤዝ ተሰርዟል!"
-
             else:
-                conn.close()
-                return jsonify({"status": "error", "message": "የተሳሳተ እርምጃ!"}), 400
+                cursor.execute(q("UPDATE receipts SET status = 'rejected' WHERE id = ?"), (receipt_id,))
+                msg = "ክፍያው ውድቅ ተደርጓል!"
 
             conn.commit()
         except Exception as tx_err:
@@ -784,41 +751,6 @@ def process_receipt_action():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- አዲስ፡ የበጀት ዓመት Setting መቀየሪያ Endpoint ---
-@app.route('/api/admin/fiscal-year', methods=['GET', 'POST'])
-def handle_fiscal_year():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    if request.method == 'POST':
-        try:
-            data = request.get_json(silent=True) or {}
-            new_year = str(data.get('fiscal_year', '')).strip()
-            if not new_year:
-                conn.close()
-                return jsonify({"status": "error", "message": "እባክዎን ትክክለኛ የበጀት ዓመት ያስገቡ!"}), 400
-            
-            upsert_query = (
-                "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
-                if DATABASE_URL else
-                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"
-            )
-            cursor.execute(upsert_query, ('fiscal_year', new_year))
-            conn.commit()
-            conn.close()
-            return jsonify({"status": "success", "message": f"የበጀት ዓመቱ ወደ {new_year} በስኬት ተቀይሯል!"}), 200
-        except Exception as e:
-            conn.close()
-            return jsonify({"status": "error", "message": str(e)}), 500
-
-    else: # GET Method
-        cursor.execute(q("SELECT value FROM settings WHERE key = 'fiscal_year'"))
-        row = cursor.fetchone()
-        conn.close()
-        current_year = row['value'] if row else '2018'
-        return jsonify({"status": "success", "fiscal_year": current_year}), 200
-
-# --- የተሻሻለ Analytics (በተመረጠው የበጀት ዓመት መሠረት ብቻ የሚያሰላ) ---
 @app.route('/api/admin/analytics', methods=['GET'])
 def get_admin_analytics():
     conn = get_db_connection()
@@ -830,75 +762,24 @@ def get_admin_analytics():
     cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
     pending_members = cursor.fetchone()[0]
 
-    # የበጀት ዓመቱን ከ settings ማግኘት
-    cursor.execute(q("SELECT value FROM settings WHERE key = 'fiscal_year'"))
-    fy_row = cursor.fetchone()
-    current_fy = fy_row['value'] if fy_row else '2018'
+    date_fn = "CURRENT_DATE" if DATABASE_URL else "DATE('now')"
 
-    if DATABASE_URL:
-        # Postgres Logic
-        # ዓመታዊ ገቢ፡ የጽድቅ ሪሲቶች የዓመት ቁጥር ከበጀት ዓመቱ ጋር እኩል ሲሆን
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND TO_CHAR(created_at, 'YYYY') = ?
-        """), (current_fy,))
-        yearly_income = cursor.fetchone()[0]
+    cursor.execute(f"SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) = {date_fn}")
+    daily_income = cursor.fetchone()[0]
 
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND TO_CHAR(created_at, 'YYYY') = ? 
-            AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-        """), (current_fy,))
-        monthly_income = cursor.fetchone()[0]
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= CURRENT_DATE - INTERVAL '7 days'" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', '-7 days')")
+    weekly_income = cursor.fetchone()[0]
 
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND TO_CHAR(created_at, 'YYYY') = ? 
-            AND created_at >= CURRENT_DATE - INTERVAL '7 days'
-        """), (current_fy,))
-        weekly_income = cursor.fetchone()[0]
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('month', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of month')")
+    monthly_income = cursor.fetchone()[0]
 
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND TO_CHAR(created_at, 'YYYY') = ? 
-            AND CURRENT_DATE = DATE(created_at)
-        """), (current_fy,))
-        daily_income = cursor.fetchone()[0]
-
-    else:
-        # SQLite Logic
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND strftime('%Y', created_at) = ?
-        """), (current_fy,))
-        yearly_income = cursor.fetchone()[0]
-
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND strftime('%Y', created_at) = ? 
-            AND strftime('%m', created_at) = strftime('%m', 'now')
-        """), (current_fy,))
-        monthly_income = cursor.fetchone()[0]
-
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND strftime('%Y', created_at) = ? 
-            AND DATE(created_at) >= DATE('now', '-7 days')
-        """), (current_fy,))
-        weekly_income = cursor.fetchone()[0]
-
-        cursor.execute(q("""
-            SELECT COALESCE(SUM(amount), 0) FROM receipts 
-            WHERE status = 'approved' AND strftime('%Y', created_at) = ? 
-            AND DATE(created_at) = DATE('now')
-        """), (current_fy,))
-        daily_income = cursor.fetchone()[0]
+    cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND created_at >= DATE_TRUNC('year', CURRENT_DATE)" if DATABASE_URL else "SELECT COALESCE(SUM(amount), 0) FROM receipts WHERE status = 'approved' AND DATE(created_at) >= DATE('now', 'start of year')")
+    yearly_income = cursor.fetchone()[0]
 
     conn.close()
 
     return jsonify({
         "status": "success",
-        "current_fiscal_year": current_fy,
         "analytics": {
             "total_members": total_members,
             "pending_members": pending_members,
@@ -1087,6 +968,7 @@ def assign_sub_admin_role():
     try:
         data = request.get_json(silent=True) or {}
         
+        # Frontend በልዩ ልዩ ስም ቢልካቸው እንኳን በአንድ ላይ ማስተናገድ
         telegram_id = sanitize_input(data.get('telegram_id') or data.get('admin_id') or data.get('user_id'))
         full_name = sanitize_input(data.get('full_name') or data.get('name'))
         role_sector = sanitize_input(data.get('role_sector') or data.get('role') or data.get('sector'))
