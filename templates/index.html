@@ -38,7 +38,7 @@
 
         .container { 
             width: 100%;
-            max-width: 600px;
+            max-width: 600px; /* ለትልልቅ ስክሪኖች ተስማሚ እንዲሆን */
             margin: 0 auto; 
         }
         
@@ -311,7 +311,6 @@
     let currentLang = 'am'; // Default Amharic
     let tg = window.Telegram ? window.Telegram.WebApp : null;
     let telegramId = "";
-    let initData = "";
     let userRefNo = "";
     let globalMemberData = null;
 
@@ -398,17 +397,6 @@
         }
     };
 
-    if (tg) {
-        tg.ready();
-        tg.expand();
-        if (tg.initData) {
-            initData = tg.initData;
-        }
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            telegramId = tg.initDataUnsafe.user.id.toString();
-        }
-    }
-
     function toggleLanguage() {
         currentLang = currentLang === 'am' ? 'en' : 'am';
         applyLanguage();
@@ -453,6 +441,14 @@
 
         if (globalMemberData) {
             renderMemberDetails(globalMemberData);
+        }
+    }
+
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            telegramId = tg.initDataUnsafe.user.id.toString();
         }
     }
 
@@ -576,11 +572,7 @@
 
     async function checkMemberStatus() {
         try {
-            const queryParams = new URLSearchParams();
-            if (telegramId) queryParams.append('telegram_id', telegramId);
-            if (initData) queryParams.append('init_data', initData);
-
-            const res = await fetch(`/api/member/status?${queryParams.toString()}`);
+            const res = await fetch(`/api/member/status?telegram_id=${telegramId}`);
             const data = await res.json();
 
             if (telegramId && data.admin_id && telegramId === data.admin_id.toString()) {
@@ -623,7 +615,6 @@
         formData.append('amount', amount);
         formData.append('receipt', receiptInput.files[0]);
         formData.append('telegram_id', telegramId);
-        formData.append('init_data', initData);
         formData.append('ref_no', userRefNo);
 
         try {
@@ -660,7 +651,6 @@
         formData.append('phone_number', document.getElementById('phoneNumber').value);
         formData.append('tin_number', document.getElementById('tinNumber').value);
         formData.append('telegram_id', telegramId);
-        formData.append('init_data', initData);
         
         formData.append('national_id', document.getElementById('nationalId').files[0]);
         formData.append('user_photo', document.getElementById('userPhoto').files[0]);
