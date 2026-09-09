@@ -123,6 +123,28 @@
             color: var(--success);
         }
 
+        /* Year Reset Box Styling */
+        .year-reset-section {
+            background: var(--card);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--gold);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .year-reset-section input {
+            padding: 8px 12px;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: white;
+            width: 160px;
+        }
+
         /* Bank Account Section */
         .bank-section {
             background: var(--card);
@@ -443,7 +465,7 @@
     <div class="analytics-header-bar">
         <h3 style="font-size: 1rem; color: var(--text);" id="lblAnalyticsTitle"><i class="fas fa-chart-line" style="color: var(--gold);"></i> የሂሳብና የገቢ ዳሽቦርድ</h3>
         
-        <!-- FISCAL YEAR DROPDOWN FILTER -->
+        <!-- FISCAL YEAR DROPDOWN FILTER (የአምናና ያለፉትን አመታት መዝገብ ማያ) -->
         <div class="fiscal-year-selector">
             <label id="lblFiscalYear"><i class="fas fa-calendar-alt"></i> የበጀት አመት መምረጫ፦</label>
             <select id="fiscalYearSelect" class="fiscal-select" onchange="loadAnalytics()">
@@ -497,6 +519,14 @@
             <h4 id="lblStatYearlyIncome">የዓመት ገቢ (Yearly)</h4>
             <div class="value success" id="statYearlyIncome">0 ብር</div>
         </div>
+    </div>
+
+    <!-- FISCAL YEAR RESET BOX (የበጀት አመት መዘጋጃና ወደ አርካይቭ ማዛወሪያ) -->
+    <div class="year-reset-section">
+        <label id="lblResetFiscalYear" style="font-weight: bold; color: var(--gold);"><i class="fas fa-history"></i> የበጀት አመት መዝጊያ (Reset Fiscal Year):</label>
+        <input type="text" id="resetYearInput" placeholder="ምሳሌ፦ 2018">
+        <button class="btn-action btn-delete" id="btnResetFiscalYear" style="padding: 9px 15px;" onclick="resetFiscalYear()"><i class="fas fa-sync-alt"></i> አመቱን ዝጋና ሪሴት አድርግ (Archive Year)</button>
+        <span style="font-size: 0.78rem; color: var(--text-muted);" id="lblResetDesc">* አመቱ ሲዘጋ የነበረው ገቢ ሳይጠፋ ወደ ታሪክ (Archive) ይዛወራል።</span>
     </div>
 
     <!-- Bank Account Setting Section -->
@@ -860,6 +890,9 @@
             lblStatWeeklyIncome: 'የሳምንት ገቢ (Weekly)',
             lblStatMonthlyIncome: 'የወር ገቢ (Monthly)',
             lblStatYearlyIncome: 'የዓመት ገቢ (Yearly)',
+            lblResetFiscalYear: '<i class="fas fa-history"></i> የበጀት አመት መዝጊያ (Reset Fiscal Year):',
+            btnResetFiscalYear: '<i class="fas fa-sync-alt"></i> አመቱን ዝጋና ሪሴት አድርግ (Archive Year)',
+            lblResetDesc: '* አመቱ ሲዘጋ የነበረው ገቢ ሳይጠፋ ወደ ታሪክ (Archive) ይዛወራል።',
             lblBankAccount: '<i class="fas fa-university"></i> የባንክ ሂሳብ መቼት (Set Bank Account):',
             btnSaveBank: '<i class="fas fa-save"></i> አስቀምጥ',
             tabMembersBtn: '<i class="fas fa-users"></i> የአባላት መዝገብ',
@@ -956,6 +989,9 @@
             lblStatWeeklyIncome: 'Weekly Income',
             lblStatMonthlyIncome: 'Monthly Income',
             lblStatYearlyIncome: 'Yearly Income',
+            lblResetFiscalYear: '<i class="fas fa-history"></i> Reset Fiscal Year:',
+            btnResetFiscalYear: '<i class="fas fa-sync-alt"></i> Reset & Archive Fiscal Year',
+            lblResetDesc: '* Archiving stores current year revenue safely in database without deletion.',
             lblBankAccount: '<i class="fas fa-university"></i> Bank Account Settings:',
             btnSaveBank: '<i class="fas fa-save"></i> Save',
             tabMembersBtn: '<i class="fas fa-users"></i> Members Registry',
@@ -1269,6 +1305,37 @@
                 document.getElementById('statYearlyIncome').innerText = (a.yearly_income || 0).toLocaleString() + ' ' + curr;
             }
         } catch (e) { console.error("Error loading analytics:", e); }
+    }
+
+    // 1.1 Reset Fiscal Year & Archive Operation (አመቱን ሳይሰርዙ መዝጋትና ወደ Archive ማዛወር)
+    async function resetFiscalYear() {
+        const resetYear = document.getElementById('resetYearInput').value.trim();
+        if (!resetYear) {
+            alert(currentLang === 'am' ? "እባክዎን የሚዘጋውን የበጀት አመት ያስገቡ! (ምሳሌ፦ 2018)" : "Please enter the fiscal year to reset/archive!");
+            return;
+        }
+
+        const confirmMsg = currentLang === 'am'
+            ? `እርግጠኛ ነዎት የ ${resetYear} የበጀት አመት ገቢን መዝጋት ይፈልጋሉ?\n(ማሳሰቢያ፦ መረጃው ወደ ታሪክ መዝገብ/Archive ስለሚዛወር በማንኛውም ጊዜ ወደ ኋላ ተመልሰው ማየት ይችላሉ!)`
+            : `Are you sure you want to close and reset the fiscal year ${resetYear}? (Data will be safely archived).`;
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const res = await fetch('/api/admin/reset_fiscal_year', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ year: resetYear })
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+                alert(data.message || (currentLang === 'am' ? `የ ${resetYear} የበጀት አመት በስኬት ተዘጋቶ ወደ መዝገብ ተዛውሯል!` : "Fiscal year successfully archived!"));
+                document.getElementById('resetYearInput').value = '';
+                loadAnalytics();
+            } else {
+                alert(data.message || "ስህተት ተከሰቷል!");
+            }
+        } catch (e) { alert("Error resetting fiscal year!"); }
     }
 
     // 2. Bank Account Management
@@ -1623,7 +1690,7 @@
         } catch (e) { alert("Error deleting member!"); }
     }
 
-    // 8. Receipts Management
+    // 8. Receipts Management (Approve, Reject, Delete ያቀፈ)
     async function loadReceipts() {
         const dateVal = document.getElementById('receiptDateFilter').value;
         const url = `/api/admin/receipts?type=${currentTab}&date=${dateVal}`;
@@ -1650,26 +1717,32 @@
                         <td style="color: var(--success); font-weight: bold;">${(r.amount || 0).toLocaleString()} ${curr}</td>
                         <td><a class="doc-link" href="${escapeHtml(r.receipt_path)}" target="_blank"><i class="fas fa-image"></i> ${currentLang==='am'?'ሪሲት ተመልከት':'View Receipt'}</a></td>
                         <td><span class="badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
-                        <td class="action-cell">-</td>
+                        <td class="action-cell"></td>
                     `;
 
-                    if (r.status === 'pending') {
-                        const actionCell = tr.querySelector('.action-cell');
-                        actionCell.innerHTML = '';
-                        
-                        const btnApprove = document.createElement('button');
-                        btnApprove.className = 'btn-action btn-approve';
-                        btnApprove.innerHTML = `<i class="fas fa-check"></i> ${currentLang==='am'?'አጽድቅ':'Approve'}`;
-                        btnApprove.onclick = () => actionReceipt(r.id, 'approve');
+                    const actionCell = tr.querySelector('.action-cell');
 
-                        const btnReject = document.createElement('button');
-                        btnReject.className = 'btn-action btn-reject';
-                        btnReject.innerHTML = `<i class="fas fa-times"></i> ${currentLang==='am'?'ሰርዝ':'Reject'}`;
-                        btnReject.onclick = () => actionReceipt(r.id, 'reject');
+                    // 1. Approve Button
+                    const btnApprove = document.createElement('button');
+                    btnApprove.className = 'btn-action btn-approve';
+                    btnApprove.innerHTML = `<i class="fas fa-check"></i> ${currentLang==='am'?'አጽድቅ':'Approve'}`;
+                    btnApprove.onclick = () => actionReceipt(r.id, 'approve');
 
-                        actionCell.appendChild(btnApprove);
-                        actionCell.appendChild(btnReject);
-                    }
+                    // 2. Reject Button
+                    const btnReject = document.createElement('button');
+                    btnReject.className = 'btn-action btn-reject';
+                    btnReject.innerHTML = `<i class="fas fa-ban"></i> ${currentLang==='am'?'ወድቅ አድርግ':'Reject'}`;
+                    btnReject.onclick = () => actionReceipt(r.id, 'reject');
+
+                    // 3. Delete Receipt Button
+                    const btnDelete = document.createElement('button');
+                    btnDelete.className = 'btn-action btn-delete';
+                    btnDelete.innerHTML = `<i class="fas fa-trash-alt"></i> ${currentLang==='am'?'ሰርዝ':'Delete'}`;
+                    btnDelete.onclick = () => deleteReceipt(r.id);
+
+                    actionCell.appendChild(btnApprove);
+                    actionCell.appendChild(btnReject);
+                    actionCell.appendChild(btnDelete);
 
                     tbody.appendChild(tr);
                 });
@@ -1696,6 +1769,21 @@
             loadReceipts();
             loadAnalytics();
         } catch (e) { alert("Error updating receipt!"); }
+    }
+
+    async function deleteReceipt(receiptId) {
+        if (!confirm(currentLang === 'am' ? "እርግጠኛ ነዎት ይህንን ደረሰኝ ሙሉ በሙሉ መሰረዝ ይፈልጋሉ?" : "Are you sure you want to delete this receipt?")) return;
+        try {
+            const res = await fetch('/api/admin/receipt/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receipt_id: receiptId })
+            });
+            const data = await res.json();
+            alert(data.message || (currentLang === 'am' ? "ደረሰኙ ተሰርዟል!" : "Receipt deleted!"));
+            loadReceipts();
+            loadAnalytics();
+        } catch (e) { alert("Error deleting receipt!"); }
     }
 
     // 9. Sub-Admin Role Operations
