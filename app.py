@@ -9,8 +9,8 @@ from telebot import types
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
+from sqlalchemy import func
 
 load_dotenv()
 
@@ -46,9 +46,8 @@ def allowed_file(filename):
 def format_file_url(path):
     if not path:
         return ""
-    if path.startswith("http://") or path.startswith("https://"):
-        return path
     filename = os.path.basename(path)
+    # የፎቶ ሊንኮች በየትኛውም ብራውዘር/አድሚን ፓናል ላይ እንዲከፈቱ በሙሉ Domain URL (Full URL) እንዲመለሱ ተደርጓል
     domain = WEB_APP_URL.rstrip('/')
     return f"{domain}/uploads/{filename}"
 
@@ -63,7 +62,14 @@ def q(query):
     return query
 
 # ---------------------------------------------------------
-# Database Connection Manager (Safer Timeout & WAL Mode)
+# Route for Serving Uploaded Files
+# ---------------------------------------------------------
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# ---------------------------------------------------------
+# Database Connection Manager (Supports SQLite & PostgreSQL)
 # ---------------------------------------------------------
 def get_db_connection():
     if DATABASE_URL:
@@ -73,8 +79,7 @@ def get_db_connection():
         conn = psycopg2.connect(pg_url, cursor_factory=psycopg2.extras.DictCursor)
         return conn
     else:
-        # Timeout ወደ 60 ሰከንድ ማሳደግ በባዛ ላይ መቆለፍን (database lock) ይከላከላል
-        conn = sqlite3.connect(DB_NAME, timeout=60)
+        conn = sqlite3.connect(DB_NAME, timeout=30)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL;")
         return conn
@@ -161,17 +166,14 @@ def init_db():
         )
     ''')
 
-    # Default Bank Account
     cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
     if not cursor.fetchone():
         cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
                        ('1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)',))
 
-    # Secure Hashed Default Admin Password
     cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
     if not cursor.fetchone():
-        hashed_default_pass = generate_password_hash(DEFAULT_ADMIN_PASS)
-        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (hashed_default_pass,))
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (DEFAULT_ADMIN_PASS,))
 
     conn.commit()
     conn.close()
@@ -179,14 +181,7 @@ def init_db():
 init_db()
 
 # ---------------------------------------------------------
-# Route for Serving Uploaded Files
-# ---------------------------------------------------------
-@app.route('/uploads/<path:filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-# ---------------------------------------------------------
-# TELEGRAM BOT HANDLERS & SAFE POLLING LAUNCHER
+# TELEGRAM BOT HANDLERS
 # ---------------------------------------------------------
 if bot:
     @bot.message_handler(commands=['start', 'admin'])
@@ -286,15 +281,13 @@ if bot:
                 bot.remove_webhook()
                 bot.infinity_polling(timeout=20, long_polling_timeout=10, skip_pending=True)
             except Exception as e:
-                print(f"Bot Polling Error: {e}")
                 time.sleep(5)
 
-    # Multi-worker/Gunicorn ላይ Conflict እንዳይፈጠር መቆጣጠሪያ
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("RUN_MAIN") == "true" or not app.debug:
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
         threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
-# Admin Authentication Endpoints (Hashed Password Safe)
+# Admin Authentication Endpoints
 # ---------------------------------------------------------
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
@@ -311,17 +304,9 @@ def admin_login():
         row = cursor.fetchone()
         conn.close()
 
-        stored_pass = row['value'] if row else None
+        stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
 
-        if stored_pass:
-            if stored_pass.startswith('pbkdf2:sha256:') or stored_pass.startswith('scrypt:'):
-                is_valid = check_password_hash(stored_pass, password)
-            else:
-                is_valid = (password == stored_pass)
-        else:
-            is_valid = (password == DEFAULT_ADMIN_PASS)
-
-        if is_valid:
+        if password == stored_pass:
             return jsonify({"success": True, "status": "success", "message": "በስኬት ገብተዋል!"}), 200
         else:
             return jsonify({"success": False, "status": "error", "message": "የተሳሳተ የይለፍ ቃል አስገብተዋል!"}), 401
@@ -336,16 +321,34 @@ def admin_login():
 def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
-        target_telegram_id = str(data.get('telegram_id') or SUPER_ADMIN_ID).strip()
+        
+        target_telegram_id = str(
+            data.get('telegram_id') or 
+            data.get('admin_id') or 
+            data.get('chat_id') or 
+            data.get('user_id') or 
+            SUPER_ADMIN_ID
+        ).strip()
+
+        if not target_telegram_id:
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": "የቴሌግራም User ID አልተገኘም!"
+            }), 400
 
         if not bot:
-            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተጀመረም!"}), 400
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": "የቴሌግራም ቦት አልተጀመረም! BOT_TOKEN መዋቀሩን ያረጋግጡ።"
+            }), 400
 
         otp_code = str(random.randint(100000, 999999))
 
         conn = get_db_connection()
         cursor = conn.cursor()
-
+        
         upsert_query = (
             "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
             if DATABASE_URL else
@@ -362,12 +365,17 @@ def send_admin_otp():
         try:
             bot.send_message(chat_id=target_telegram_id, text=msg, parse_mode="HTML")
         except Exception as telegram_err:
-            print(f"Telegram OTP Error: {telegram_err}")
-            return jsonify({"success": False, "status": "error", "message": "OTP መላክ አልተቻለም! ቦቱን (@TERAMED_Finance_bot) /start ማድረጎን ያረጋግጡ።"}), 400
+            print(f"Telegram Send Message Error: {telegram_err}")
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": f"OTP መላክ አልተቻለም! ቦቱን በቴሌግራም /start ማድረጎትን ያረጋግጡ። (User ID: {target_telegram_id})"
+            }), 400
 
         return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ቀጥታ ወደ ቴሌግራምዎ ተልኳል!"}), 200
 
     except Exception as e:
+        print(f"General Send OTP Error: {e}")
         return jsonify({"success": False, "status": "error", "message": f"የውስጥ ሰርቨር ስህተት: {str(e)}"}), 500
 
 # ---------------------------------------------------------
@@ -397,14 +405,7 @@ def change_admin_password():
             cursor.execute(q("SELECT value FROM settings WHERE key = 'admin_password'"))
             row = cursor.fetchone()
             stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
-            
-            is_valid = False
-            if stored_pass.startswith('pbkdf2:sha256:') or stored_pass.startswith('scrypt:'):
-                is_valid = check_password_hash(stored_pass, old_password)
-            else:
-                is_valid = (old_password == stored_pass)
-
-            if not is_valid:
+            if old_password != stored_pass:
                 conn.close()
                 return jsonify({"success": False, "status": "error", "message": "የድሮው የይለፍ ቃል የተሳሳተ ነው!"}), 400
 
@@ -419,20 +420,18 @@ def change_admin_password():
             conn.close()
             return jsonify({"success": False, "status": "error", "message": "እባክዎን የተላከልዎትን OTP ኮድ ያስገቡ!"}), 400
 
-        hashed_new_pass = generate_password_hash(new_password)
-
         upsert_query = (
             "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
             if DATABASE_URL else
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"
         )
-        cursor.execute(upsert_query, ('admin_password', hashed_new_pass))
+        cursor.execute(upsert_query, ('admin_password', new_password))
         cursor.execute(q("DELETE FROM settings WHERE key = 'admin_otp'"))
         cursor.execute(q("DELETE FROM settings WHERE key = 'admin_otp_time'"))
         conn.commit()
         conn.close()
 
-        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በጥበቃ በስኬት ተቀይሯል!"}), 200
+        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል!"}), 200
 
     except Exception as e:
         return jsonify({"success": False, "status": "error", "message": f"ስህተት ተከሰተ: {str(e)}"}), 500
@@ -533,9 +532,7 @@ def submit_payment():
             conn.close()
             return jsonify({"success": False, "message": "የተሳሳተ የፋይል ዓይነት! (png, jpg, jpeg, pdf ብቻ)"}), 400
 
-        # ፋይል ስሞች እንዳይደራረቡ timestamp መጨመር
-        timestamp = int(time.time())
-        filename = secure_filename(f"pay_{pay_type}_{ref_no}_{timestamp}_{receipt_file.filename}")
+        filename = secure_filename(f"pay_{pay_type}_{ref_no}_{receipt_file.filename}")
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         receipt_file.save(save_path)
 
@@ -593,31 +590,32 @@ def register_member():
                 conn.close()
                 return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
 
-        cursor.execute("SELECT COUNT(*) FROM members")
-        count_members = cursor.fetchone()[0]
-        ref_no = f"SAV-{(count_members + 1):03d}"
+        # የ ref_no ድግግሞሽ (duplicate constraint error) እንዳይፈጠር ከ MAX(id) + 1 በማድረግ ቁጥሩ በቋሚነት እንዲጨምር ተደርጓል
+        cursor.execute("SELECT MAX(id) FROM members")
+        max_id_row = cursor.fetchone()
+        max_id = max_id_row[0] if max_id_row and max_id_row[0] is not None else 0
+        ref_no = f"SAV-{(max_id + 1):03d}"
 
         nat_id_path, trade_lic_path, photo_path = "", "", ""
-        timestamp = int(time.time())
 
         if 'national_id' in files and files['national_id'].filename != '':
             f = files['national_id']
             if allowed_file(f.filename):
-                filename = secure_filename(f"{ref_no}_nid_{timestamp}_{f.filename}")
+                filename = secure_filename(f"{ref_no}_nid_{f.filename}")
                 nat_id_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(nat_id_path)
 
         if 'user_photo' in files and files['user_photo'].filename != '':
             f = files['user_photo']
             if allowed_file(f.filename):
-                filename = secure_filename(f"{ref_no}_photo_{timestamp}_{f.filename}")
+                filename = secure_filename(f"{ref_no}_photo_{f.filename}")
                 photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(photo_path)
 
         if 'trade_license' in files and files['trade_license'].filename != '':
             f = files['trade_license']
             if allowed_file(f.filename):
-                filename = secure_filename(f"{ref_no}_trade_{timestamp}_{f.filename}")
+                filename = secure_filename(f"{ref_no}_trade_{f.filename}")
                 trade_lic_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(trade_lic_path)
 
@@ -664,11 +662,10 @@ def register_member():
 def get_admin_members():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members ORDER BY id ASC")
+    cursor.execute("SELECT * FROM members ORDER BY id DESC")
     members = []
-    for idx, row in enumerate(cursor.fetchall(), start=1):
+    for row in cursor.fetchall():
         m = dict(row)
-        m['serial_number'] = idx
         m['national_id_path'] = format_file_url(m.get('national_id_path'))
         m['trade_license_path'] = format_file_url(m.get('trade_license_path'))
         m['photo_path'] = format_file_url(m.get('photo_path'))
@@ -867,14 +864,6 @@ def delete_member():
             cursor.execute(q("DELETE FROM messages WHERE ref_no = ?"), (ref_no,))
             cursor.execute(q("DELETE FROM members WHERE id = ?"), (member_id,))
             conn.commit()
-
-            cursor.execute("SELECT id FROM members ORDER BY id ASC")
-            remaining_members = cursor.fetchall()
-            for idx, m_row in enumerate(remaining_members, start=1):
-                new_ref = f"SAV-{idx:03d}"
-                cursor.execute(q("UPDATE members SET ref_no = ? WHERE id = ?"), (new_ref, m_row['id']))
-            conn.commit()
-
             conn.close()
             return jsonify({"status": "success", "message": "አባሉና የተያያዙ ፋይሎቹ ሙሉ በሙሉ ተሰርዘዋል!"}), 200
 
@@ -973,6 +962,9 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ---------------------------------------------------------
+# Sub-Admin Role Assignment Endpoint
+# ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
 @app.route('/assign-sub-admin', methods=['POST'])
 def assign_sub_admin_role():
@@ -984,7 +976,11 @@ def assign_sub_admin_role():
         role_sector = sanitize_input(data.get('role_sector') or data.get('role') or data.get('sector'))
 
         if not telegram_id or not full_name:
-            return jsonify({"success": False, "status": "error", "message": "እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"}), 400
+            return jsonify({
+                "success": False,
+                "status": "error", 
+                "message": "እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"
+            }), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -1008,20 +1004,18 @@ def assign_sub_admin_role():
         conn.commit()
         conn.close()
 
-        if bot and telegram_id:
-            try:
-                msg_text = (
-                    f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\n"
-                    f"በ<b>ተራመድ የቁጠባና ብድር ህብረት ስራ ማህበር</b> ሚኒ አፕ ላይ የ<b>{role_sector or 'አድሚን'}</b> ሀላፊነት ተሰጥቶዎታል።\n"
-                    f"አሁን የአድሚን ፓናሉን በመክፈት ስራ መጀመር ይችላሉ።"
-                )
-                bot.send_message(telegram_id, msg_text, parse_mode="HTML")
-            except Exception as admin_notify_err:
-                print(f"Sub-admin notification error: {admin_notify_err}")
-
-        return jsonify({"success": True, "status": "success", "message": f"{full_name} በስኬት ንኡስ አድሚን ሆነው ተሾመዋል!"}), 200
+        return jsonify({
+            "success": True,
+            "status": "success", 
+            "message": f"{full_name} በስኬት ንኡስ አድሚን ሆነው ተሾመዋል!"
+        }), 200
     except Exception as e:
-        return jsonify({"success": False, "status": "error", "message": f"ስህተት ተከሰተ: {str(e)}"}), 500
+        print(f"Error in assign_sub_admin_role: {e}")
+        return jsonify({
+            "success": False,
+            "status": "error", 
+            "message": f"ስህተት ተከሰተ: {str(e)}"
+        }), 500
 
 @app.route('/api/admin/announcement', methods=['POST'])
 def create_announcement():
@@ -1029,7 +1023,6 @@ def create_announcement():
         data = request.get_json(silent=True) or {}
         title = data.get('title', '').strip()
         content = data.get('content', '').strip() or data.get('message', '').strip()
-        target_ref_no = data.get('ref_no') or data.get('target_id') or data.get('member_id')
 
         if not title:
             title = "📢 ከአድሚን የተላከ ማስታወቂያ"
@@ -1045,33 +1038,23 @@ def create_announcement():
         conn.commit()
 
         if bot:
-            if target_ref_no:
-                cursor.execute(q("SELECT telegram_id FROM members WHERE (ref_no = ? OR id = ?) AND telegram_id IS NOT NULL AND telegram_id != ''"), (target_ref_no, target_ref_no))
-                single_member = cursor.fetchone()
-                if single_member and single_member['telegram_id']:
+            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
+            members = cursor.fetchall()
+            broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
+            
+            def send_broadcast():
+                for m in members:
                     try:
-                        bot.send_message(single_member['telegram_id'], f"📢 <b>{title}</b>\n\n{content}", parse_mode="HTML")
-                    except Exception as s_err:
-                        print("Single notification error:", s_err)
-            else:
-                cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
-                members = cursor.fetchall()
-                broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
-                
-                def send_broadcast():
-                    for m in members:
-                        if m and m['telegram_id']:
-                            try:
-                                bot.send_message(m['telegram_id'], broadcast_msg, parse_mode="HTML")
-                                time.sleep(0.05)
-                            except Exception:
-                                pass
+                        bot.send_message(m['telegram_id'], broadcast_msg, parse_mode="HTML")
+                        time.sleep(0.05)
+                    except Exception:
+                        pass
 
-                threading.Thread(target=send_broadcast, daemon=True).start()
+            threading.Thread(target=send_broadcast, daemon=True).start()
 
         conn.close()
 
-        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ተሰራጭቷል!"}), 200
+        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ለሁሉም አባላት ተሰራጭቷል!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
