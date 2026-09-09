@@ -326,7 +326,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Direct OTP Sending API (Fixed & Robust)
+# Direct OTP Sending API (Direct to Admin - No ID/Phone Lookup)
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -334,36 +334,16 @@ def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        raw_target = str(
-            data.get('telegram_id') or 
-            data.get('admin_id') or 
-            data.get('chat_id') or 
-            data.get('phone_number') or 
-            data.get('phone') or 
-            ""
-        ).strip()
-
-        target_telegram_id = None
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Check if input is phone or telegram ID, and lookup database
-        if raw_target:
-            cursor.execute(q("SELECT telegram_id FROM members WHERE telegram_id = ? OR phone_number = ?"), (raw_target, raw_target))
-            row = cursor.fetchone()
-            if row and row['telegram_id']:
-                target_telegram_id = str(row['telegram_id']).strip()
-            elif raw_target.isdigit() and len(raw_target) > 5:
-                target_telegram_id = raw_target
-
-        if not target_telegram_id:
-            target_telegram_id = SUPER_ADMIN_ID
+        # ከ WebApp የመጣውን telegram_id ይወስዳል፤ ካልኖረ በቀጥታ SUPER_ADMIN_ID ይጠቀማል
+        target_telegram_id = str(data.get('telegram_id') or SUPER_ADMIN_ID).strip()
 
         if not bot:
-            conn.close()
             return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተጀመረም!"}), 400
 
         otp_code = str(random.randint(100000, 999999))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
         upsert_query = (
             "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
@@ -382,7 +362,7 @@ def send_admin_otp():
             bot.send_message(chat_id=target_telegram_id, text=msg, parse_mode="HTML")
         except Exception as telegram_err:
             print(f"Telegram OTP Error: {telegram_err}")
-            return jsonify({"success": False, "status": "error", "message": f"OTP መላክ አልተቻለም! ተጠቃሚው ቦቱን (@TERAMED_Finance_bot) /start ማድረጋቸውን ያረጋግጡ።"}), 400
+            return jsonify({"success": False, "status": "error", "message": "OTP መላክ አልተቻለም! ቦቱን (@TERAMED_Finance_bot) /start ማድረጎን ያረጋግጡ።"}), 400
 
         return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ቀጥታ ወደ ቴሌግራምዎ ተልኳል!"}), 200
 
