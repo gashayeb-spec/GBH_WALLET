@@ -966,6 +966,16 @@
         }
     };
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     function changeLanguage(lang) {
         currentLang = lang;
         const t = translations[lang];
@@ -1165,16 +1175,6 @@
         } catch (e) { alert(currentLang === 'am' ? "ስህተት ተከሰቷል!" : "An error occurred!"); }
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
     // 1. Analytics Load
     async function loadAnalytics() {
         const curr = translations[currentLang].currency;
@@ -1332,7 +1332,7 @@
     function printMemberLedger(member) {
         const printWindow = window.open('', '', 'height=600,width=800');
         const curr = translations[currentLang].currency;
-        const fullName = `${member.first_name || ''} ${member.father_name || ''}`.trim();
+        const fullName = escapeHtml(`${member.first_name || ''} ${member.father_name || ''}`.trim());
         printWindow.document.write(`
             <html>
                 <head>
@@ -1352,9 +1352,9 @@
                     <h4>የአባል ሂሳብ ደብተር መግለጫ (Member Statement)</h4>
                     <hr>
                     <p><b>የአባል ስም፦</b> ${fullName}</p>
-                    <p><b>የቁጠባ No፦</b> ${member.ref_no || '-'}</p>
-                    <p><b>የብድር ሴሪ፦</b> ${member.loan_series_no || '-'}</p>
-                    <p><b>ስልክ ቁጥር፦</b> ${member.phone_number || '-'}</p>
+                    <p><b>የቁጠባ No፦</b> ${escapeHtml(member.ref_no || '-')}</p>
+                    <p><b>የብድር ሴሪ፦</b> ${escapeHtml(member.loan_series_no || '-')}</p>
+                    <p><b>ስልክ ቁጥር፦</b> ${escapeHtml(member.phone_number || '-')}</p>
                     <table>
                         <thead>
                             <tr>
