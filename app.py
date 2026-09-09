@@ -32,7 +32,6 @@ SUPER_ADMIN_ID = str(os.environ.get("ADMIN_ID", "5351353727")).strip()
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "https://gbh-wallet.onrender.com").strip()
 DEFAULT_ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "admin123").strip()
 
-# SQLite Database path inside Persistent Directory
 DB_NAME = os.path.join(DATA_DIR, "database.db")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -46,26 +45,25 @@ def allowed_file(filename):
 def format_file_url(path):
     if not path:
         return ""
-    if path.startswith("http://") or path.startswith("https://"):
-        return path
     filename = os.path.basename(path)
-    domain = WEB_APP_URL.rstrip('/')
-    return f"{domain}/uploads/{filename}"
+    return f"/uploads/{filename}"
 
 def sanitize_input(text):
     if text is None: return ""
     return html.escape(str(text).strip())
 
-# Helper for SQL Parameter Substitution
-def q(query):
-    if DATABASE_URL:
-        return query.replace('?', '%s')
-    return query
+def delete_local_file(file_path):
+    """ፋይል ከሰርቨር ማከማቻ ማፅጃ ረዳት ተግባር"""
+    try:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        print(f"File delete error ({file_path}): {e}")
 
 # ---------------------------------------------------------
 # Route for Serving Uploaded Files
 # ---------------------------------------------------------
-@app.route('/uploads/<path:filename>')
+@app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
@@ -167,22 +165,25 @@ def init_db():
         )
     ''')
 
-    # Default Bank Account
     cursor.execute("SELECT value FROM settings WHERE key = 'bank_account'")
     if not cursor.fetchone():
         cursor.execute("INSERT INTO settings (key, value) VALUES ('bank_account', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('bank_account', ?)", 
                        ('1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)',))
 
-    # Secure Hashed Default Admin Password
     cursor.execute("SELECT value FROM settings WHERE key = 'admin_password'")
     if not cursor.fetchone():
-        hashed_default_pass = generate_password_hash(DEFAULT_ADMIN_PASS)
-        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (hashed_default_pass,))
+        cursor.execute("INSERT INTO settings (key, value) VALUES ('admin_password', %s)" if is_postgres else "INSERT INTO settings (key, value) VALUES ('admin_password', ?)", (DEFAULT_ADMIN_PASS,))
 
     conn.commit()
     conn.close()
 
 init_db()
+
+# Helper for SQL Parameter Substitution
+def q(query):
+    if DATABASE_URL:
+        return query.replace('?', '%s')
+    return query
 
 # ---------------------------------------------------------
 # TELEGRAM BOT HANDLERS
@@ -214,8 +215,9 @@ if bot:
                 admin_btn = types.InlineKeyboardButton(text="⚙️ የአድሚን ፓናል (Admin Panel)", web_app=admin_web_info)
                 markup.add(admin_btn)
             
+            first_name = html.escape(message.from_user.first_name or "ደበኛ")
             welcome_msg = (
-                f"ሰላም {message.from_user.first_name}! 👋\n\n"
+                f"ሰላም {first_name}! 👋\n\n"
                 f"እንኳን ወደ **ተራመድ የቁጠባና ብድር ህብረት ስራ ማህበር** በሰላም መጡ።\n"
                 f"የቁጠባ እና የብድር አገልግሎት ለማግኘት ከታች ያለውን ቁልፍ ይጫኑ።"
             )
@@ -291,7 +293,7 @@ if bot:
         threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
-# Admin Authentication Endpoints (Hashed Password Safe)
+# Admin Authentication Endpoints
 # ---------------------------------------------------------
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
@@ -308,15 +310,13 @@ def admin_login():
         row = cursor.fetchone()
         conn.close()
 
-        stored_pass = row['value'] if row else None
+        stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
 
-        if stored_pass:
-            if stored_pass.startswith('pbkdf2:sha256:') or stored_pass.startswith('scrypt:'):
-                is_valid = check_password_hash(stored_pass, password)
-            else:
-                is_valid = (password == stored_pass)
+        # በሁለቱም (plain text እና hashed) መልኩ ማረጋገጥ
+        if stored_pass.startswith('pbkdf2:') or stored_pass.startswith('scrypt:'):
+            is_valid = check_password_hash(stored_pass, password)
         else:
-            is_valid = (password == DEFAULT_ADMIN_PASS)
+            is_valid = (password == stored_pass)
 
         if is_valid:
             return jsonify({"success": True, "status": "success", "message": "በስኬት ገብተዋል!"}), 200
@@ -326,7 +326,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Direct OTP Sending API (Fixed & Robust)
+# Direct OTP Sending API
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -334,37 +334,33 @@ def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        raw_target = str(
+        target_telegram_id = str(
             data.get('telegram_id') or 
             data.get('admin_id') or 
             data.get('chat_id') or 
-            data.get('phone_number') or 
-            data.get('phone') or 
-            ""
+            data.get('user_id') or 
+            SUPER_ADMIN_ID
         ).strip()
 
-        target_telegram_id = None
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Check if input is phone or telegram ID, and lookup database
-        if raw_target:
-            cursor.execute(q("SELECT telegram_id FROM members WHERE telegram_id = ? OR phone_number = ?"), (raw_target, raw_target))
-            row = cursor.fetchone()
-            if row and row['telegram_id']:
-                target_telegram_id = str(row['telegram_id']).strip()
-            elif raw_target.isdigit() and len(raw_target) > 5:
-                target_telegram_id = raw_target
-
         if not target_telegram_id:
-            target_telegram_id = SUPER_ADMIN_ID
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": "የቴሌግራም User ID አልተገኘም!"
+            }), 400
 
         if not bot:
-            conn.close()
-            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተጀመረም!"}), 400
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": "የቴሌግራም ቦት አልተጀመረም! BOT_TOKEN መዋቀሩን ያረጋግጡ።"
+            }), 400
 
         otp_code = str(random.randint(100000, 999999))
 
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
         upsert_query = (
             "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
             if DATABASE_URL else
@@ -381,16 +377,21 @@ def send_admin_otp():
         try:
             bot.send_message(chat_id=target_telegram_id, text=msg, parse_mode="HTML")
         except Exception as telegram_err:
-            print(f"Telegram OTP Error: {telegram_err}")
-            return jsonify({"success": False, "status": "error", "message": f"OTP መላክ አልተቻለም! ተጠቃሚው ቦቱን (@TERAMED_Finance_bot) /start ማድረጋቸውን ያረጋግጡ።"}), 400
+            print(f"Telegram Send Message Error: {telegram_err}")
+            return jsonify({
+                "success": False, 
+                "status": "error", 
+                "message": f"OTP መላክ አልተቻለም! ቦቱን በቴሌግራም /start ማድረጎትን ያረጋግጡ። (User ID: {target_telegram_id})"
+            }), 400
 
         return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ቀጥታ ወደ ቴሌግራምዎ ተልኳል!"}), 200
 
     except Exception as e:
+        print(f"General Send OTP Error: {e}")
         return jsonify({"success": False, "status": "error", "message": f"የውስጥ ሰርቨር ስህተት: {str(e)}"}), 500
 
 # ---------------------------------------------------------
-# Password Change Endpoint (Hashed Safe)
+# Password Change Endpoint
 # ---------------------------------------------------------
 @app.route('/api/admin/change-password', methods=['POST'])
 @app.route('/api/change-password', methods=['POST'])
@@ -417,12 +418,7 @@ def change_admin_password():
             row = cursor.fetchone()
             stored_pass = row['value'] if row else DEFAULT_ADMIN_PASS
             
-            is_valid = False
-            if stored_pass.startswith('pbkdf2:sha256:') or stored_pass.startswith('scrypt:'):
-                is_valid = check_password_hash(stored_pass, old_password)
-            else:
-                is_valid = (old_password == stored_pass)
-
+            is_valid = check_password_hash(stored_pass, old_password) if stored_pass.startswith(('pbkdf2:', 'scrypt:')) else (old_password == stored_pass)
             if not is_valid:
                 conn.close()
                 return jsonify({"success": False, "status": "error", "message": "የድሮው የይለፍ ቃል የተሳሳተ ነው!"}), 400
@@ -438,20 +434,20 @@ def change_admin_password():
             conn.close()
             return jsonify({"success": False, "status": "error", "message": "እባክዎን የተላከልዎትን OTP ኮድ ያስገቡ!"}), 400
 
-        hashed_new_pass = generate_password_hash(new_password)
-
+        # አዲሱን ፓስወርድ ሃሽ አድርጎ ማቀናጀት
+        hashed_password = generate_password_hash(new_password)
         upsert_query = (
             "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
             if DATABASE_URL else
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"
         )
-        cursor.execute(upsert_query, ('admin_password', hashed_new_pass))
+        cursor.execute(upsert_query, ('admin_password', hashed_password))
         cursor.execute(q("DELETE FROM settings WHERE key = 'admin_otp'"))
         cursor.execute(q("DELETE FROM settings WHERE key = 'admin_otp_time'"))
         conn.commit()
         conn.close()
 
-        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በጥበቃ በስኬት ተቀይሯል!"}), 200
+        return jsonify({"success": True, "status": "success", "message": "የይለፍ ቃሉ በስኬት ተቀይሯል!"}), 200
 
     except Exception as e:
         return jsonify({"success": False, "status": "error", "message": f"ስህተት ተከሰተ: {str(e)}"}), 500
@@ -501,7 +497,7 @@ def get_bank_account():
     cursor.execute(q("SELECT value FROM settings WHERE key = 'bank_account'"))
     row = cursor.fetchone()
     conn.close()
-    bank_info = row['value'] if row and row['value'] else "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)"
+    bank_info = row['value'] if row else "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)"
     return jsonify({"bank_account": bank_info})
 
 @app.route('/api/admin/settings/bank', methods=['POST'])
@@ -571,9 +567,11 @@ def submit_payment():
 
         if bot and SUPER_ADMIN_ID:
             type_str = "💰 የቁጠባ ገቢ" if pay_type == "savings" else "💳 የብድር ክፍያ ተመላሽ"
+            first_name = html.escape(member['first_name'] or "")
+            father_name = html.escape(member['father_name'] or "")
             caption = (
                 f"📥 <b>አዲስ የክፍያ ማረጋገጫ ተልኳል!</b>\n\n"
-                f"👤 <b>አባል:</b> {member['first_name']} {member['father_name']}\n"
+                f"👤 <b>አባል:</b> {first_name} {father_name}\n"
                 f"📞 <b>ስልክ:</b> {member['phone_number']}\n"
                 f"🆔 <b>የቁጠባ No:</b> {member['ref_no']}\n"
                 f"🔢 <b>የብድር ሴሪ:</b> {member['loan_series_no'] or 'የለውም'}\n"
@@ -611,8 +609,8 @@ def register_member():
                 return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
 
         cursor.execute("SELECT COUNT(*) FROM members")
-        count_members = cursor.fetchone()[0]
-        ref_no = f"SAV-{(count_members + 1):03d}"
+        count = cursor.fetchone()[0]
+        ref_no = f"SAV-{(count + 1):03d}"
 
         nat_id_path, trade_lic_path, photo_path = "", "", ""
 
@@ -637,6 +635,11 @@ def register_member():
                 trade_lic_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(trade_lic_path)
 
+        first_name = sanitize_input(req.get('first_name'))
+        father_name = sanitize_input(req.get('father_name'))
+        grand_name = sanitize_input(req.get('grand_name'))
+        phone_number = sanitize_input(req.get('phone_number'))
+
         cursor.execute(q('''
             INSERT INTO members (
                 ref_no, first_name, father_name, grand_name, country, 
@@ -644,10 +647,9 @@ def register_member():
                 photo_path, telegram_id, status
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         '''), (
-            ref_no, sanitize_input(req.get('first_name')), sanitize_input(req.get('father_name')),
-            sanitize_input(req.get('grand_name')), sanitize_input(req.get('country')),
-            sanitize_input(req.get('phone_number')), sanitize_input(req.get('tin_number')),
-            nat_id_path, trade_lic_path, photo_path, telegram_id
+            ref_no, first_name, father_name, grand_name,
+            sanitize_input(req.get('country')), phone_number,
+            sanitize_input(req.get('tin_number')), nat_id_path, trade_lic_path, photo_path, telegram_id
         ))
 
         new_id = cursor.lastrowid if not DATABASE_URL else None
@@ -662,8 +664,8 @@ def register_member():
             msg_text = (
                 f"🆕 <b>አዲስ የአባልነት ምዝገባ!</b>\n\n"
                 f"<b>የቁጠባ ደብተር No:</b> {ref_no}\n"
-                f"<b>ስም:</b> {req.get('first_name')} {req.get('father_name')}\n"
-                f"<b>ስልክ:</b> {req.get('phone_number')}"
+                f"<b>ስም:</b> {first_name} {father_name}\n"
+                f"<b>ስልክ:</b> {phone_number}"
             )
             markup = types.InlineKeyboardMarkup()
             markup.add(
@@ -680,11 +682,10 @@ def register_member():
 def get_admin_members():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members ORDER BY id ASC")
+    cursor.execute("SELECT * FROM members ORDER BY id DESC")
     members = []
-    for idx, row in enumerate(cursor.fetchall(), start=1):
+    for row in cursor.fetchall():
         m = dict(row)
-        m['serial_number'] = idx
         m['national_id_path'] = format_file_url(m.get('national_id_path'))
         m['trade_license_path'] = format_file_url(m.get('trade_license_path'))
         m['photo_path'] = format_file_url(m.get('photo_path'))
@@ -875,22 +876,28 @@ def delete_member():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute(q("SELECT ref_no FROM members WHERE id = ?"), (member_id,))
-        row = cursor.fetchone()
-        if row:
-            ref_no = row['ref_no']
+        cursor.execute(q("SELECT * FROM members WHERE id = ?"), (member_id,))
+        member = cursor.fetchone()
+        
+        if member:
+            ref_no = member['ref_no']
+            
+            # 1. የአባሉን መታወቂያዎችና ፎቶዎች ከሰርቨር ማፅዳት
+            delete_local_file(member['national_id_path'])
+            delete_local_file(member['trade_license_path'])
+            delete_local_file(member['photo_path'])
+            
+            # 2. የአባሉን የክፍያ ደረሰኞች ከሰርቨር ማፅዳት
+            cursor.execute(q("SELECT receipt_path FROM receipts WHERE member_id = ?"), (member_id,))
+            for rec in cursor.fetchall():
+                delete_local_file(rec['receipt_path'])
+
+            # 3. መረጃዎቹን ከ Database ማፅዳት
             cursor.execute(q("DELETE FROM receipts WHERE member_id = ?"), (member_id,))
             cursor.execute(q("DELETE FROM messages WHERE ref_no = ?"), (ref_no,))
             cursor.execute(q("DELETE FROM members WHERE id = ?"), (member_id,))
+            
             conn.commit()
-
-            cursor.execute("SELECT id FROM members ORDER BY id ASC")
-            remaining_members = cursor.fetchall()
-            for idx, m_row in enumerate(remaining_members, start=1):
-                new_ref = f"SAV-{idx:03d}"
-                cursor.execute(q("UPDATE members SET ref_no = ? WHERE id = ?"), (new_ref, m_row['id']))
-            conn.commit()
-
             conn.close()
             return jsonify({"status": "success", "message": "አባሉና የተያያዙ ፋይሎቹ ሙሉ በሙሉ ተሰርዘዋል!"}), 200
 
@@ -924,9 +931,10 @@ def send_message():
             mem = cursor.fetchone()
             if mem and mem['telegram_id']:
                 try:
+                    safe_text = html.escape(msg_text)
                     bot.send_message(
                         mem['telegram_id'], 
-                        f"📩 <b>አዲስ መልእክት ከአድሚን!</b>\n\n{msg_text}\n\n👉 ለመመለስ ሚኒ አፑን ይክፈቱ።", 
+                        f"📩 <b>አዲስ መልእክት ከአድሚን!</b>\n\n{safe_text}\n\n👉 ለመመለስ ሚኒ አፑን ይክፈቱ።", 
                         parse_mode="HTML"
                     )
                 except Exception as t_err:
@@ -990,7 +998,7 @@ def get_borrowers_status():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Sub-Admin Role Assignment Endpoint (Fixed & Fully Safe)
+# Sub-Admin Role Assignment Endpoint
 # ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
 @app.route('/assign-sub-admin', methods=['POST'])
@@ -1003,7 +1011,11 @@ def assign_sub_admin_role():
         role_sector = sanitize_input(data.get('role_sector') or data.get('role') or data.get('sector'))
 
         if not telegram_id or not full_name:
-            return jsonify({"success": False, "status": "error", "message": "እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"}), 400
+            return jsonify({
+                "success": False,
+                "status": "error", 
+                "message": "እባክዎን የቴሌግራም ID እና ሙሉ ስም ያስገቡ!"
+            }), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -1027,20 +1039,18 @@ def assign_sub_admin_role():
         conn.commit()
         conn.close()
 
-        if bot and telegram_id:
-            try:
-                msg_text = (
-                    f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\n"
-                    f"በ<b>ተራመድ የቁጠባና ብድር ህብረት ስራ ማህበር</b> ሚኒ አፕ ላይ የ<b>{role_sector or 'አድሚን'}</b> ሀላፊነት ተሰጥቶዎታል።\n"
-                    f"አሁን የአድሚን ፓናሉን በመክፈት ስራ መጀመር ይችላሉ።"
-                )
-                bot.send_message(telegram_id, msg_text, parse_mode="HTML")
-            except Exception as admin_notify_err:
-                print(f"Sub-admin notification error: {admin_notify_err}")
-
-        return jsonify({"success": True, "status": "success", "message": f"{full_name} በስኬት ንኡስ አድሚን ሆነው ተሾመዋል!"}), 200
+        return jsonify({
+            "success": True,
+            "status": "success", 
+            "message": f"{full_name} በስኬት ንኡስ አድሚን ሆነው ተሾመዋል!"
+        }), 200
     except Exception as e:
-        return jsonify({"success": False, "status": "error", "message": f"ስህተት ተከሰተ: {str(e)}"}), 500
+        print(f"Error in assign_sub_admin_role: {e}")
+        return jsonify({
+            "success": False,
+            "status": "error", 
+            "message": f"ስህተት ተከሰተ: {str(e)}"
+        }), 500
 
 @app.route('/api/admin/announcement', methods=['POST'])
 def create_announcement():
@@ -1048,7 +1058,6 @@ def create_announcement():
         data = request.get_json(silent=True) or {}
         title = data.get('title', '').strip()
         content = data.get('content', '').strip() or data.get('message', '').strip()
-        target_ref_no = data.get('ref_no') or data.get('target_id') or data.get('member_id')
 
         if not title:
             title = "📢 ከአድሚን የተላከ ማስታወቂያ"
@@ -1064,33 +1073,25 @@ def create_announcement():
         conn.commit()
 
         if bot:
-            if target_ref_no:
-                cursor.execute(q("SELECT telegram_id FROM members WHERE (ref_no = ? OR id = ?) AND telegram_id IS NOT NULL AND telegram_id != ''"), (target_ref_no, target_ref_no))
-                single_member = cursor.fetchone()
-                if single_member and single_member['telegram_id']:
+            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
+            members = cursor.fetchall()
+            safe_title = html.escape(title)
+            safe_content = html.escape(content)
+            broadcast_msg = f"📢 <b>{safe_title}</b>\n\n{safe_content}"
+            
+            def send_broadcast():
+                for m in members:
                     try:
-                        bot.send_message(single_member['telegram_id'], f"📢 <b>{title}</b>\n\n{content}", parse_mode="HTML")
-                    except Exception as s_err:
-                        print("Single notification error:", s_err)
-            else:
-                cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
-                members = cursor.fetchall()
-                broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
-                
-                def send_broadcast():
-                    for m in members:
-                        if m and m['telegram_id']:
-                            try:
-                                bot.send_message(m['telegram_id'], broadcast_msg, parse_mode="HTML")
-                                time.sleep(0.05)
-                            except Exception:
-                                pass
+                        bot.send_message(m['telegram_id'], broadcast_msg, parse_mode="HTML")
+                        time.sleep(0.05)
+                    except Exception:
+                        pass
 
-                threading.Thread(target=send_broadcast, daemon=True).start()
+            threading.Thread(target=send_broadcast, daemon=True).start()
 
         conn.close()
 
-        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ተሰራጭቷል!"}), 200
+        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ለሁሉም አባላት ተሰራጭቷል!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
