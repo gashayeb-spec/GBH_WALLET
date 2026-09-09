@@ -590,11 +590,10 @@ def register_member():
                 conn.close()
                 return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
 
-        # የ ref_no ድግግሞሽ (duplicate constraint error) እንዳይፈጠር ከ MAX(id) + 1 በማድረግ ቁጥሩ በቋሚነት እንዲጨምር ተደርጓል
-        cursor.execute("SELECT MAX(id) FROM members")
-        max_id_row = cursor.fetchone()
-        max_id = max_id_row[0] if max_id_row and max_id_row[0] is not None else 0
-        ref_no = f"SAV-{(max_id + 1):03d}"
+        # ተራ ቁጥር በዳታቤዝ ውስጥ ባለው ትክክለኛ የሰው ብዛት ላይ ተመስርቶ sequential ሆኖ እንዲሰላ ተደርጓል
+        cursor.execute("SELECT COUNT(*) FROM members")
+        count_members = cursor.fetchone()[0]
+        ref_no = f"SAV-{(count_members + 1):03d}"
 
         nat_id_path, trade_lic_path, photo_path = "", "", ""
 
@@ -662,10 +661,12 @@ def register_member():
 def get_admin_members():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members ORDER BY id DESC")
+    cursor.execute("SELECT * FROM members ORDER BY id ASC")
     members = []
-    for row in cursor.fetchall():
+    # Dynamic indexing: በዳታቤዝ ውስጥ ሰው ቢደለዝም ተራ ቁጥሩ ሁልጊዜ 1, 2, 3... እንዲሆን ይደረጋል
+    for idx, row in enumerate(cursor.fetchall(), start=1):
         m = dict(row)
+        m['serial_number'] = idx
         m['national_id_path'] = format_file_url(m.get('national_id_path'))
         m['trade_license_path'] = format_file_url(m.get('trade_license_path'))
         m['photo_path'] = format_file_url(m.get('photo_path'))
@@ -864,6 +865,15 @@ def delete_member():
             cursor.execute(q("DELETE FROM messages WHERE ref_no = ?"), (ref_no,))
             cursor.execute(q("DELETE FROM members WHERE id = ?"), (member_id,))
             conn.commit()
+
+            # አባል ሲጠፋ SAV ID በተከታታይ (SAV-001, SAV-002...) እንዲስተካከል ተደርጓል
+            cursor.execute("SELECT id FROM members ORDER BY id ASC")
+            remaining_members = cursor.fetchall()
+            for idx, m_row in enumerate(remaining_members, start=1):
+                new_ref = f"SAV-{idx:03d}"
+                cursor.execute(q("UPDATE members SET ref_no = ? WHERE id = ?"), (new_ref, m_row['id']))
+            conn.commit()
+
             conn.close()
             return jsonify({"status": "success", "message": "አባሉና የተያያዙ ፋይሎቹ ሙሉ በሙሉ ተሰርዘዋል!"}), 200
 
@@ -1004,6 +1014,18 @@ def assign_sub_admin_role():
         conn.commit()
         conn.close()
 
+        # አዲሱ አድሚን ሲሾም/Approve ሲደረግ ቀጥታ ማሳወቂያ እንዲደርሰው ተደርጓል
+        if bot and telegram_id:
+            try:
+                msg_text = (
+                    f"🎉 <b>እንኳን ደስ አለዎት!</b>\n\n"
+                    f"በ<b>ተራመድ የቁጠባና ብድር ህብረት ስራ ማህበር</b> ሚኒ አፕ ላይ የ<b>{role_sector or 'አድሚን'}</b> ሀላፊነት ተሰጥቶዎታል።\n"
+                    f"አሁን የአድሚን ፓናሉን በመክፈት ስራ መጀመር ይችላሉ።"
+                )
+                bot.send_message(telegram_id, msg_text, parse_mode="HTML")
+            except Exception as admin_notify_err:
+                print(f"Sub-admin notification error: {admin_notify_err}")
+
         return jsonify({
             "success": True,
             "status": "success", 
@@ -1023,6 +1045,7 @@ def create_announcement():
         data = request.get_json(silent=True) or {}
         title = data.get('title', '').strip()
         content = data.get('content', '').strip() or data.get('message', '').strip()
+        target_ref_no = data.get('ref_no') or data.get('target_id') or data.get('member_id')
 
         if not title:
             title = "📢 ከአድሚን የተላከ ማስታወቂያ"
@@ -1038,23 +1061,35 @@ def create_announcement():
         conn.commit()
 
         if bot:
-            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
-            members = cursor.fetchall()
-            broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
-            
-            def send_broadcast():
-                for m in members:
+            if target_ref_no:
+                # ለአንድ አባል ብቻ የሚላክ ከሆነ
+                cursor.execute(q("SELECT telegram_id FROM members WHERE (ref_no = ? OR id = ?) AND telegram_id IS NOT NULL AND telegram_id != ''"), (target_ref_no, target_ref_no))
+                single_member = cursor.fetchone()
+                if single_member and single_member['telegram_id']:
                     try:
-                        bot.send_message(m['telegram_id'], broadcast_msg, parse_mode="HTML")
-                        time.sleep(0.05)
-                    except Exception:
-                        pass
+                        bot.send_message(single_member['telegram_id'], f"📢 <b>{title}</b>\n\n{content}", parse_mode="HTML")
+                    except Exception as s_err:
+                        print("Single notification error:", s_err)
+            else:
+                # ለሁሉም አባላት የሚላክ ከሆነ
+                cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
+                members = cursor.fetchall()
+                broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
+                
+                def send_broadcast():
+                    for m in members:
+                        if m and m['telegram_id']:
+                            try:
+                                bot.send_message(m['telegram_id'], broadcast_msg, parse_mode="HTML")
+                                time.sleep(0.05)
+                            except Exception:
+                                pass
 
-            threading.Thread(target=send_broadcast, daemon=True).start()
+                threading.Thread(target=send_broadcast, daemon=True).start()
 
         conn.close()
 
-        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ለሁሉም አባላት ተሰራጭቷል!"}), 200
+        return jsonify({"status": "success", "message": "ማስታወቂያው በስኬት ተሰራጭቷል!"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
