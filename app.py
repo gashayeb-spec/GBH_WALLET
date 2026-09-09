@@ -10,6 +10,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from sqlalchemy import func
 
 load_dotenv()
 
@@ -46,7 +47,9 @@ def format_file_url(path):
     if not path:
         return ""
     filename = os.path.basename(path)
-    return f"/uploads/{filename}"
+    # የፎቶ ሊንኮች በየትኛውም ብራውዘር/አድሚን ፓናል ላይ እንዲከፈቱ በሙሉ Domain URL (Full URL) እንዲመለሱ ተደርጓል
+    domain = WEB_APP_URL.rstrip('/')
+    return f"{domain}/uploads/{filename}"
 
 def sanitize_input(text):
     if text is None: return ""
@@ -587,9 +590,11 @@ def register_member():
                 conn.close()
                 return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
 
-        cursor.execute("SELECT COUNT(*) FROM members")
-        count = cursor.fetchone()[0]
-        ref_no = f"SAV-{(count + 1):03d}"
+        # የ ref_no ድግግሞሽ (duplicate constraint error) እንዳይፈጠር ከ MAX(id) + 1 በማድረግ ቁጥሩ በቋሚነት እንዲጨምር ተደርጓል
+        cursor.execute("SELECT MAX(id) FROM members")
+        max_id_row = cursor.fetchone()
+        max_id = max_id_row[0] if max_id_row and max_id_row[0] is not None else 0
+        ref_no = f"SAV-{(max_id + 1):03d}"
 
         nat_id_path, trade_lic_path, photo_path = "", "", ""
 
