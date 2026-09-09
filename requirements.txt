@@ -4,3 +4,4 @@ pyTelegramBotAPI
 python-dotenv
 gunicorn
 psycopg2-binary
+SQLAlchemy
