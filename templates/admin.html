@@ -662,7 +662,17 @@
 <div id="forgotPasswordModal" class="modal hidden">
     <div class="modal-content">
         <h3 id="titleForgotModal"><i class="fas fa-shield-alt"></i> ፓስወርድ በቴሌግራም OTP ቀይር</h3>
-        <p id="descForgotModal" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">"OTP ላክ" የሚለውን በመጫን በቴሌግራም የመጣውን OTP እና አዲሱን ፓስወርድ ያስገቡ።</p>
+        <p id="descForgotModal" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">የቴሌግራም ID እና ስልክ ቁጥርዎን በማስገባት OTP እንዲላክሎት ያድርጉ።</p>
+
+        <div class="input-group">
+            <label id="lblTelegramIdOtp" style="color: var(--gold);">የቴሌግራም ID (Telegram Chat ID)</label>
+            <input type="text" id="otpTelegramIdInput" placeholder="ምሳሌ፦ 123456789">
+        </div>
+
+        <div class="input-group">
+            <label id="lblPhoneOtp">የተመዘገበ ስልክ ቁጥር (Phone Number)</label>
+            <input type="text" id="otpPhoneInput" placeholder="0916......">
+        </div>
 
         <div class="input-group">
             <button class="btn-action btn-edit" id="btnSendOtp" style="width: 100%; padding: 8px;" onclick="sendTelegramOTP()"><i class="fab fa-telegram-plane"></i> OTP ወደ ቴሌግራም ላክ</button>
@@ -834,7 +844,9 @@
             btnSaveNewPwd: '<i class="fas fa-save"></i> ቀይር',
             btnCloseChangePwd: 'ዝጋ',
             titleForgotModal: '<i class="fas fa-shield-alt"></i> ፓስወርድ በቴሌግራም OTP ቀይር',
-            descForgotModal: '"OTP ላክ" የሚለውን በመጫን በቴሌግራም የመጣውን OTP እና አዲሱን ፓስወርድ ያስገቡ።',
+            descForgotModal: 'የቴሌግራም ID እና ስልክ ቁጥርዎን በማስገባት OTP እንዲላክሎት ያድርጉ።',
+            lblTelegramIdOtp: 'የቴሌግራም ID (Telegram Chat ID)',
+            lblPhoneOtp: 'የተመዘገበ ስልክ ቁጥር (Phone Number)',
             btnSendOtp: '<i class="fab fa-telegram-plane"></i> OTP ወደ ቴሌግራም ላክ',
             lblOtpCode: 'በቴሌግራም የመጣው 6 አሃዝ OTP',
             lblResetPwd: 'አዲስ ፓስወርድ (New Password)',
@@ -926,7 +938,9 @@
             btnSaveNewPwd: '<i class="fas fa-save"></i> Change',
             btnCloseChangePwd: 'Close',
             titleForgotModal: '<i class="fas fa-shield-alt"></i> Reset Password via Telegram OTP',
-            descForgotModal: 'Click "Send OTP" to receive code on Telegram, then enter OTP and new password.',
+            descForgotModal: 'Enter your Telegram ID and Phone number to send OTP.',
+            lblTelegramIdOtp: 'Telegram Chat ID',
+            lblPhoneOtp: 'Registered Phone Number',
             btnSendOtp: '<i class="fab fa-telegram-plane"></i> Send OTP to Telegram',
             lblOtpCode: '6-Digit OTP Code from Telegram',
             lblResetPwd: 'New Password',
@@ -951,16 +965,6 @@
             currency: 'ETB'
         }
     };
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
 
     function changeLanguage(lang) {
         currentLang = lang;
@@ -1096,9 +1100,11 @@
         } catch (e) { alert(currentLang === 'am' ? "ፓስወርድ ሲቀየር ስህተት ተከሰቷል!" : "Error updating password!"); }
     }
 
-    // Forgot Password & Direct Telegram OTP
+    // Forgot Password & Telegram OTP Operations mapped with Telegram Chat ID & Phone Number
     function openForgotPasswordModal() {
         document.getElementById('loginModal').classList.add('hidden');
+        document.getElementById('otpTelegramIdInput').value = '';
+        document.getElementById('otpPhoneInput').value = '';
         document.getElementById('otpInput').value = '';
         document.getElementById('resetNewPassword').value = '';
         document.getElementById('forgotPasswordModal').classList.remove('hidden');
@@ -1110,11 +1116,19 @@
     }
 
     async function sendTelegramOTP() {
+        const telegramId = document.getElementById('otpTelegramIdInput').value.trim();
+        const phone = document.getElementById('otpPhoneInput').value.trim();
+
+        if (!telegramId || !phone) {
+            alert(currentLang === 'am' ? "እባክዎን የቴሌግራም ID እና ስልክ ቁጥርዎን ያስገቡ!" : "Please enter Telegram ID and Phone number!");
+            return;
+        }
+
         try {
             const res = await fetch('/api/admin/send_otp', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+                body: JSON.stringify({ telegram_id: telegramId, phone_number: phone })
             });
             const data = await res.json();
             if (data.status === "success") {
@@ -1126,11 +1140,12 @@
     }
 
     async function resetPasswordWithOTP() {
+        const telegramId = document.getElementById('otpTelegramIdInput').value.trim();
         const otp = document.getElementById('otpInput').value.trim();
         const newPwd = document.getElementById('resetNewPassword').value.trim();
 
-        if (!otp || !newPwd) {
-            alert(currentLang === 'am' ? "እባክዎን OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please enter OTP and new password!");
+        if (!telegramId || !otp || !newPwd) {
+            alert(currentLang === 'am' ? "እባክዎን የቴሌግራም ID፣ OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please enter Telegram ID, OTP, and new password!");
             return;
         }
 
@@ -1138,7 +1153,7 @@
             const res = await fetch('/api/admin/reset_password_otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ otp: otp, new_password: newPwd })
+                body: JSON.stringify({ telegram_id: telegramId, otp: otp, new_password: newPwd })
             });
             const data = await res.json();
             if (data.status === "success") {
@@ -1148,6 +1163,121 @@
                 alert(data.message || (currentLang === 'am' ? "የተሳሳተ OTP ኮድ!" : "Invalid OTP Code!"));
             }
         } catch (e) { alert(currentLang === 'am' ? "ስህተት ተከሰቷል!" : "An error occurred!"); }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Filter Members Logic
+    function filterMembers() {
+        const query = document.getElementById('searchInput').value.toLowerCase().trim();
+        if (!query) {
+            renderTable(allMembersData);
+            return;
+        }
+        const filtered = allMembersData.filter(m => {
+            const fullName = `${m.first_name || ''} ${m.father_name || ''}`.toLowerCase();
+            const phone = (m.phone_number || '').toLowerCase();
+            const refNo = (m.ref_no || '').toLowerCase();
+            const seriesNo = (m.loan_series_no || '').toLowerCase();
+            return fullName.includes(query) || phone.includes(query) || refNo.includes(query) || seriesNo.includes(query);
+        });
+        renderTable(filtered);
+    }
+
+    // Update Status Logic (Approve / Reject Member)
+    async function updateStatus(memberId, status) {
+        try {
+            const res = await fetch('/api/admin/update_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: memberId, status: status })
+            });
+            const data = await res.json();
+            alert(data.message || (currentLang === 'am' ? "ሁኔታው ተዘምኗል!" : "Status updated!"));
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("Error updating status!"); }
+    }
+
+    // Modal Operations: Direct Financial Deduct/Add
+    function openDeductModal(id, name) {
+        document.getElementById('deductMemberId').value = id;
+        document.getElementById('deductMemberName').innerText = `${currentLang === 'am' ? 'አባል' : 'Member'}: ${name}`;
+        document.getElementById('deductSavingsInput').value = '';
+        document.getElementById('deductLoanInput').value = '';
+        document.getElementById('deductModal').classList.remove('hidden');
+    }
+
+    function closeDeductModal() {
+        document.getElementById('deductModal').classList.add('hidden');
+    }
+
+    async function saveDeduction() {
+        const memberId = document.getElementById('deductMemberId').value;
+        const deductSavings = parseFloat(document.getElementById('deductSavingsInput').value) || 0;
+        const addLoan = parseFloat(document.getElementById('deductLoanInput').value) || 0;
+
+        try {
+            const res = await fetch('/api/admin/deduct_balance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_id: memberId, deduct_savings: deductSavings, add_loan_paid: addLoan })
+            });
+            const data = await res.json();
+            alert(data.message || (currentLang === 'am' ? "ሂሳቡ ተስተካክሏል!" : "Balance adjusted!"));
+            closeDeductModal();
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("Error deducting balance!"); }
+    }
+
+    // Modal Operations: Full Ledger Financial Edit
+    function openModal(id, seriesNo, paidAmount, approvedLoan, paidLoan) {
+        document.getElementById('editMemberId').value = id;
+        document.getElementById('editLoanSeriesNo').value = seriesNo || '';
+        document.getElementById('editPaidAmount').value = paidAmount || 0;
+        document.getElementById('editApprovedLoan').value = approvedLoan || 0;
+        document.getElementById('editPaidLoan').value = paidLoan || 0;
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    async function saveFinancials() {
+        const memberId = document.getElementById('editMemberId').value;
+        const seriesNo = document.getElementById('editLoanSeriesNo').value.trim();
+        const paidAmount = parseFloat(document.getElementById('editPaidAmount').value) || 0;
+        const approvedLoan = parseFloat(document.getElementById('editApprovedLoan').value) || 0;
+        const paidLoan = parseFloat(document.getElementById('editPaidLoan').value) || 0;
+
+        try {
+            const res = await fetch('/api/admin/edit_financials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    member_id: memberId,
+                    loan_series_no: seriesNo,
+                    paid_amount: paidAmount,
+                    approved_loan: approvedLoan,
+                    paid_loan: paidLoan
+                })
+            });
+            const data = await res.json();
+            alert(data.message || (currentLang === 'am' ? "መረጃው በስኬት ተስተካክሏል!" : "Ledger updated successfully!"));
+            closeModal();
+            loadMembers();
+            loadAnalytics();
+        } catch (e) { alert("Error saving financial ledger!"); }
     }
 
     // 1. Analytics Load
@@ -1307,7 +1437,7 @@
     function printMemberLedger(member) {
         const printWindow = window.open('', '', 'height=600,width=800');
         const curr = translations[currentLang].currency;
-        const fullName = escapeHtml(`${member.first_name || ''} ${member.father_name || ''}`.trim());
+        const fullName = `${member.first_name || ''} ${member.father_name || ''}`.trim();
         printWindow.document.write(`
             <html>
                 <head>
@@ -1327,9 +1457,9 @@
                     <h4>የአባል ሂሳብ ደብተር መግለጫ (Member Statement)</h4>
                     <hr>
                     <p><b>የአባል ስም፦</b> ${fullName}</p>
-                    <p><b>የቁጠባ No፦</b> ${escapeHtml(member.ref_no || '-')}</p>
-                    <p><b>የብድር ሴሪ፦</b> ${escapeHtml(member.loan_series_no || '-')}</p>
-                    <p><b>ስልክ ቁጥር፦</b> ${escapeHtml(member.phone_number || '-')}</p>
+                    <p><b>የቁጠባ No፦</b> ${member.ref_no || '-'}</p>
+                    <p><b>የብድር ሴሪ፦</b> ${member.loan_series_no || '-'}</p>
+                    <p><b>ስልክ ቁጥር፦</b> ${member.phone_number || '-'}</p>
                     <table>
                         <thead>
                             <tr>
@@ -1668,107 +1798,9 @@
                 body: JSON.stringify({ role_id: roleId })
             });
             const data = await res.json();
-            alert(data.message || "Role revoked!");
+            alert(data.message || (currentLang === 'am' ? "ሹመቱ ተሰርዟል!" : "Sub-admin revoked!"));
             loadAdminRoles();
-        } catch (e) { alert("Error revoking role!"); }
-    }
-
-    // Modal Operations for Financials
-    function openDeductModal(id, name) {
-        document.getElementById('deductMemberId').value = id;
-        document.getElementById('deductMemberName').innerText = `${currentLang==='am'?'አባል፦':'Member:'} ${name}`;
-        document.getElementById('deductSavingsInput').value = '';
-        document.getElementById('deductLoanInput').value = '';
-        document.getElementById('deductModal').classList.remove('hidden');
-    }
-
-    function closeDeductModal() {
-        document.getElementById('deductModal').classList.add('hidden');
-    }
-
-    async function saveDeduction() {
-        const id = document.getElementById('deductMemberId').value;
-        const deductSavings = document.getElementById('deductSavingsInput').value || 0;
-        const deductLoan = document.getElementById('deductLoanInput').value || 0;
-
-        try {
-            const res = await fetch('/api/admin/update_financials', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: id, deduct_savings: deductSavings, deduct_loan: deductLoan })
-            });
-            const data = await res.json();
-            alert(data.message || "Ledger updated!");
-            closeDeductModal();
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("Error saving deduction!"); }
-    }
-
-    function openModal(id, seriesNo, paid, approved, paidLoan) {
-        document.getElementById('editMemberId').value = id;
-        document.getElementById('editLoanSeriesNo').value = seriesNo;
-        document.getElementById('editPaidAmount').value = paid;
-        document.getElementById('editApprovedLoan').value = approved;
-        document.getElementById('editPaidLoan').value = paidLoan;
-        document.getElementById('editModal').classList.remove('hidden');
-    }
-
-    function closeModal() {
-        document.getElementById('editModal').classList.add('hidden');
-    }
-
-    async function saveFinancials() {
-        const id = document.getElementById('editMemberId').value;
-        const seriesNo = document.getElementById('editLoanSeriesNo').value;
-        const paid_amount = document.getElementById('editPaidAmount').value;
-        const approved_loan = document.getElementById('editApprovedLoan').value;
-        const paid_loan = document.getElementById('editPaidLoan').value;
-
-        try {
-            const res = await fetch('/api/admin/update_financials', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    member_id: id, loan_series_no: seriesNo,
-                    paid_amount: paid_amount, approved_loan: approved_loan, paid_loan: paid_loan
-                })
-            });
-            const data = await res.json();
-            alert(data.message || "Ledger updated!");
-            closeModal();
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("Error saving financials!"); }
-    }
-
-    async function updateStatus(id, status) {
-        if (!confirm(currentLang === 'am' ? `እርግጠኛ ነዎት የአባሉን ሁኔታ መቀየር ይፈልጋሉ?` : `Are you sure you want to update member status?`)) return;
-        try {
-            const res = await fetch('/api/admin/update_status', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ member_id: id, status: status })
-            });
-            const data = await res.json();
-            alert(data.message || "Status updated!");
-            loadMembers();
-            loadAnalytics();
-        } catch (e) { alert("Error updating status!"); }
-    }
-
-    function filterMembers() {
-        const q = document.getElementById('searchInput').value.toLowerCase().trim();
-        const filtered = allMembersData.filter(m => {
-            const firstName = (m.first_name || '').toLowerCase();
-            const fatherName = (m.father_name || '').toLowerCase();
-            const phone = (m.phone_number || '').toLowerCase();
-            const refNo = (m.ref_no || '').toLowerCase();
-            const seriesNo = (m.loan_series_no || '').toLowerCase();
-
-            return firstName.includes(q) || fatherName.includes(q) || phone.includes(q) || refNo.includes(q) || seriesNo.includes(q);
-        });
-        renderTable(filtered);
+        } catch (e) { alert("Error revoking sub-admin!"); }
     }
 </script>
 </body>
