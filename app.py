@@ -63,14 +63,7 @@ def q(query):
     return query
 
 # ---------------------------------------------------------
-# Route for Serving Uploaded Files
-# ---------------------------------------------------------
-@app.route('/uploads/<path:filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-# ---------------------------------------------------------
-# Database Connection Manager (Supports SQLite & PostgreSQL)
+# Database Connection Manager (Safer Timeout & WAL Mode)
 # ---------------------------------------------------------
 def get_db_connection():
     if DATABASE_URL:
@@ -80,7 +73,8 @@ def get_db_connection():
         conn = psycopg2.connect(pg_url, cursor_factory=psycopg2.extras.DictCursor)
         return conn
     else:
-        conn = sqlite3.connect(DB_NAME, timeout=30)
+        # Timeout ወደ 60 ሰከንድ ማሳደግ በባዛ ላይ መቆለፍን (database lock) ይከላከላል
+        conn = sqlite3.connect(DB_NAME, timeout=60)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL;")
         return conn
@@ -185,7 +179,14 @@ def init_db():
 init_db()
 
 # ---------------------------------------------------------
-# TELEGRAM BOT HANDLERS
+# Route for Serving Uploaded Files
+# ---------------------------------------------------------
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# ---------------------------------------------------------
+# TELEGRAM BOT HANDLERS & SAFE POLLING LAUNCHER
 # ---------------------------------------------------------
 if bot:
     @bot.message_handler(commands=['start', 'admin'])
@@ -285,9 +286,11 @@ if bot:
                 bot.remove_webhook()
                 bot.infinity_polling(timeout=20, long_polling_timeout=10, skip_pending=True)
             except Exception as e:
+                print(f"Bot Polling Error: {e}")
                 time.sleep(5)
 
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+    # Multi-worker/Gunicorn ላይ Conflict እንዳይፈጠር መቆጣጠሪያ
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or os.environ.get("RUN_MAIN") == "true" or not app.debug:
         threading.Thread(target=run_bot_polling, daemon=True).start()
 
 # ---------------------------------------------------------
@@ -326,15 +329,13 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Direct OTP Sending API (Direct to Admin - No ID/Phone Lookup)
+# Direct OTP Sending API
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
 def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
-        
-        # ከ WebApp የመጣውን telegram_id ይወስዳል፤ ካልኖረ በቀጥታ SUPER_ADMIN_ID ይጠቀማል
         target_telegram_id = str(data.get('telegram_id') or SUPER_ADMIN_ID).strip()
 
         if not bot:
@@ -370,7 +371,7 @@ def send_admin_otp():
         return jsonify({"success": False, "status": "error", "message": f"የውስጥ ሰርቨር ስህተት: {str(e)}"}), 500
 
 # ---------------------------------------------------------
-# Password Change Endpoint (Hashed Safe)
+# Password Change Endpoint
 # ---------------------------------------------------------
 @app.route('/api/admin/change-password', methods=['POST'])
 @app.route('/api/change-password', methods=['POST'])
@@ -532,7 +533,9 @@ def submit_payment():
             conn.close()
             return jsonify({"success": False, "message": "የተሳሳተ የፋይል ዓይነት! (png, jpg, jpeg, pdf ብቻ)"}), 400
 
-        filename = secure_filename(f"pay_{pay_type}_{ref_no}_{receipt_file.filename}")
+        # ፋይል ስሞች እንዳይደራረቡ timestamp መጨመር
+        timestamp = int(time.time())
+        filename = secure_filename(f"pay_{pay_type}_{ref_no}_{timestamp}_{receipt_file.filename}")
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         receipt_file.save(save_path)
 
@@ -595,25 +598,26 @@ def register_member():
         ref_no = f"SAV-{(count_members + 1):03d}"
 
         nat_id_path, trade_lic_path, photo_path = "", "", ""
+        timestamp = int(time.time())
 
         if 'national_id' in files and files['national_id'].filename != '':
             f = files['national_id']
             if allowed_file(f.filename):
-                filename = secure_filename(f"{ref_no}_nid_{f.filename}")
+                filename = secure_filename(f"{ref_no}_nid_{timestamp}_{f.filename}")
                 nat_id_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(nat_id_path)
 
         if 'user_photo' in files and files['user_photo'].filename != '':
             f = files['user_photo']
             if allowed_file(f.filename):
-                filename = secure_filename(f"{ref_no}_photo_{f.filename}")
+                filename = secure_filename(f"{ref_no}_photo_{timestamp}_{f.filename}")
                 photo_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(photo_path)
 
         if 'trade_license' in files and files['trade_license'].filename != '':
             f = files['trade_license']
             if allowed_file(f.filename):
-                filename = secure_filename(f"{ref_no}_trade_{f.filename}")
+                filename = secure_filename(f"{ref_no}_trade_{timestamp}_{f.filename}")
                 trade_lic_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 f.save(trade_lic_path)
 
@@ -969,9 +973,6 @@ def get_borrowers_status():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# ---------------------------------------------------------
-# Sub-Admin Role Assignment Endpoint (Fixed & Fully Safe)
-# ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
 @app.route('/assign-sub-admin', methods=['POST'])
 def assign_sub_admin_role():
