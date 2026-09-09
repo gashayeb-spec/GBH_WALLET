@@ -311,7 +311,6 @@ def admin_login():
         stored_pass = row['value'] if row else None
 
         if stored_pass:
-            # Backward compatibility check for plain text passwords
             if stored_pass.startswith('pbkdf2:sha256:') or stored_pass.startswith('scrypt:'):
                 is_valid = check_password_hash(stored_pass, password)
             else:
@@ -327,7 +326,7 @@ def admin_login():
         return jsonify({"success": False, "status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Direct OTP Sending API
+# Direct OTP Sending API (Fixed & Robust)
 # ---------------------------------------------------------
 @app.route('/api/admin/send-otp', methods=['POST'])
 @app.route('/api/send-otp', methods=['POST'])
@@ -335,25 +334,37 @@ def send_admin_otp():
     try:
         data = request.get_json(silent=True) or {}
         
-        target_telegram_id = str(
+        raw_target = str(
             data.get('telegram_id') or 
             data.get('admin_id') or 
             data.get('chat_id') or 
-            data.get('user_id') or 
-            SUPER_ADMIN_ID
+            data.get('phone_number') or 
+            data.get('phone') or 
+            ""
         ).strip()
 
+        target_telegram_id = None
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if input is phone or telegram ID, and lookup database
+        if raw_target:
+            cursor.execute(q("SELECT telegram_id FROM members WHERE telegram_id = ? OR phone_number = ?"), (raw_target, raw_target))
+            row = cursor.fetchone()
+            if row and row['telegram_id']:
+                target_telegram_id = str(row['telegram_id']).strip()
+            elif raw_target.isdigit() and len(raw_target) > 5:
+                target_telegram_id = raw_target
+
         if not target_telegram_id:
-            return jsonify({"success": False, "status": "error", "message": "የቴሌግራም User ID አልተገኘም!"}), 400
+            target_telegram_id = SUPER_ADMIN_ID
 
         if not bot:
+            conn.close()
             return jsonify({"success": False, "status": "error", "message": "የቴሌግራም ቦት አልተጀመረም!"}), 400
 
         otp_code = str(random.randint(100000, 999999))
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         upsert_query = (
             "INSERT INTO settings (key, value) VALUES (%s, %s) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
             if DATABASE_URL else
@@ -370,7 +381,8 @@ def send_admin_otp():
         try:
             bot.send_message(chat_id=target_telegram_id, text=msg, parse_mode="HTML")
         except Exception as telegram_err:
-            return jsonify({"success": False, "status": "error", "message": f"OTP መላክ አልተቻለም! ቦቱን /start ማድረጎትን ያረጋግጡ።"}), 400
+            print(f"Telegram OTP Error: {telegram_err}")
+            return jsonify({"success": False, "status": "error", "message": f"OTP መላክ አልተቻለም! ተጠቃሚው ቦቱን (@TERAMED_Finance_bot) /start ማድረጋቸውን ያረጋግጡ።"}), 400
 
         return jsonify({"success": True, "status": "success", "message": "OTP ኮድ ቀጥታ ወደ ቴሌግራምዎ ተልኳል!"}), 200
 
@@ -978,7 +990,7 @@ def get_borrowers_status():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Sub-Admin Role Assignment Endpoint
+# Sub-Admin Role Assignment Endpoint (Fixed & Fully Safe)
 # ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
 @app.route('/assign-sub-admin', methods=['POST'])
