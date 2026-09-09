@@ -4,6 +4,7 @@ import html
 import threading
 import time
 import random
+import mimetypes
 import telebot
 from telebot import types
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -19,7 +20,6 @@ CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 # ---------------------------------------------------------
 # Configurations & Persistent Paths (Render Storage Safe)
 # ---------------------------------------------------------
-# Render ላይ Persistent Disk Attach ከተደረገ Path ው /var/data ነው
 DATA_DIR = os.environ.get("DATA_DIR", "/var/data" if os.path.exists("/var/data") else ".")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -54,11 +54,29 @@ def sanitize_input(text):
     return html.escape(str(text).strip())
 
 # ---------------------------------------------------------
-# Route for Serving Uploaded Files
+# Route for Serving Uploaded Files (Fixed Content-Type / Image Viewer)
 # ---------------------------------------------------------
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        if ext in ['jpg', 'jpeg']:
+            mime_type = 'image/jpeg'
+        elif ext == 'png':
+            mime_type = 'image/png'
+        elif ext == 'pdf':
+            mime_type = 'application/pdf'
+        else:
+            mime_type = 'application/octet-stream'
+            
+    return send_from_directory(
+        app.config['UPLOAD_FOLDER'], 
+        filename, 
+        mimetype=mime_type, 
+        as_attachment=False
+    )
 
 # ---------------------------------------------------------
 # Database Connection Manager (Supports SQLite & PostgreSQL)
@@ -67,7 +85,6 @@ def get_db_connection():
     if DATABASE_URL:
         import psycopg2
         import psycopg2.extras
-        # Fix Render dialect name if needed (postgres:// -> postgresql://)
         pg_url = DATABASE_URL.replace("postgres://", "postgresql://", 1)
         conn = psycopg2.connect(pg_url, cursor_factory=psycopg2.extras.DictCursor)
         return conn
@@ -454,7 +471,7 @@ def get_member_status():
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(q("SELECT * FROM members WHERE telegram_id = ?"), (telegram_id,))
+    cursor.execute(q("SELECT * FROM members WHERE telegram_id = ? AND status != 'deleted'"), (telegram_id,))
     row = cursor.fetchone()
 
     if row:
@@ -515,7 +532,7 @@ def submit_payment():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(q("SELECT * FROM members WHERE ref_no = ?"), (ref_no,))
+        cursor.execute(q("SELECT * FROM members WHERE ref_no = ? AND status != 'deleted'"), (ref_no,))
         member = cursor.fetchone()
 
         if not member:
@@ -584,10 +601,16 @@ def register_member():
         
         telegram_id = sanitize_input(req.get('telegram_id'))
         if telegram_id:
-            cursor.execute(q("SELECT id FROM members WHERE telegram_id = ?"), (telegram_id,))
-            if cursor.fetchone():
-                conn.close()
-                return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
+            cursor.execute(q("SELECT id, status FROM members WHERE telegram_id = ?"), (telegram_id,))
+            existing = cursor.fetchone()
+            if existing:
+                if existing['status'] == 'deleted':
+                    # አድሚኑ ዲሊት ስላደረገው አሮጌውን መዝገብ በማጥፋት እንደ አዲስ እንዲመዘገብ መፍቀድ
+                    cursor.execute(q("DELETE FROM members WHERE id = ?"), (existing['id'],))
+                    conn.commit()
+                else:
+                    conn.close()
+                    return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
 
         cursor.execute("SELECT COUNT(*) FROM members")
         count = cursor.fetchone()[0]
@@ -659,7 +682,7 @@ def register_member():
 def get_admin_members():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members ORDER BY id DESC")
+    cursor.execute("SELECT * FROM members WHERE status != 'deleted' ORDER BY id DESC")
     members = []
     for row in cursor.fetchall():
         m = dict(row)
@@ -756,7 +779,7 @@ def get_admin_analytics():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM members")
+    cursor.execute("SELECT COUNT(*) FROM members WHERE status != 'deleted'")
     total_members = cursor.fetchone()[0]
 
     cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
@@ -853,16 +876,14 @@ def delete_member():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute(q("SELECT ref_no FROM members WHERE id = ?"), (member_id,))
+        cursor.execute(q("SELECT id FROM members WHERE id = ?"), (member_id,))
         row = cursor.fetchone()
         if row:
-            ref_no = row['ref_no']
-            cursor.execute(q("DELETE FROM receipts WHERE member_id = ?"), (member_id,))
-            cursor.execute(q("DELETE FROM messages WHERE ref_no = ?"), (ref_no,))
-            cursor.execute(q("DELETE FROM members WHERE id = ?"), (member_id,))
+            # ሙሉ በሙሉ ዳታውን ሳያጠፋ ሁኔታውን 'deleted' ያደርገዋል (Data Persistence)፤ ተጠቃሚው እንደ አዲስ እንዲመዘገብ ያመቻቻል።
+            cursor.execute(q("UPDATE members SET status = 'deleted' WHERE id = ?"), (member_id,))
             conn.commit()
             conn.close()
-            return jsonify({"status": "success", "message": "አባሉና የተያያዙ ፋይሎቹ ሙሉ በሙሉ ተሰርዘዋል!"}), 200
+            return jsonify({"status": "success", "message": "አባሉ ከዝርዝር ተሰርዟል! (ተጠቃሚው ድጋሚ መመዝገብ ይችላል)"}), 200
 
         conn.close()
         return jsonify({"status": "error", "message": "አባሉ አልተገኘም!"}), 404
@@ -929,7 +950,7 @@ def get_borrowers_status():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM members WHERE approved_loan > 0 ORDER BY id DESC")
+        cursor.execute("SELECT * FROM members WHERE approved_loan > 0 AND status != 'deleted' ORDER BY id DESC")
         borrowers = [dict(row) for row in cursor.fetchall()]
         
         categorized = []
@@ -960,7 +981,7 @@ def get_borrowers_status():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # ---------------------------------------------------------
-# Sub-Admin Role Assignment Endpoint (Fixed & Flexible)
+# Sub-Admin Role Assignment Endpoint
 # ---------------------------------------------------------
 @app.route('/api/admin/roles/assign', methods=['POST'])
 @app.route('/assign-sub-admin', methods=['POST'])
@@ -968,7 +989,6 @@ def assign_sub_admin_role():
     try:
         data = request.get_json(silent=True) or {}
         
-        # Frontend በልዩ ልዩ ስም ቢልካቸው እንኳን በአንድ ላይ ማስተናገድ
         telegram_id = sanitize_input(data.get('telegram_id') or data.get('admin_id') or data.get('user_id'))
         full_name = sanitize_input(data.get('full_name') or data.get('name'))
         role_sector = sanitize_input(data.get('role_sector') or data.get('role') or data.get('sector'))
@@ -1036,7 +1056,7 @@ def create_announcement():
         conn.commit()
 
         if bot:
-            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
+            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != '' AND status != 'deleted'")
             members = cursor.fetchall()
             broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
             
