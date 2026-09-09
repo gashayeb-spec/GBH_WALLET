@@ -662,17 +662,7 @@
 <div id="forgotPasswordModal" class="modal hidden">
     <div class="modal-content">
         <h3 id="titleForgotModal"><i class="fas fa-shield-alt"></i> ፓስወርድ በቴሌግራም OTP ቀይር</h3>
-        <p id="descForgotModal" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">የቴሌግራም ID እና ስልክ ቁጥርዎን በማስገባት OTP እንዲላክሎት ያድርጉ።</p>
-
-        <div class="input-group">
-            <label id="lblTelegramIdOtp" style="color: var(--gold);">የቴሌግራም ID (Telegram Chat ID)</label>
-            <input type="text" id="otpTelegramIdInput" placeholder="ምሳሌ፦ 123456789">
-        </div>
-
-        <div class="input-group">
-            <label id="lblPhoneOtp">የተመዘገበ ስልክ ቁጥር (Phone Number)</label>
-            <input type="text" id="otpPhoneInput" placeholder="0916......">
-        </div>
+        <p id="descForgotModal" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">"OTP ላክ" የሚለውን በመጫን በቴሌግራም የመጣውን OTP እና አዲሱን ፓስወርድ ያስገቡ።</p>
 
         <div class="input-group">
             <button class="btn-action btn-edit" id="btnSendOtp" style="width: 100%; padding: 8px;" onclick="sendTelegramOTP()"><i class="fab fa-telegram-plane"></i> OTP ወደ ቴሌግራም ላክ</button>
@@ -844,9 +834,7 @@
             btnSaveNewPwd: '<i class="fas fa-save"></i> ቀይር',
             btnCloseChangePwd: 'ዝጋ',
             titleForgotModal: '<i class="fas fa-shield-alt"></i> ፓስወርድ በቴሌግራም OTP ቀይር',
-            descForgotModal: 'የቴሌግራም ID እና ስልክ ቁጥርዎን በማስገባት OTP እንዲላክሎት ያድርጉ።',
-            lblTelegramIdOtp: 'የቴሌግራም ID (Telegram Chat ID)',
-            lblPhoneOtp: 'የተመዘገበ ስልክ ቁጥር (Phone Number)',
+            descForgotModal: '"OTP ላክ" የሚለውን በመጫን በቴሌግራም የመጣውን OTP እና አዲሱን ፓስወርድ ያስገቡ።',
             btnSendOtp: '<i class="fab fa-telegram-plane"></i> OTP ወደ ቴሌግራም ላክ',
             lblOtpCode: 'በቴሌግራም የመጣው 6 አሃዝ OTP',
             lblResetPwd: 'አዲስ ፓስወርድ (New Password)',
@@ -938,9 +926,7 @@
             btnSaveNewPwd: '<i class="fas fa-save"></i> Change',
             btnCloseChangePwd: 'Close',
             titleForgotModal: '<i class="fas fa-shield-alt"></i> Reset Password via Telegram OTP',
-            descForgotModal: 'Enter your Telegram ID and Phone number to send OTP.',
-            lblTelegramIdOtp: 'Telegram Chat ID',
-            lblPhoneOtp: 'Registered Phone Number',
+            descForgotModal: 'Click "Send OTP" to receive code on Telegram, then enter OTP and new password.',
             btnSendOtp: '<i class="fab fa-telegram-plane"></i> Send OTP to Telegram',
             lblOtpCode: '6-Digit OTP Code from Telegram',
             lblResetPwd: 'New Password',
@@ -1110,11 +1096,9 @@
         } catch (e) { alert(currentLang === 'am' ? "ፓስወርድ ሲቀየር ስህተት ተከሰቷል!" : "Error updating password!"); }
     }
 
-    // Forgot Password & Telegram OTP Operations mapped with Telegram Chat ID & Phone Number
+    // Forgot Password & Direct Telegram OTP
     function openForgotPasswordModal() {
         document.getElementById('loginModal').classList.add('hidden');
-        document.getElementById('otpTelegramIdInput').value = '';
-        document.getElementById('otpPhoneInput').value = '';
         document.getElementById('otpInput').value = '';
         document.getElementById('resetNewPassword').value = '';
         document.getElementById('forgotPasswordModal').classList.remove('hidden');
@@ -1126,19 +1110,11 @@
     }
 
     async function sendTelegramOTP() {
-        const telegramId = document.getElementById('otpTelegramIdInput').value.trim();
-        const phone = document.getElementById('otpPhoneInput').value.trim();
-
-        if (!telegramId || !phone) {
-            alert(currentLang === 'am' ? "እባክዎን የቴሌግራም ID እና ስልክ ቁጥርዎን ያስገቡ!" : "Please enter Telegram ID and Phone number!");
-            return;
-        }
-
         try {
             const res = await fetch('/api/admin/send_otp', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telegram_id: telegramId, phone_number: phone })
+                body: JSON.stringify({})
             });
             const data = await res.json();
             if (data.status === "success") {
@@ -1150,12 +1126,11 @@
     }
 
     async function resetPasswordWithOTP() {
-        const telegramId = document.getElementById('otpTelegramIdInput').value.trim();
         const otp = document.getElementById('otpInput').value.trim();
         const newPwd = document.getElementById('resetNewPassword').value.trim();
 
-        if (!telegramId || !otp || !newPwd) {
-            alert(currentLang === 'am' ? "እባክዎን የቴሌግራም ID፣ OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please enter Telegram ID, OTP, and new password!");
+        if (!otp || !newPwd) {
+            alert(currentLang === 'am' ? "እባክዎን OTP እና አዲስ ፓስወርድ ያስገቡ!" : "Please enter OTP and new password!");
             return;
         }
 
@@ -1163,7 +1138,7 @@
             const res = await fetch('/api/admin/reset_password_otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telegram_id: telegramId, otp: otp, new_password: newPwd })
+                body: JSON.stringify({ otp: otp, new_password: newPwd })
             });
             const data = await res.json();
             if (data.status === "success") {
