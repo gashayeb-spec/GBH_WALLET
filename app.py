@@ -4,7 +4,6 @@ import html
 import threading
 import time
 import random
-import mimetypes
 import telebot
 from telebot import types
 from flask import Flask, render_template, request, jsonify, send_from_directory
@@ -53,30 +52,18 @@ def sanitize_input(text):
     if text is None: return ""
     return html.escape(str(text).strip())
 
+# Helper for SQL Parameter Substitution
+def q(query):
+    if DATABASE_URL:
+        return query.replace('?', '%s')
+    return query
+
 # ---------------------------------------------------------
-# Route for Serving Uploaded Files (Fixed Content-Type / Image Viewer)
+# Route for Serving Uploaded Files
 # ---------------------------------------------------------
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if not mime_type:
-        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-        if ext in ['jpg', 'jpeg']:
-            mime_type = 'image/jpeg'
-        elif ext == 'png':
-            mime_type = 'image/png'
-        elif ext == 'pdf':
-            mime_type = 'application/pdf'
-        else:
-            mime_type = 'application/octet-stream'
-            
-    return send_from_directory(
-        app.config['UPLOAD_FOLDER'], 
-        filename, 
-        mimetype=mime_type, 
-        as_attachment=False
-    )
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ---------------------------------------------------------
 # Database Connection Manager (Supports SQLite & PostgreSQL)
@@ -189,12 +176,6 @@ def init_db():
     conn.close()
 
 init_db()
-
-# Helper for SQL Parameter Substitution
-def q(query):
-    if DATABASE_URL:
-        return query.replace('?', '%s')
-    return query
 
 # ---------------------------------------------------------
 # TELEGRAM BOT HANDLERS
@@ -471,7 +452,7 @@ def get_member_status():
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(q("SELECT * FROM members WHERE telegram_id = ? AND status != 'deleted'"), (telegram_id,))
+    cursor.execute(q("SELECT * FROM members WHERE telegram_id = ?"), (telegram_id,))
     row = cursor.fetchone()
 
     if row:
@@ -497,7 +478,7 @@ def get_bank_account():
     cursor.execute(q("SELECT value FROM settings WHERE key = 'bank_account'"))
     row = cursor.fetchone()
     conn.close()
-    bank_info = row['value'] if row else "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)"
+    bank_info = row['value'] if row and row['value'] else "1000070780201 - ኢትዮጵያ ንግድ ባንክ (ጋሻዬ በጅጉ)"
     return jsonify({"bank_account": bank_info})
 
 @app.route('/api/admin/settings/bank', methods=['POST'])
@@ -532,7 +513,7 @@ def submit_payment():
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(q("SELECT * FROM members WHERE ref_no = ? AND status != 'deleted'"), (ref_no,))
+        cursor.execute(q("SELECT * FROM members WHERE ref_no = ?"), (ref_no,))
         member = cursor.fetchone()
 
         if not member:
@@ -601,16 +582,10 @@ def register_member():
         
         telegram_id = sanitize_input(req.get('telegram_id'))
         if telegram_id:
-            cursor.execute(q("SELECT id, status FROM members WHERE telegram_id = ?"), (telegram_id,))
-            existing = cursor.fetchone()
-            if existing:
-                if existing['status'] == 'deleted':
-                    # አድሚኑ ዲሊት ስላደረገው አሮጌውን መዝገብ በማጥፋት እንደ አዲስ እንዲመዘገብ መፍቀድ
-                    cursor.execute(q("DELETE FROM members WHERE id = ?"), (existing['id'],))
-                    conn.commit()
-                else:
-                    conn.close()
-                    return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
+            cursor.execute(q("SELECT id FROM members WHERE telegram_id = ?"), (telegram_id,))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({"success": False, "message": "በዚህ የቴሌግራም አካውንት ቀደም ብለው ተመዝግበዋል!"}), 400
 
         cursor.execute("SELECT COUNT(*) FROM members")
         count = cursor.fetchone()[0]
@@ -682,7 +657,7 @@ def register_member():
 def get_admin_members():
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM members WHERE status != 'deleted' ORDER BY id DESC")
+    cursor.execute("SELECT * FROM members ORDER BY id DESC")
     members = []
     for row in cursor.fetchall():
         m = dict(row)
@@ -779,7 +754,7 @@ def get_admin_analytics():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT COUNT(*) FROM members WHERE status != 'deleted'")
+    cursor.execute("SELECT COUNT(*) FROM members")
     total_members = cursor.fetchone()[0]
 
     cursor.execute("SELECT COUNT(*) FROM members WHERE status = 'pending'")
@@ -876,14 +851,16 @@ def delete_member():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute(q("SELECT id FROM members WHERE id = ?"), (member_id,))
+        cursor.execute(q("SELECT ref_no FROM members WHERE id = ?"), (member_id,))
         row = cursor.fetchone()
         if row:
-            # ሙሉ በሙሉ ዳታውን ሳያጠፋ ሁኔታውን 'deleted' ያደርገዋል (Data Persistence)፤ ተጠቃሚው እንደ አዲስ እንዲመዘገብ ያመቻቻል።
-            cursor.execute(q("UPDATE members SET status = 'deleted' WHERE id = ?"), (member_id,))
+            ref_no = row['ref_no']
+            cursor.execute(q("DELETE FROM receipts WHERE member_id = ?"), (member_id,))
+            cursor.execute(q("DELETE FROM messages WHERE ref_no = ?"), (ref_no,))
+            cursor.execute(q("DELETE FROM members WHERE id = ?"), (member_id,))
             conn.commit()
             conn.close()
-            return jsonify({"status": "success", "message": "አባሉ ከዝርዝር ተሰርዟል! (ተጠቃሚው ድጋሚ መመዝገብ ይችላል)"}), 200
+            return jsonify({"status": "success", "message": "አባሉና የተያያዙ ፋይሎቹ ሙሉ በሙሉ ተሰርዘዋል!"}), 200
 
         conn.close()
         return jsonify({"status": "error", "message": "አባሉ አልተገኘም!"}), 404
@@ -950,7 +927,7 @@ def get_borrowers_status():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM members WHERE approved_loan > 0 AND status != 'deleted' ORDER BY id DESC")
+        cursor.execute("SELECT * FROM members WHERE approved_loan > 0 ORDER BY id DESC")
         borrowers = [dict(row) for row in cursor.fetchall()]
         
         categorized = []
@@ -1056,7 +1033,7 @@ def create_announcement():
         conn.commit()
 
         if bot:
-            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != '' AND status != 'deleted'")
+            cursor.execute("SELECT telegram_id FROM members WHERE telegram_id IS NOT NULL AND telegram_id != ''")
             members = cursor.fetchall()
             broadcast_msg = f"📢 <b>{title}</b>\n\n{content}"
             
